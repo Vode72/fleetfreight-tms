@@ -1,0 +1,20 @@
+/*
+ * PLACEHOLDER tokens for phase 1B. The real themes (Business Light and Control Dark)
+ * and the semantic tokens (status, capacity, severity, ADR, GDP, thermo) arrive in 1C.
+ * Components must only reference these variables, never literal colours.
+ */
+:root {
+  --color-bg: #f4f1ea;
+  --color-surface: #ffffff;
+  --color-text: #24292f;
+  --color-text-muted: #57606a;
+  --color-border: #d0cbbf;
+  --color-accent: #1f5fbf;
+  --color-ok: #1a7f37;
+  --color-warn: #9a6700;
+  --color-error: #cf222e;
+  --font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+}

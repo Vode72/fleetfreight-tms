@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "FleetFreight TMS"
+  },
+  "health": {
+    "title": "Taustajärjestelmän tila",
+    "loading": "Tarkistetaan taustajärjestelmää...",
+    "ok": "Taustajärjestelmä ja tietokanta toimivat",
+    "databaseDown": "Taustajärjestelmä toimii, mutta tietokanta on alhaalla",
+    "unreachable": "Taustajärjestelmä ei vastaa",
+    "retry": "Tarkista uudelleen"
+  }
+}

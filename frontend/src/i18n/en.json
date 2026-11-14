@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "FleetFreight TMS"
+  },
+  "health": {
+    "title": "Backend status",
+    "loading": "Checking backend...",
+    "ok": "Backend and database are running",
+    "databaseDown": "Backend is running but the database is down",
+    "unreachable": "Backend is not responding",
+    "retry": "Check again"
+  }
+}
