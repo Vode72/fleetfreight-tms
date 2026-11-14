@@ -58,6 +58,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D31 | Demodatan kotimaan terminaaliverkosto, viisi terminaalia: **pääkaupunkiseutu (Demo Terminal Central), Turku, Tampere, Kuopio ja Oulu**. Väli noin 150–300 km, joten terminaalin alue on päiväajon päässä edestakaisin. Jyväskylän seutu hoidetaan Tampereelta tai Kuopiosta. Nimet keksittyjä (Demo Terminal + kaupunki), koordinaatit kaupungin yleiseen keskipisteeseen | Hyväksytty 14.11.2026 | Toni, chat |
 | D32 | **Kaikissa terminaaleissa on lastauslaiturit**, joten perästä purku onnistuu kaikkialla (perälautaorderien terminaaliflow D25 toimii jokaisessa terminaalissa) | Hyväksytty 14.11.2026 | Toni, chat |
 | D33 | **Lämpötilasäädelty käsittely kolmessa terminaalissa: Central, Tampere ja Oulu** (kylmätila ja kylmäkoneiden sähköpistokkeet). Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Hyväksytty 14.11.2026 | Toni, chat |
+| D34 | Käyttöliittymä on **kaksikielinen (englanti ja suomi), vaihdettavissa** asetuksista. Kaikki tekstit käännöstiedostoissa alusta asti, ei kovakoodattuja tekstejä komponenteissa. Oletuskieli englanti | Hyväksytty 14.11.2026 (oletuskieli: Oletus) | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
