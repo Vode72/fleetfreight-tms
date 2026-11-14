@@ -56,6 +56,8 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D29 | Uuden projektin nimi on **FleetFreight TMS** (repo `fleetfreight-tms`) | Hyväksytty 14.11.2026 | Toni, chat |
 | D30 | Live-seuranta demossa: simuloidut sijainnit legien suunnitelluista ajoista ja FEC-kuittauksista, välitetään FastAPI-WebSocketilla Leaflet-karttaan. Ei oikeaa GPS-dataa | Ehdotus | chat 14.11. |
 | D31 | Demodatan kotimaan terminaaliverkosto: pääkaupunkiseutu (Demo Terminal Central), **Turku, Tampere, Jyväskylä, Kuopio ja Oulu**. Nimet keksittyjä (Demo Terminal + kaupunki), koordinaatit kaupungin yleiseen keskipisteeseen, ei oikeiden toimipaikkojen sijainteihin | Hyväksytty 14.11.2026 | Toni, chat |
+| D32 | **Kaikissa terminaaleissa on lastauslaiturit**, joten perästä purku onnistuu kaikkialla (perälautaorderien terminaaliflow D25 toimii jokaisessa terminaalissa) | Hyväksytty 14.11.2026 | Toni, chat |
+| D33 | **Lämpötilasäädelty käsittely osassa terminaaleista:** kylmätila ja kylmäkoneiden sähköpistokkeet. Ehdotus: Central, Tampere ja Oulu. Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Ehdotus (terminaalit valittavissa) | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -178,7 +180,7 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 | orders | kuorma | asiakastilaus, osapuolet, tavara, aikaikkunat, vaatimukset (ADR, lämpötila, perälauta) |
 | order_nodes | kuorma | orderin käsittely Nodessa: LOAD / UNLOAD / REMAIN, suunniteltu ja toteutunut. Orderin reititys johdetaan tästä ja legeistä |
 | trips | kuorma | operatiivinen kuljetuskokonaisuus: traileri, lautta, statusketju |
-| locations | yhteinen | asiakkaat, terminaalit ja satamat koordinaatteineen (nykyinen `terminals` laajenee) |
+| locations | yhteinen | asiakkaat, terminaalit ja satamat koordinaatteineen. Terminaaleilla: lastauslaiturit (D32), kylmätila ja lämpötila-alue sekä kylmäkonepistokkeiden määrä (D33) |
 | handling_events | kuorma | IOP, IOD, POD, UNLOAD, LOAD: suunniteltu ja toteutunut aika |
 | drivers | resurssi | kuljettaja, kuljetusyhtiö, kortit, ADR-pätevyys |
 | nodes | kuorma / resurssi | keikan pisteet järjestyksessä: sijainti, tyyppi (vetäjän lähtö, trailerin nouto, terminaali, lastaus, purku, satama lähtö / saapuminen, korjaamo, katsastus, pesu, kuljettajanvaihto), live / drop, aikaikkuna, suunniteltu / ennustettu / toteutunut aika |
