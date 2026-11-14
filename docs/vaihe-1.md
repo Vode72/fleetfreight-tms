@@ -9,7 +9,7 @@ Vaiheessa ei vielä tehdä toimialuelogiikkaa.
 
 | Asia | Valinta |
 |---|---|
-| Python | 3.13, riippuvuudet `uv` |
+| Python | 3.15, riippuvuudet `uv`. Jos jokin riippuvuus ei vielä tue 3.15:tä, siitä kerrotaan PR:ssä eikä versiota lasketa hiljaa |
 | Node | 22 LTS |
 | Tietokanta | PostgreSQL 17 (Docker Compose) |
 | Backendin laatu | ruff (lint ja muotoilu), mypy (tyypit), pytest |
@@ -70,7 +70,7 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 - **Valmis kun:** kirjautumaton käyttäjä ei pääse mihinkään muualle kuin kirjautumissivulle, ja roolitarkistus on testattu
 
 ### 1E CI
-- GitHub Actions, backend: ruff, mypy ja pytest oikeaa PostgreSQL:ää vasten
+- GitHub Actions, backend: ruff, mypy ja pytest oikeaa PostgreSQL:ää vasten Python 3.15:llä
 - GitHub Actions, frontend: typecheck, lint, test ja build
 - Tarkistus, että generoidut API-tyypit vastaavat backendin nykyistä OpenAPI-kuvausta
 - **Valmis kun:** jokainen PR ajaa tarkistukset automaattisesti
