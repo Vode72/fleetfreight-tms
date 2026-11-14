@@ -22,7 +22,7 @@ React, TypeScript (strict), Vite, Vitest, ESLint, Leaflet.
    Jokaisella näkymällä on lataus-, tyhjä- ja virhetila, ja tallennuksesta tulee ilmoitus.
    Järjestelmä ehdottaa, käyttäjä hyväksyy: ehdotukset näytetään erillään hyväksytystä suunnitelmasta.
 6. Pienet komponentit, yksi vastuu. Datan haku omissa hookeissaan.
-7. **Käyttöliittymän kieli on avoin päätös.** Kysy ennen ensimmäistä näkymää, jos sitä ei ole päätetty.
+7. **Kaksikielinen UI (D34):** kaikki tekstit käännösavaimina, ja jokainen uusi teksti lisätään sekä `en`- että `fi`-tiedostoon. Ei kovakoodattuja tekstejä. Testi varmistaa, että kielitiedostoissa on samat avaimet.
 8. Aja `typecheck`, `lint`, `test` ja `build` ennen kuin ilmoitat valmiiksi.
 
 

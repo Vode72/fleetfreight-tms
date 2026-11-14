@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D33).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D34).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -66,7 +66,9 @@ Käynnistys- ja testikomennot lisätään tähän vaiheessa 1, kun runko on olem
 
 - Koodi, nimet, kommentit ja commit-viestit englanniksi
 - Dokumentaatio (`docs/`) suomeksi, README englanniksi
-- **Käyttöliittymän kieli: avoin päätös** (Freight Planner oli suomeksi, FleetFlow englanniksi). Kysy Tonilta ennen ensimmäistä näkymää.
+- **Käyttöliittymä on kaksikielinen, englanti ja suomi (D34).** Kaikki käyttäjälle näkyvät tekstit käännösavaimina
+  käännöstiedostoissa (`en` ja `fi`), ei kovakoodattuja tekstejä komponenteissa. Uusi teksti lisätään aina molemmille kielille.
+  Oletuskieli englanti.
 
 ---
 
