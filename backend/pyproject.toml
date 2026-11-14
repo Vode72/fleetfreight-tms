@@ -1,0 +1,42 @@
+[project]
+name = "fleetfreight-backend"
+version = "0.1.0"
+description = "FleetFreight TMS backend"
+requires-python = ">=3.15"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic-settings>=2.4",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx2",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py315"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF"]
+
+[tool.mypy]
+python_version = "3.15"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app", "db", "domain", "migrations", "tests"]
