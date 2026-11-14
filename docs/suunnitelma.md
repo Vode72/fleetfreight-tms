@@ -55,6 +55,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D28 | Raha tallennetaan PostgreSQL:ssä kokonaislukuina (`*_cents` ×100, `*_e4` ×10 000), laskenta `Decimal`. Freight Plannerin `money.py` ja sen testit siirtyvät muuttamatta | Hyväksytty 14.11.2026 | Toni, chat |
 | D29 | Uuden projektin nimi on **FleetFreight TMS** (repo `fleetfreight-tms`) | Hyväksytty 14.11.2026 | Toni, chat |
 | D30 | Live-seuranta demossa: simuloidut sijainnit legien suunnitelluista ajoista ja FEC-kuittauksista, välitetään FastAPI-WebSocketilla Leaflet-karttaan. Ei oikeaa GPS-dataa | Ehdotus | chat 14.11. |
+| D31 | Demodatan kotimaan terminaaliverkosto: pääkaupunkiseutu (Demo Terminal Central), **Turku, Tampere, Jyväskylä, Kuopio ja Oulu**. Nimet keksittyjä (Demo Terminal + kaupunki), koordinaatit kaupungin yleiseen keskipisteeseen, ei oikeiden toimipaikkojen sijainteihin | Hyväksytty 14.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
