@@ -2,6 +2,89 @@
   "app": {
     "name": "FleetFreight TMS"
   },
+  "layout": {
+    "skipToContent": "Skip to main content",
+    "settings": "Display settings"
+  },
+  "theme": {
+    "label": "Theme",
+    "businessLight": "Business Light",
+    "controlDark": "Control Dark"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "fi": "Suomi"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "dashboard": "Dashboard",
+    "sections": {
+      "loadPlanning": "Load planning",
+      "trafficPlanning": "Traffic planning",
+      "administration": "Administration"
+    },
+    "items": {
+      "orders": "Orders",
+      "trips": "Trips",
+      "customers": "Customers",
+      "board": "Board",
+      "jobWorkspace": "Job workspace",
+      "fleetTimeline": "Fleet timeline",
+      "routeRisk": "Route & risk",
+      "fleetPartners": "Fleet & partners",
+      "pricing": "Pricing",
+      "settings": "Settings"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "tabsLabel": "Dashboard sections",
+    "tabs": {
+      "overview": "Overview",
+      "themePreview": "Theme preview"
+    }
+  },
+  "placeholder": {
+    "title": "Coming soon",
+    "description": "This view is not built yet. It arrives in a later phase."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "There is no such view.",
+    "back": "Back to the dashboard"
+  },
+  "preview": {
+    "status": "Status",
+    "capacity": "Capacity",
+    "severity": "Constraint severity",
+    "badges": "Qualifications",
+    "statuses": {
+      "planned": "Planned",
+      "confirmed": "Confirmed",
+      "inProgress": "In progress",
+      "delivered": "Delivered",
+      "invoiced": "Invoiced",
+      "cancelled": "Cancelled"
+    },
+    "capacityLevels": {
+      "ok": "OK",
+      "warn": "Near limit",
+      "over": "Over limit"
+    },
+    "severities": {
+      "red": "Red: blocking",
+      "orange": "Orange: warning",
+      "yellow": "Yellow: notice"
+    },
+    "badgeNames": {
+      "adr": "ADR",
+      "gdp": "GDP",
+      "thermo": "Thermo"
+    }
+  },
   "health": {
     "title": "Backend status",
     "loading": "Checking backend...",

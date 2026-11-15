@@ -1,8 +1,9 @@
+import type { ParseKeys } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { useHealth, type HealthState } from "./useHealth";
 
-const MESSAGE_KEYS: Record<HealthState, string> = {
+const MESSAGE_KEYS: Record<HealthState, ParseKeys> = {
   loading: "health.loading",
   ok: "health.ok",
   "database-down": "health.databaseDown",

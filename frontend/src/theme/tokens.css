@@ -1,20 +1,168 @@
 /*
- * PLACEHOLDER tokens for phase 1B. The real themes (Business Light and Control Dark)
- * and the semantic tokens (status, capacity, severity, ADR, GDP, thermo) arrive in 1C.
- * Components must only reference these variables, never literal colours.
+ * Design tokens (D9, D10). This is the only place where literal colours are allowed.
+ * Components and layout styles reference these variables only.
+ *
+ * Base colours come from docs/suunnitelma.md, chapter 3 "Teemat (D9, D10)".
+ * The theme is selected with the data-theme attribute on <html>.
+ *
+ * Contrast rules (enforced by contrast.test.ts, WCAG 2.x AA):
+ *  - --text-main reaches 4.5:1 on every surface.
+ *  - --text-muted and --accent (the planned base colours) reach 4.5:1 only on --panel-bg
+ *    (and on --bg-main in Control Dark). On other surfaces use --text-muted-strong and
+ *    --accent-text, which reach 4.5:1 on every surface.
+ *  - Semantic tokens: the colour reaches 4.5:1 as text on its own --*-bg tint and on
+ *    --panel-bg, and 3:1 as a fill. Never rely on colour alone: pair it with a label or icon.
  */
+
+/* Shared, theme independent tokens */
 :root {
-  --color-bg: #f4f1ea;
-  --color-surface: #ffffff;
-  --color-text: #24292f;
-  --color-text-muted: #57606a;
-  --color-border: #d0cbbf;
-  --color-accent: #1f5fbf;
-  --color-ok: #1a7f37;
-  --color-warn: #9a6700;
-  --color-error: #cf222e;
-  --font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 16px;
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: ui-monospace, "SF Mono", Consolas, monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 15px;
+  --font-size-xl: 18px;
+  --line-height: 1.4;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  --topbar-height: 40px;
+  --sidebar-width: 224px;
+  --sidebar-width-collapsed: 48px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 1px;
+}
+
+[data-theme="business-light"] {
+  color-scheme: light;
+
+  /* Base (plan) */
+  --bg-main: #f3efe7;
+  --panel-bg: #fbf8f1;
+  --panel-header: #e6ded2;
+  --border: #c9bfb0;
+  --text-main: #1f2933;
+  --text-muted: #6b7280;
+  --accent: #0a6ed1;
+
+  /* Derived surfaces and text */
+  --surface-hover: #efe9dc;
+  --surface-selected: #dce8f6;
+  --text-muted-strong: #565d69;
+  --accent-text: #0a5fb8;
+  --accent-contrast: #ffffff;
+  --border-strong: #8f8576;
+
+  /* Focus and shadows */
+  --focus-ring: #0a6ed1;
+  --shadow-sm: 0 1px 2px rgb(31 41 51 / 12%);
+  --shadow-md: 0 4px 12px rgb(31 41 51 / 16%);
+
+  /* Order, trip and job status */
+  --status-planned: #475569;
+  --status-planned-bg: #e4e0d6;
+  --status-confirmed: #0b5cad;
+  --status-confirmed-bg: #dbe8f7;
+  --status-in-progress: #8a4b00;
+  --status-in-progress-bg: #fbe8c8;
+  --status-delivered: #1a6b3a;
+  --status-delivered-bg: #d9eedf;
+  --status-invoiced: #6b3fb0;
+  --status-invoiced-bg: #eae1f6;
+  --status-cancelled: #a32626;
+  --status-cancelled-bg: #f6dddd;
+
+  /* Capacity bars */
+  --capacity-track: #efe9dc;
+  --capacity-ok: #23823f;
+  --capacity-warn: #c05f00;
+  --capacity-over: #c9302c;
+
+  /* Constraint severity */
+  --severity-red: #b42318;
+  --severity-red-bg: #fbe0dd;
+  --severity-orange: #a84a00;
+  --severity-orange-bg: #fde4cc;
+  --severity-yellow: #7a5c00;
+  --severity-yellow-bg: #f8ecb8;
+
+  /* Qualification badges */
+  --badge-adr: #b33a00;
+  --badge-adr-bg: #fddccb;
+  --badge-gdp: #6b3fb0;
+  --badge-gdp-bg: #eae1f6;
+  --badge-thermo: #0b6a85;
+  --badge-thermo-bg: #d6eef5;
+}
+
+[data-theme="control-dark"] {
+  color-scheme: dark;
+
+  /* Base (plan) */
+  --bg-main: #0f172a;
+  --panel-bg: #1e293b;
+  --panel-header: #334155;
+  --border: #334155;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #f97316;
+
+  /* Derived surfaces and text */
+  --surface-hover: #273449;
+  --surface-selected: #3a2a1c;
+  --text-muted-strong: #a9b6ca;
+  --accent-text: #fb923c;
+  --accent-contrast: #0f172a;
+  --border-strong: #64748b;
+
+  /* Focus and shadows */
+  --focus-ring: #f97316;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 55%);
+
+  /* Order, trip and job status */
+  --status-planned: #a9b6ca;
+  --status-planned-bg: #2f3d54;
+  --status-confirmed: #6cb0ff;
+  --status-confirmed-bg: #1c3a62;
+  --status-in-progress: #fbbf24;
+  --status-in-progress-bg: #4a3710;
+  --status-delivered: #4ade80;
+  --status-delivered-bg: #14402a;
+  --status-invoiced: #c4b5fd;
+  --status-invoiced-bg: #3d3168;
+  --status-cancelled: #fca5a5;
+  --status-cancelled-bg: #4d2227;
+
+  /* Capacity bars */
+  --capacity-track: #0f172a;
+  --capacity-ok: #22c55e;
+  --capacity-warn: #f59e0b;
+  --capacity-over: #ef4444;
+
+  /* Constraint severity */
+  --severity-red: #fca5a5;
+  --severity-red-bg: #4d2227;
+  --severity-orange: #fdba74;
+  --severity-orange-bg: #4a2c12;
+  --severity-yellow: #fde047;
+  --severity-yellow-bg: #413a0d;
+
+  /* Qualification badges */
+  --badge-adr: #fdba74;
+  --badge-adr-bg: #54290c;
+  --badge-gdp: #d8b4fe;
+  --badge-gdp-bg: #44286b;
+  --badge-thermo: #67e8f9;
+  --badge-thermo-bg: #0f3d4a;
 }
