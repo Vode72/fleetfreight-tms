@@ -62,6 +62,10 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D35 | Reititys: **`react-router`** (uusin vakaa, 8.x) | Oletus (Toni ei ole erikseen päättänyt) | PR 1C |
 | D36 | **Pressukuljetus on perustapaus**, ei pätevyys. Trailerityyppi kertoo perusominaisuudet (sivulastaus: pressu, mega, sivuaukeava; ei umpikaappi). Erityisominaisuudet ovat yksinkertaisia valintoja trailerilla ja vaatimuksia orderilla: **XL-sertifioitu (EN 12642 XL), kelakouru, TIR-tullivaijeri, ylhäältä lastaus**. Ei erillistä pressulogiikkaa eikä uusia tauluja | Hyväksytty 15.11.2026 | Toni, chat |
 | D37 | **Kolme kuormatyyppiä: FTL (täysi kuorma), PTL (osakuorma) ja LTL (kappaletavara)**, ja niille omat riippuvuudet ja toiminnot (luku 3B) | Hyväksytty 15.11.2026 (yksityiskohdat luvussa 3B: Ehdotus) | Toni, chat |
+| D38 | **Kuormatyyppi on kaupallinen tuote, reitti on operatiivinen toteutus.** Kuormatyyppi määrää hinnoittelun, Nodet näyttävät todellisen reitin. Poikkeama (esim. LTL suoraan ilman terminaalia) antaa Plan Check -varoituksen, ei estoa | Hyväksytty 15.11.2026 | Toni, chat |
+| D39 | **Kuormatila voi olla traileri tai kuorma-auton oma kuormatila** (nouto- ja jakeluautot, usein perälauta). Mallinnetaan vaiheessa 2. Trip = kuormatilan kuormattu kierros, ja ajotyyppeihin lisätään kuorma-auton kuormattu ajo | Hyväksytty 15.11.2026 | Toni, chat |
+| D40 | **Demodatan rajat ja kertoimet (Euroopan malli):** LTL enintään 2,4 LDM tai 2 500 kg, PTL siitä 10 LDM tai 15 000 kg asti, yli → järjestelmä ehdottaa FTL-hintaa. Rahdituspaino: 1 LDM = 1 850 kg, 1 m³ = 333 kg, lavapaikka = 740 kg. Kaikki asetuksina ja asiakashinnastossa ylikirjoitettavina | Hyväksytty 15.11.2026 | Toni, chat |
+| D41 | **Ensimmäiseen versioon:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot Plan Checkiin (vaihe 5). **Myöhemmin:** lavanvaihto ja lavasaldot | Oletus (Toni pyysi suositusta 15.11.2026) | chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -213,24 +217,32 @@ Rajat ja kertoimet ovat asetuksia, eivät koodiin kirjoitettuja lukuja. Demossa 
 | | **FTL** täysi kuorma | **PTL** osakuorma | **LTL** kappaletavara |
 |---|---|---|---|
 | **Kuvaus** | Koko traileri yhdelle tilaajalle | Osa trailerista, suora kuljetus | Yksittäiset lavat ja kollit, konsolidoitu terminaalin kautta |
-| **Tyypillinen koko** | koko traileri (13,6 LDM) | esim. 3–10 LDM *(raja asetuksissa)* | esim. alle 3 LDM *(raja asetuksissa)* |
-| **Reititys (Node–Leg)** | Suoraan lastauksesta purkuun, ei terminaalia | Suoraan, voi jakaa trailerin muiden PTL/FTL-osuuksien kanssa (multi-drop) | **Aina terminaalin kautta**: nouto → terminaali (LOAD/UNLOAD) → runkokuljetus → terminaali → jakelu |
-| **Trailerin jakaminen** | Ei. Traileri on varattu orderille kokonaan | Kyllä, kapasiteetin rajoissa | Kyllä, konsolidoidaan terminaalissa |
-| **Kapasiteetin laskenta** | Koko traileri varataan | LDM / lavapaikat ja paino | LDM, paino ja tilavuus. Hinnoitteluun **rahdituspaino** |
+| **Tyypillinen koko** | koko kuormatila, kapasiteetti trailerin tiedoista (ei vakio 13,6 LDM) | LTL- ja FTL-rajan välissä *(LDM- ja painoraja asetuksissa)* | pienet lähetykset *(LDM- ja painoraja asetuksissa)* |
+| **Reititys (Node–Leg)** | Suoraan, ei UNLOAD/LOAD-käsittelyä terminaalissa. Terminaali-Node sallittu REMAIN-käyntinä (vetäjänvaihto, yöpysäköinti, satama) | Yleensä suoraan, voi jakaa trailerin muiden PTL- ja LTL-osuuksien kanssa (multi-drop) | **Oletuksena terminaalin kautta**: nouto → terminaali → runkokuljetus → terminaali → jakelu |
+| **Trailerin jakaminen** | Ei. Kuormatila on varattu orderille kokonaan | Kyllä, PTL- ja LTL-osuuksien kanssa kapasiteetin rajoissa | Kyllä, konsolidoidaan terminaalissa |
+| **Kapasiteetin laskenta** | Koko kuormatila varataan | LDM / lavapaikat ja paino **legeittäin** (huippukuorma jokaisella legillä) | LDM, paino ja tilavuus legeittäin. Hinnoitteluun **rahdituspaino** |
 | **Hinnoittelu** | Hinta per kuljetus (asiakashinnasto: reitti + FTL) | Hinta LDM:n tai lavapaikkojen mukaan | Hinta rahdituspainon mukaan (kg-portaat tai €/100 kg) |
 | **Rahdituspaino** | ei käytetä | valinnainen | suurin seuraavista: todellinen paino, LDM × kerroin, m³ × kerroin *(kertoimet asetuksissa)* |
 | **Kulujen jako (R2, D19)** | Kaikki keikan kulut orderille | LDM:n mukaan | LDM:n tai rahdituspainon mukaan. Terminaalikäsittely aiheuttajalle |
-| **Dokumentit** | CMR per lähetys | CMR per lähetys | CMR / rahtikirja per lähetys, lisäksi terminaaliohjeet (Gateway Instructions) |
-| **Plan Check** | Varoittaa, jos samalle trailerille yritetään toista orderia | Varoittaa ylikapasiteetista ja purkujärjestyksestä | Estää ilman terminaali-Nodea, varoittaa konsolidoinnin cut-offista |
-| **Tyypilliset lisät** | — | — | Terminaalikäsittely, jakelulisä, perälauta (terminaaliflow D25) |
+| **Dokumentit** | Rahtikirja per lähetys: CMR kansainvälisessä, kotimaan rahtikirja kotimaassa *(valinta lähtö- ja määrämaan mukaan, lakiperuste tarkistetaan)* | sama | sama, lisäksi terminaaliohjeet (Gateway Instructions) ja runkokuljetuksen kuormaluettelo |
+| **Plan Check** | Varoittaa, jos samaan kuormatilaan yritetään toista orderia | Varoittaa ylikapasiteetista legeittäin ja purkujärjestyksestä | Varoittaa (ei estä), jos reitti ei kulje terminaalin kautta. Varoittaa konsolidoinnin cut-offista |
+| **Tyypilliset lisät** | Odotusaika, polttoainelisä, ADR, thermo, lauttalisät (BAF, ETS), peruutusmaksu | samat + lisäpysähdys multi-dropissa | samat + terminaalikäsittely, jakelulisä, perälauta (terminaaliflow D25) |
 
 **Riippuvuudet muihin päätöksiin:**
 - **Thermo (D33):** LTL-thermo konsolidoidaan vain kylmäterminaalissa (Central, Tampere, Oulu)
 - **ADR (D24):** ADR + elintarvike -esto koskee myös konsolidoitua LTL-trailer-kuormaa, ei vain yksittäistä orderia
-- **Perälauta (D25):** koskee käytännössä LTL- ja PTL-toimituksia, jotka puretaan terminaalin kautta
+- **Perälauta (D25):** perälautaorder kulkee aina terminaalin kautta kuormatyypistä riippumatta. PTL ja FTL eivät silloin voi mennä suoraan
+- **Kulujen jako legeittäin:** jaettava kulu kohdistetaan vain niille ordereille, jotka ovat kyydissä kyseisellä legillä (LTL on Cross Dockin jälkeen eri Tripillä, D14)
 - **Lautat:** LTL kulkee lautalla runkokuljetuksen trailerissa, ja lauttakulu jaetaan trailerin ordereille (D19)
 
-**Avoinna (Toni päättää ennen vaihetta 2):** PTL- ja LTL-rajat sekä rahdituspainon kertoimet demodataan.
+**Muut kuormatyyppeihin liittyvät tiedot (ff-logistiikka 15.11.2026):**
+- **Pinottavuus** ordeririveillä: pinoamaton lava varaa lattiapinnan, mikä vaikuttaa LDM:ään ja hintaan
+- **LDM-kaava:** pituus × leveys / 2,4 m. EUR-lava (1,2 × 0,8 m) = 0,4 LDM, FIN-lava (1,2 × 1,0 m) = 0,5 LDM
+- **LTL-verkon aikataulut:** runkolinjojen lähdöt, terminaalien cut-off-ajat ja toimitusaikalupaus
+- **Kollitason tiedot:** kollimäärä ja poikkeamat (vaurio, puuttuva kolli) käsittelytapahtumiin
+- **Rahdinmaksaja:** lähettäjä tai vastaanottaja
+- **LTL-thermo** Turun ja Kuopion alueilla jaetaan kylmäterminaalista (Central, Tampere, Oulu), ja Plan Check huomaa sen
+- Demoarvot: D40. Laajuus: D41
 
 ---
 
