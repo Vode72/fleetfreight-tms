@@ -24,6 +24,21 @@ uv run uvicorn app.main:app --reload
 Settings are read from environment variables, then from `.env` in the repository root or in `backend/`.
 If the database password contains URL special characters (`@`, `:`, `/`, `#`), URL-encode it in `DATABASE_URL`.
 
+## Authentication
+
+Server-side sessions: `POST /auth/login` (JSON `email`, `password`) answers 204 and sets an httpOnly,
+`SameSite=Lax` cookie holding a random token (only its SHA-256 digest is stored). `POST /auth/logout`
+revokes the session, `GET /auth/me` returns `id`, `email`, `role`. Roles: `admin`, `planner`, `viewer`.
+
+- Every route requires a session unless listed in `app/auth/public.py`. Use
+  `Depends(require_role("admin"))` for role checks.
+- Every POST/PUT/PATCH/DELETE (login included) must send `X-Requested-With: fleetfreight`, otherwise 403.
+- `/docs`, `/redoc` and `/openapi.json` exist only with `ENVIRONMENT=development`
+  (`app.openapi()` and `scripts.export_openapi` work in every environment).
+- Demo users (not in migrations; development only):
+  `DEMO_PASSWORD=... ENVIRONMENT=development uv run python -m scripts.seed_demo_users`.
+  Settings are listed in `.env.example`.
+
 ## Tests and quality checks
 
 Tests use a separate database taken from `TEST_DATABASE_URL` (name must end with `_test`;
