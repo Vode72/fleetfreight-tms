@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D34).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D37).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -55,6 +55,7 @@ Käynnistys- ja testikomennot lisätään tähän vaiheessa 1, kun runko on olem
 - **Trip = trailerin kuormattu kierros (D14),** johon kuuluvat myös alun siirtymät (D17).
 - **Vetäjänvaihto Nodessa (D18):** vetäjän 1 Job päättyy ja vetäjän 2 Job alkaa, Trip jatkuu.
 - **Job** = yksi vetäjä ja kuljettaja. Job ja Trip ovat N:M legien kautta. Kuljettaja voi olla tyhjä alihankkijan työssä (D20).
+- **Kuormatyypit (D37):** FTL, PTL ja LTL, joilla on omat reititys-, kapasiteetti-, hinnoittelu- ja Plan Check -säännöt (`docs/suunnitelma.md` luku 3B).
 - **Ajotyypit:** SOLO, EMPTY_TRAILER ja LOADED_TRAILER, joilla on omat hinnat (D17). Kulkumuoto ROAD tai FERRY.
 - **Kolme tilaketjua (R3):** Order, Trip ja Job. Laskutus kohdistuu orderiin toimituksen (IOD) jälkeen (D16).
 - **Ajo- ja työaika lasketaan kuljettajalle** yli Jobien ja päivien: EU 561/2006 (myös lauttalepo, D23) ja 2002/15/EY.
