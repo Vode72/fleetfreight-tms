@@ -65,7 +65,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D38 | **Kuormatyyppi on kaupallinen tuote, reitti on operatiivinen toteutus.** Kuormatyyppi määrää hinnoittelun, Nodet näyttävät todellisen reitin. Poikkeama (esim. LTL suoraan ilman terminaalia) antaa Plan Check -varoituksen, ei estoa | Hyväksytty 15.11.2026 | Toni, chat |
 | D39 | **Kuormatila voi olla traileri tai kuorma-auton oma kuormatila** (nouto- ja jakeluautot, usein perälauta). Mallinnetaan vaiheessa 2. Trip = kuormatilan kuormattu kierros, ja ajotyyppeihin lisätään kuorma-auton kuormattu ajo | Hyväksytty 15.11.2026 | Toni, chat |
 | D40 | **Demodatan rajat ja kertoimet (Euroopan malli):** LTL enintään 2,4 LDM tai 2 500 kg, PTL siitä 10 LDM tai 15 000 kg asti, yli → järjestelmä ehdottaa FTL-hintaa. Rahdituspaino: 1 LDM = 1 850 kg, 1 m³ = 333 kg, lavapaikka = 740 kg. Kaikki asetuksina ja asiakashinnastossa ylikirjoitettavina | Hyväksytty 15.11.2026 | Toni, chat |
-| D41 | **Ensimmäiseen versioon:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot Plan Checkiin (vaihe 5). **Myöhemmin:** lavanvaihto ja lavasaldot | Oletus (Toni pyysi suositusta 15.11.2026) | chat |
+| D41 | **Ensimmäiseen versioon kaikki:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot (Plan Check, vaihe 5), sekä **lavanvaihto ja lavasaldot** (lavatyyppi ja vaihdetut lavat lastaus- ja purkutapahtumiin vaiheessa 2, saldot asiakkaittain ja laskutus vaiheessa 6) | Hyväksytty 15.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -193,7 +193,7 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 | order_nodes | kuorma | orderin käsittely Nodessa: LOAD / UNLOAD / REMAIN, suunniteltu ja toteutunut. Orderin reititys johdetaan tästä ja legeistä |
 | trips | kuorma | operatiivinen kuljetuskokonaisuus: traileri, lautta, statusketju |
 | locations | yhteinen | asiakkaat, terminaalit ja satamat koordinaatteineen. Terminaaleilla: lastauslaiturit (D32), kylmätila ja lämpötila-alue sekä kylmäkonepistokkeiden määrä (D33) |
-| handling_events | kuorma | IOP, IOD, POD, UNLOAD, LOAD: suunniteltu ja toteutunut aika |
+| handling_events | kuorma | IOP, IOD, POD, UNLOAD, LOAD: suunniteltu ja toteutunut aika, lavatyyppi ja vaihdetut / vaihtamatta jääneet lavat (D41) |
 | drivers | resurssi | kuljettaja, kuljetusyhtiö, kortit, ADR-pätevyys |
 | nodes | kuorma / resurssi | keikan pisteet järjestyksessä: sijainti, tyyppi (vetäjän lähtö, trailerin nouto, terminaali, lastaus, purku, satama lähtö / saapuminen, korjaamo, katsastus, pesu, kuljettajanvaihto), live / drop, aikaikkuna, suunniteltu / ennustettu / toteutunut aika |
 | legs | kuorma / resurssi | siirtymä kahden peräkkäisen Noden välillä: Job (vapaaehtoinen), Trip, vetäjä, traileri, ajotyyppi (SOLO / EMPTY_TRAILER / LOADED_TRAILER), kulkumuoto (ROAD / FERRY), tarkoitus (esim. RETURN_TO_BASE), km ja aika |
@@ -320,6 +320,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 ### Vaihe 6: kaupallinen puoli
 - [ ] Hinnoittelumoottori ja kulujen jako (R2), kate orderille ja Tripille
 - [ ] Dokumentit: Transport Order, CMR, Gateway Instructions, lasku, Credit Note
+- [ ] Lavasaldot asiakkaittain ja vaihtamatta jääneiden lavojen laskutus (D41)
 - [ ] Trailer pool -näkymä, lautat ja satamakäsittely, raportit ja Power BI -endpointit
 
 ### Vaihe 6B: live-seuranta (D30)
