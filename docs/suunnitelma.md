@@ -33,7 +33,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D6 | Frontend siirretään Create React Appista Viteen. Kieli pysyy JavaScriptinä, TypeScript ei ole päätetty | Korvattu → D11 | FF #11 |
 | D7 | FleetFlow'n koodikehitys jäädytetään FF-002E:tä lukuun ottamatta. GitHub Pages -demo säilyy, kunnes yhdistetty demo on julkaistu | Ehdotus | luku 5 |
 | D8 | Kaikki kummankin projektin toimialuekäsitteet tulevat mukaan (luku 2B). Mitään ei pudoteta, ja päällekkäiset toteutukset yhdistetään | Hyväksytty 14.11.2026 | Toni, chat |
-| D9 | Kaksi vaihdettavaa teemaa koko sovellukseen: **Business Light** (FleetFlow'n SAP Light / Budjettikirjan beige-ruskea-harmaa) ja **Control Dark** (Freight Plannerin tumma, oranssi aksentti). Valinta tallentuu käyttäjälle | Hyväksytty 14.11.2026 | Toni, chat |
+| D9 | Kaksi vaihdettavaa teemaa koko sovellukseen: **Business Light** (beige-harmaa vaalea teema, sininen aksentti) ja **Control Dark** (Freight Plannerin tumma, oranssi aksentti). Valinta tallentuu käyttäjälle | Hyväksytty 14.11.2026 | Toni, chat |
 | D10 | Tyylit toteutetaan CSS-muuttujina (design tokenit), ei inline-väreinä. Freight Plannerin "inline CSS kaikkialla" -sääntö ei siirry uuteen sovellukseen, koska teemanvaihto vaatii muuttujat | Hyväksytty 14.11.2026 | D9 |
 | D11 | Uuden sovelluksen perusta: React + TypeScript + Vite frontendissä, Python backendissä. Korvaa D6:n "kieli pysyy JavaScriptinä" | Hyväksytty 14.11.2026 | Toni, chat |
 | D12 | Backend FastAPI + Pydantic + SQLAlchemy + Alembic, tietokanta PostgreSQL (Docker). TypeScript-tyypit generoidaan backendin OpenAPI-kuvauksesta (`openapi-typescript`). Testit pytest + Vitest | Hyväksytty 14.11.2026 | D11 |
@@ -161,7 +161,7 @@ Tietokanta: PostgreSQL (Docker), Alembic-migraatiot alusta asti
 
 Kaikki komponentit käyttävät vain muuttujia. Värit ovat nykyisten sovellusten käytetyimmät arvot (FleetFlow `App.css`, Freight Planner komponenttien inline-värit).
 
-| Token | Business Light (FleetFlow SAP Light) | Control Dark (Freight Planner) |
+| Token | Business Light | Control Dark (Freight Planner) |
 |---|---|---|
 | `--bg-main` | `#f3efe7` | `#0f172a` |
 | `--panel-bg` | `#fbf8f1` | `#1e293b` |

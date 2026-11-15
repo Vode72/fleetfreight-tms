@@ -71,7 +71,7 @@ Puhdas logiikka, testattu, eikä riippuvuutta vanhaan tietomalliin. Testien fixt
 | Toast-järjestelmä | `context/ToastContext.js`, `hooks/useToast.js`, `components/ToastContainer.js` | — | Pieni ja toimiva. Voidaan kirjoittaa TypeScriptiksi ja tokeneille noin tunnissa |
 | CostCalculatorin kaava (myyntihinta = kulut / (1 − kate)) | `CostCalculator.js:131-145` | — | Kaava on oikea. Hinnat on kovakoodattu (T4), joten ne eivät siirry |
 | FleetFlow'n näkymät: Board, Job Workspace (7 alavälilehteä), Fleet Timeline, Plan Check -paneeli, Route & Risk | `fleetflow-planner/src/App.jsx:1606-3276` | `App.test.jsx` (1 skenaario) | Yksi 3 276 rivin komponentti, joten se pilkotaan uudelleen. Skenaariotesti on hyvä E2E-malli |
-| Teemat classic / light (SAP) / dark | `fleetflow-planner/src/App.css` (4 237 riviä) | — | D9-tokenien lähde (`--bg-main` ja muut) |
+| Teemat classic / light / dark | `fleetflow-planner/src/App.css` (4 237 riviä) | — | D9-tokenien lähde (`--bg-main` ja muut) |
 | Toimialuedata: `TRAILER_SPECS`, `PALLET_TYPES`, `INCOTERMS`, `STATUSES`, `NEIGHBORS`, `SERVICES` | `app.py:55-140, 875-893` | — | Seediksi tai vakioiksi uuteen malliin |
 | Säännöt ja määrittelyt: pricing-engine-spec, PR #6:n periaatteet, Freight Plannerin soveltuvuustaulukko v9 | `fp/docs/pricing-engine-spec.md`, `ff` PR #6, `FREIGHT_PLANNER_KONTEKSTI.txt:1005-1045` | — | v9 on uudempi kuin `:912-940` (S2) |
 | Tarkistusraportin malli | `fleetflow-planner/docs/FF-002C-validation.md` | — | Hyvä pohja PR-kohtaisille tarkistuksille |
