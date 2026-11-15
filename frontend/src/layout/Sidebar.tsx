@@ -53,9 +53,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         onClick={onToggle}
       >
         <Icon name={collapsed ? "chevronRight" : "chevronLeft"} />
-        <span className={collapsed ? "visually-hidden" : undefined}>
-          {collapsed ? t("nav.expand") : t("nav.collapse")}
-        </span>
+        <span className={collapsed ? "visually-hidden" : undefined}>{t("nav.toggle")}</span>
       </button>
     </nav>
   );

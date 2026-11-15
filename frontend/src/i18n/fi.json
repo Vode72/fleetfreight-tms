@@ -18,8 +18,7 @@
   },
   "nav": {
     "label": "Päävalikko",
-    "collapse": "Pienennä sivupalkki",
-    "expand": "Laajenna sivupalkki",
+    "toggle": "Sivupalkki",
     "dashboard": "Etusivu",
     "sections": {
       "loadPlanning": "Kuormasuunnittelu",

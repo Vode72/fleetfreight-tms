@@ -19,14 +19,15 @@ function readStoredLanguage(): Language {
   return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
 }
 
-/** Switches the UI language at runtime. The choice is remembered and mirrored to <html lang>. */
+/** Switches the UI language at runtime and remembers the user's choice. */
 export function setLanguage(language: Language): Promise<unknown> {
+  writeStored(LANGUAGE_STORAGE_KEY, language);
   return i18n.changeLanguage(language);
 }
 
+// <html lang> always follows the active language. Only an explicit choice is stored (setLanguage).
 i18n.on("languageChanged", (language) => {
   document.documentElement.lang = language;
-  if (isLanguage(language)) writeStored(LANGUAGE_STORAGE_KEY, language);
 });
 
 void i18n.use(initReactI18next).init({

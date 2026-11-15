@@ -65,6 +65,7 @@ export function Tabs({ label, tabs }: TabsProps) {
           id={`${baseId}-panel-${tab.id}`}
           className="tabpanel"
           aria-labelledby={`${baseId}-tab-${tab.id}`}
+          tabIndex={0}
           hidden={tab.id !== activeId}
         >
           {tab.id === activeId && tab.panel}

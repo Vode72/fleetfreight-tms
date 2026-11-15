@@ -18,8 +18,7 @@
   },
   "nav": {
     "label": "Main navigation",
-    "collapse": "Collapse sidebar",
-    "expand": "Expand sidebar",
+    "toggle": "Sidebar",
     "dashboard": "Dashboard",
     "sections": {
       "loadPlanning": "Load planning",

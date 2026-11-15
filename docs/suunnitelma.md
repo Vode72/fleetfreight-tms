@@ -59,6 +59,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D32 | **Kaikissa terminaaleissa on lastauslaiturit**, joten perästä purku onnistuu kaikkialla (perälautaorderien terminaaliflow D25 toimii jokaisessa terminaalissa) | Hyväksytty 14.11.2026 | Toni, chat |
 | D33 | **Lämpötilasäädelty käsittely kolmessa terminaalissa: Central, Tampere ja Oulu** (kylmätila ja kylmäkoneiden sähköpistokkeet). Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Hyväksytty 14.11.2026 | Toni, chat |
 | D34 | Käyttöliittymä on **kaksikielinen (englanti ja suomi), vaihdettavissa** asetuksista. Kaikki tekstit käännöstiedostoissa alusta asti, ei kovakoodattuja tekstejä komponenteissa. Oletuskieli englanti | Hyväksytty 14.11.2026 (oletuskieli: Oletus) | Toni, chat |
+| D35 | Reititys: **`react-router`** (uusin vakaa, 8.x) | Oletus (Toni ei ole erikseen päättänyt) | PR 1C |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -170,7 +171,11 @@ Kaikki komponentit käyttävät vain muuttujia. Värit ovat nykyisten sovelluste
 | `--text-muted` | `#6b7280` | `#94a3b8` |
 | `--accent` | `#0a6ed1` | `#f97316` |
 
-Lisäksi yhteiset semanttiset tokenit molempiin teemoihin: tilavärit (Suunniteltu, Vahvistettu, Käynnissä, Toimitettu, Laskutettu), kapasiteettipalkit (vihreä / oranssi / punainen), rajoitusten vakavuus (red / orange / yellow) sekä ADR-, GDP- ja thermo-merkit. Näin värikoodaus toimii samoin kummassakin teemassa.
+Lisäksi yhteiset semanttiset tokenit molempiin teemoihin: tilavärit (Suunniteltu, Vahvistettu, Käynnissä, Toimitettu, Laskutettu, Peruttu), kapasiteettipalkit (vihreä / oranssi / punainen), rajoitusten vakavuus (red / orange / yellow) sekä ADR-, GDP- ja thermo-merkit. Näin värikoodaus toimii samoin kummassakin teemassa.
+
+Johdetut tokenit (molemmissa teemoissa): `--text-muted-strong`, `--accent-text`, `--accent-contrast` (teksti aksenttivärin päällä), `--border-strong`, `--surface-hover` ja `--surface-selected`.
+
+Sääntö (WCAG AA, 4.5:1 tekstille): perusarvot `--text-muted` ja `--accent` kelpaavat tekstinä vain pinnoilla, joilla ne läpäisevät AA:n (`--panel-bg`, Control Darkissa myös `--bg-main`). Muilla pinnoilla (esim. `--panel-header`) käytetään johdettuja `--text-muted-strong` ja `--accent-text`. Kontrastitesti valvoo tätä.
 
 Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 

@@ -57,11 +57,11 @@ describe("navigation", () => {
   it("collapses the sidebar, keeps link names, and remembers the choice", async () => {
     renderApp();
 
-    const toggle = screen.getByRole("button", { name: en.nav.collapse });
+    const toggle = screen.getByRole("button", { name: en.nav.toggle });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     await userEvent.click(toggle);
 
-    expect(screen.getByRole("button", { name: en.nav.expand })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: en.nav.toggle })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("link", { name: en.nav.items.orders })).toBeInTheDocument();
     expect(localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe("collapsed");
   });
@@ -82,5 +82,32 @@ describe("dashboard tabs", () => {
       "true",
     );
     expect(screen.getByRole("region", { name: en.preview.capacity })).toBeInTheDocument();
+  });
+
+  it("wraps with ArrowLeft and ArrowRight and supports Home and End", async () => {
+    renderApp();
+    const overview = screen.getByRole("tab", { name: en.dashboard.tabs.overview });
+    const preview = screen.getByRole("tab", { name: en.dashboard.tabs.themePreview });
+
+    overview.focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(preview).toHaveAttribute("aria-selected", "true");
+    expect(preview).toHaveFocus();
+
+    await userEvent.keyboard("{ArrowRight}");
+    expect(overview).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.keyboard("{End}");
+    expect(preview).toHaveAttribute("aria-selected", "true");
+    expect(preview).toHaveFocus();
+
+    await userEvent.keyboard("{Home}");
+    expect(overview).toHaveAttribute("aria-selected", "true");
+    expect(overview).toHaveFocus();
+  });
+
+  it("makes the tab panel focusable", () => {
+    renderApp();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("tabindex", "0");
   });
 });
