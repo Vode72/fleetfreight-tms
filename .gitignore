@@ -11,7 +11,7 @@ __pycache__/
 .env.*
 !.env.example
 
-# Node (frontend, later PRs)
+# Node (frontend)
 node_modules/
 dist/
 
