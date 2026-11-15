@@ -3,17 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script>
-      // Apply the remembered theme and language before first paint (no flash). Keys match THEME_STORAGE_KEY and LANGUAGE_STORAGE_KEY.
-      try {
-        var theme = localStorage.getItem("ff.theme");
-        if (theme === "business-light" || theme === "control-dark") {
-          document.documentElement.setAttribute("data-theme", theme);
-        }
-        var lang = localStorage.getItem("ff.language");
-        if (lang === "en" || lang === "fi") document.documentElement.lang = lang;
-      } catch (e) {}
-    </script>
+    <script src="/theme-init.js"></script>
     <title>FleetFreight TMS</title>
   </head>
   <body>

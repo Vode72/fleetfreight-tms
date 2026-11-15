@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
+import { hasRole } from "../auth/roles";
+import { useAuth } from "../auth/useAuth";
 import { Icon } from "./Icon";
 import { DASHBOARD_ITEM, NAV_SECTIONS, type NavItem } from "./navigation";
 
@@ -23,6 +25,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   return (
     <nav id="sidebar" className="sidebar" aria-label={t("nav.label")}>
@@ -31,7 +34,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <SidebarLink item={DASHBOARD_ITEM} collapsed={collapsed} />
         </li>
       </ul>
-      {NAV_SECTIONS.map((section) => (
+      {NAV_SECTIONS.filter((section) => hasRole(user, section.roles)).map((section) => (
         <section key={section.id} className="sidebar-section" aria-labelledby={`nav-${section.id}`}>
           <h2 id={`nav-${section.id}`} className={collapsed ? "visually-hidden" : "sidebar-heading"}>
             {t(section.labelKey)}

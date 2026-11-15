@@ -1,5 +1,6 @@
 import type { ParseKeys } from "i18next";
 
+import type { Role } from "../auth/roles";
 import type { IconName } from "./Icon";
 
 export interface NavItem {
@@ -13,6 +14,8 @@ export interface NavSection {
   id: string;
   labelKey: ParseKeys;
   items: readonly NavItem[];
+  /** Roles that see the section. Omitted: every signed-in user. UI convenience only; the server enforces. */
+  roles?: readonly Role[];
 }
 
 export const DASHBOARD_ITEM: NavItem = { path: "/", labelKey: "nav.dashboard", icon: "dashboard" };
@@ -40,6 +43,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     id: "administration",
     labelKey: "nav.sections.administration",
+    roles: ["admin"],
     items: [
       { path: "/fleet-partners", labelKey: "nav.items.fleetPartners", icon: "fleet" },
       { path: "/pricing", labelKey: "nav.items.pricing", icon: "pricing" },
