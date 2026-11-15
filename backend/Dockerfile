@@ -14,5 +14,4 @@ RUN useradd --system --no-create-home app
 USER app
 
 EXPOSE 8000
-# Apply migrations (none yet) and start the API.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "start.sh"]

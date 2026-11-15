@@ -3,7 +3,7 @@ services:
     image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-fleetfreight}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the environment}
       POSTGRES_DB: ${POSTGRES_DB:-fleetfreight}
     ports:
       - "127.0.0.1:5432:5432"
@@ -18,11 +18,14 @@ services:
   backend:
     build: ./backend
     environment:
-      # Local development defaults: http without TLS, docs enabled. Override for production.
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
-      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fleetfreight}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-fleetfreight}
+      # Production-safe base. Development settings live in docker-compose.override.yml, which
+      # Compose reads automatically; production runs use `-f docker-compose.yml` only.
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      # Comma-separated reverse proxy addresses whose X-Forwarded-For is trusted. Empty: none.
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      LOG_HMAC_KEY: ${LOG_HMAC_KEY:-}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fleetfreight}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the environment}@db:5432/${POSTGRES_DB:-fleetfreight}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

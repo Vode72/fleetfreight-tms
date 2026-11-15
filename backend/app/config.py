@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from domain.sessions import SessionPolicy
@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     # Login throttling (in memory, per process).
     login_max_failures: int = Field(default=5, ge=1)
     login_window_minutes: int = Field(default=15, ge=1)
+
+    # Secret for the HMAC that pseudonymises e-mail addresses in logs. Empty: random per process.
+    log_hmac_key: str = ""
+    # Comma-separated reverse proxy addresses whose X-Forwarded-For is trusted. The container
+    # entrypoint (start.sh) passes it to uvicorn. Empty (default): trust none.
+    trusted_proxy_ips: str = ""
+
+    @model_validator(mode="after")
+    def _refuse_insecure_production(self) -> Settings:
+        # Startup guard: a production deployment must never send the session cookie over HTTP.
+        if self.environment == "production" and not self.session_cookie_secure:
+            raise ValueError("SESSION_COOKIE_SECURE must be true when ENVIRONMENT=production")
+        return self
 
     @property
     def docs_enabled(self) -> bool:

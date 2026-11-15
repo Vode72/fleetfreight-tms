@@ -1,4 +1,3 @@
-import hashlib
 import logging
 from datetime import UTC, datetime
 from typing import Annotated
@@ -13,6 +12,7 @@ from app.auth.deps import (
     AuthContext,
     current_context,
     get_app_settings,
+    get_log_key,
     get_login_ip_limiter,
     get_login_limiter,
     get_password_service,
@@ -24,7 +24,7 @@ from domain.passwords import PasswordService, VerifyResult
 from domain.rate_limit import AttemptLimiter
 from domain.roles import Role
 from domain.sessions import expires_at, generate_token, hash_token
-from domain.users import normalize_email
+from domain.users import email_log_id, normalize_email
 
 logger = logging.getLogger("fleetfreight.auth")
 
@@ -44,14 +44,12 @@ class MeResponse(BaseModel):
 
 
 def _client_ip(request: Request) -> str:
-    # Behind a reverse proxy this is the proxy's address unless the server is started with
-    # trusted forwarded headers (e.g. uvicorn --proxy-headers --forwarded-allow-ips).
+    # Behind a reverse proxy this is the proxy's address unless uvicorn is started with
+    # --proxy-headers --forwarded-allow-ips=<proxy> (TRUSTED_PROXY_IPS, see backend/README.md).
+    # Otherwise every client shares the proxy's IP and the per-IP rate limit hits them together.
+    # NOTE: the IP address is personal data. It is written to the log on failed and throttled
+    # logins (and to the database only with SESSION_STORE_IP); keep log retention short.
     return request.client.host if request.client else "unknown"
-
-
-def _short_digest(value: str) -> str:
-    """Correlate log lines without writing the e-mail address into logs."""
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:8]
 
 
 @router.post(
@@ -72,6 +70,7 @@ def login(
     passwords: Annotated[PasswordService, Depends(get_password_service)],
     pair_limiter: Annotated[AttemptLimiter, Depends(get_login_limiter)],
     ip_limiter: Annotated[AttemptLimiter, Depends(get_login_ip_limiter)],
+    log_key: Annotated[bytes, Depends(get_log_key)],
 ) -> Response:
     email = normalize_email(body.email)
     ip = _client_ip(request)
@@ -84,7 +83,7 @@ def login(
         logger.warning(
             "Login rate limited: ip=%s email_digest=%s retry_after=%ss",
             ip,
-            _short_digest(email),
+            email_log_id(email, log_key),
             retry_after,
         )
         raise HTTPException(
@@ -104,7 +103,7 @@ def login(
     if user is None or not result.ok or not user.is_active:
         pair_limiter.record_failure(pair_key)
         ip_limiter.record_failure(ip)
-        logger.info("Login failed: ip=%s email_digest=%s", ip, _short_digest(email))
+        logger.info("Login failed: ip=%s email_digest=%s", ip, email_log_id(email, log_key))
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
 
     now = datetime.now(UTC)

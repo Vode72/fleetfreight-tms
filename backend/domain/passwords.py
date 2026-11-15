@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
-# Hashed once per process and used to burn the same CPU time when the account does not exist,
+# Hashed once per service and used to burn the same CPU time when the account does not exist,
 # so response time does not reveal whether an e-mail address is registered.
 _DUMMY_PASSWORD = "dummy-password-for-timing-equalisation"
 
@@ -25,7 +25,9 @@ class PasswordService:
 
     def __init__(self, hasher: PasswordHasher | None = None) -> None:
         self._hasher = hasher or PasswordHasher()  # argon2id by default
-        self._dummy_hash: str | None = None
+        # Computed eagerly (not on first use) with the same parameters as real hashes, so the
+        # first unknown-user login is not distinguishable by timing.
+        self._dummy_hash = self._hasher.hash(_DUMMY_PASSWORD)
 
     def hash(self, password: str) -> str:
         return self._hasher.hash(password)
@@ -42,6 +44,4 @@ class PasswordService:
 
     def verify_dummy(self, password: str) -> None:
         """Do a full hash comparison against a dummy hash; the result is always a failure."""
-        if self._dummy_hash is None:
-            self._dummy_hash = self._hasher.hash(_DUMMY_PASSWORD)
         self.verify(password, self._dummy_hash)

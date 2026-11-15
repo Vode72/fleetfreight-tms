@@ -14,6 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.auth.service import revoke_all_sessions
 from app.config import ENV_FILES, get_settings
 from db.models import User
 from db.session import get_engine
@@ -56,17 +57,21 @@ def seed_demo_users(session: Session, password: str, passwords: PasswordService)
             report.append(f"{email}: created")
             continue
         changed = False
+        # Sessions must not survive a credential or access change.
+        revoke = False
         if user.role != role.value or not user.is_active:
             user.role = role.value
             user.is_active = True
-            changed = True
+            changed = revoke = True
         result = passwords.verify(password, user.password_hash)
         if not result.ok:
             user.password_hash = passwords.hash(password)
-            changed = True
+            changed = revoke = True
         elif result.new_hash is not None:
-            user.password_hash = result.new_hash
+            user.password_hash = result.new_hash  # same password, upgraded parameters
             changed = True
+        if revoke:
+            revoke_all_sessions(session, user.id)
         report.append(f"{email}: {'updated' if changed else 'unchanged'}")
     session.commit()
     return report

@@ -80,6 +80,8 @@ def make_settings(**overrides: object) -> Settings:
         "environment": "development",
         "session_cookie_secure": False,  # TestClient talks plain HTTP
     }
+    if overrides.get("environment") == "production":
+        values["session_cookie_secure"] = True  # startup guard requires it
     values.update(overrides)
     return Settings(_env_file=None, **values)  # type: ignore[arg-type]
 

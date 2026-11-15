@@ -1,3 +1,5 @@
+import logging
+import secrets
 from datetime import timedelta
 from typing import Annotated, Literal
 
@@ -10,9 +12,12 @@ from sqlalchemy.orm import Session
 from app.auth.deps import guard
 from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
+from app.security_headers import SecurityHeadersMiddleware
 from db.session import get_session
 from domain.passwords import PasswordService
 from domain.rate_limit import AttemptLimiter
+
+logger = logging.getLogger("fleetfreight.app")
 
 
 class HealthResponse(BaseModel):
@@ -41,6 +46,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Coarser per-IP limit so rotating e-mail addresses from one address does not bypass the above.
     application.state.login_ip_limiter = AttemptLimiter(settings.login_max_failures * 4, window)
 
+    application.state.log_hmac_key = (
+        settings.log_hmac_key.encode("utf-8") if settings.log_hmac_key else secrets.token_bytes(32)
+    )
+    if not settings.log_hmac_key:
+        logger.warning(
+            "LOG_HMAC_KEY is not set: using a random key; log identifiers reset on restart"
+        )
+    if settings.environment == "production":
+        if not settings.trusted_proxy_ips:
+            logger.warning(
+                "TRUSTED_PROXY_IPS is empty: the client IP is the direct peer address. Behind a "
+                "reverse proxy all clients share one address and the per-IP login limit applies "
+                "to them together. See backend/README.md."
+            )
+        elif "*" in settings.trusted_proxy_ips:
+            logger.warning("TRUSTED_PROXY_IPS contains '*': clients can spoof their IP address")
+
+    application.add_middleware(SecurityHeadersMiddleware)
     application.include_router(auth_router)
 
     # PUBLIC (listed in app.auth.public.PUBLIC_ROUTES): /health needs no authentication so that

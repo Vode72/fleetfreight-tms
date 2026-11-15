@@ -7,6 +7,7 @@ from scripts.seed_demo_users import DEMO_USERS, seed_demo_users
 from tests.conftest import cheap_passwords
 
 PASSWORD = "a-demo-password-123"
+ACTIVE_SESSIONS = "SELECT count(*) FROM sessions WHERE revoked_at IS NULL"
 
 
 def _emails(engine: Engine) -> list[tuple[str, str]]:
@@ -51,3 +52,31 @@ def test_seed_repairs_deactivated_user_and_updates_password(
 def test_seed_rejects_short_password(test_engine: Engine, app: object) -> None:
     with sessionmaker(bind=test_engine)() as session, pytest.raises(ValueError):
         seed_demo_users(session, "short", cheap_passwords())
+
+
+def test_seed_revokes_sessions_when_password_changes(test_engine: Engine, app: object) -> None:
+    service = cheap_passwords()
+    factory = sessionmaker(bind=test_engine)
+    with factory() as session:
+        seed_demo_users(session, PASSWORD, service)
+    with test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO sessions (user_id, token_hash, expires_at) "
+                "SELECT id, md5(email) || md5(id::text), now() + interval '1 day' FROM users"
+            )
+        )
+    with factory() as session:
+        seed_demo_users(session, PASSWORD, service)  # nothing changed: sessions stay active
+    with test_engine.connect() as conn:
+        assert (
+            conn.execute(text("SELECT count(*) FROM sessions WHERE revoked_at IS NULL")).scalar()
+            == 3
+        )
+    with factory() as session:
+        seed_demo_users(session, "another-demo-password", service)
+    with test_engine.connect() as conn:
+        assert (
+            conn.execute(text("SELECT count(*) FROM sessions WHERE revoked_at IS NULL")).scalar()
+            == 0
+        )

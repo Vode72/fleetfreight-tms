@@ -49,6 +49,11 @@ def get_password_service(request: Request) -> PasswordService:
     return service
 
 
+def get_log_key(request: Request) -> bytes:
+    key: bytes = request.app.state.log_hmac_key
+    return key
+
+
 def get_login_limiter(request: Request) -> AttemptLimiter:
     limiter: AttemptLimiter = request.app.state.login_limiter
     return limiter
