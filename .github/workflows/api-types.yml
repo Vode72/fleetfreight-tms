@@ -1,0 +1,76 @@
+name: api-types
+
+# Checks that frontend/src/api/schema.ts matches the backend's current OpenAPI description.
+# The description is exported straight from the FastAPI app (no server, no database needed).
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/src/api/**"
+      - "frontend/scripts/gen-api.mjs"
+      - "frontend/package-lock.json"
+      - ".github/workflows/api-types.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/src/api/**"
+      - "frontend/scripts/gen-api.mjs"
+      - "frontend/package-lock.json"
+      - ".github/workflows/api-types.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  schema-up-to-date:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UV_PYTHON: "3.15"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.11.32"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python 3.15 and backend dependencies
+        working-directory: backend
+        run: |
+          uv python install 3.15
+          uv sync --frozen --no-dev
+
+      - name: Export OpenAPI description
+        working-directory: backend
+        run: uv run python -m scripts.export_openapi "$RUNNER_TEMP/openapi.json"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate API types
+        working-directory: frontend
+        env:
+          OPENAPI_URL: ${{ runner.temp }}/openapi.json
+        run: npm run gen:api
+
+      - name: Check generated types are committed
+        run: |
+          git diff --exit-code -- frontend/src/api/schema.ts \
+            || { echo "::error::frontend/src/api/schema.ts is out of date. Run the backend export and 'npm run gen:api', then commit."; exit 1; }

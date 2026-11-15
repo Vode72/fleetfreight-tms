@@ -40,3 +40,12 @@ uv run mypy
 ```bash
 uv run alembic revision -m "describe the change"
 ```
+
+## OpenAPI export (no server or database needed)
+
+```bash
+uv run python -m scripts.export_openapi /tmp/openapi.json
+# then, in frontend/: OPENAPI_URL=/tmp/openapi.json npm run gen:api
+```
+
+CI (`api-types.yml`) does the same and fails if `frontend/src/api/schema.ts` differs from the result.

@@ -1,5 +1,9 @@
 # FleetFreight TMS
 
+[![backend](https://github.com/Vode72/fleetfreight-tms/actions/workflows/backend.yml/badge.svg)](https://github.com/Vode72/fleetfreight-tms/actions/workflows/backend.yml)
+[![frontend](https://github.com/Vode72/fleetfreight-tms/actions/workflows/frontend.yml/badge.svg)](https://github.com/Vode72/fleetfreight-tms/actions/workflows/frontend.yml)
+[![api-types](https://github.com/Vode72/fleetfreight-tms/actions/workflows/api-types.yml/badge.svg)](https://github.com/Vode72/fleetfreight-tms/actions/workflows/api-types.yml)
+
 Transport management system that combines **load planning** (orders, routing, trips, costs and margin) with **day-level fleet planning** (which jobs a driver and truck can complete today within EU driving, working and rest time rules).
 
 > Portfolio project. All data is fictional demo data.

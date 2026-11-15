@@ -39,4 +39,4 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF"]
 python_version = "3.15"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["app", "db", "domain", "migrations", "tests"]
+files = ["app", "db", "domain", "migrations", "scripts", "tests"]
