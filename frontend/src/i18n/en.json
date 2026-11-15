@@ -91,5 +91,46 @@
     "databaseDown": "Backend is running but the database is down",
     "unreachable": "Backend is not responding",
     "retry": "Check again"
+  },
+  "auth": {
+    "loading": "Checking your session...",
+    "sessionError": {
+      "title": "Cannot check your session",
+      "message": "The server did not answer. Check the connection and try again.",
+      "retry": "Try again"
+    },
+    "login": {
+      "title": "Sign in",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in..."
+    },
+    "notices": {
+      "expired": "Your session has expired. Sign in again.",
+      "loggedOut": "You have signed out."
+    },
+    "errors": {
+      "invalid": "Incorrect email or password.",
+      "validation": "Enter your email and password.",
+      "rateLimited": "Too many failed attempts. Try again in {{wait}}.",
+      "rateLimitedNoWait": "Too many failed attempts. Try again later.",
+      "network": "Cannot reach the server. Check the connection and try again.",
+      "unexpected": "Sign-in failed unexpectedly. Try again."
+    },
+    "user": {
+      "label": "Signed-in user"
+    },
+    "roles": {
+      "admin": "Administrator",
+      "planner": "Planner",
+      "viewer": "Viewer"
+    },
+    "logout": "Sign out",
+    "logoutFailed": "Sign-out failed. Try again."
+  },
+  "forbidden": {
+    "title": "No access",
+    "description": "Your role does not include this view."
   }
 }

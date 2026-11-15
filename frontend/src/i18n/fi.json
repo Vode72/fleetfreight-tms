@@ -91,5 +91,46 @@
     "databaseDown": "Taustajärjestelmä toimii, mutta tietokanta on alhaalla",
     "unreachable": "Taustajärjestelmä ei vastaa",
     "retry": "Tarkista uudelleen"
+  },
+  "auth": {
+    "loading": "Tarkistetaan istuntoa...",
+    "sessionError": {
+      "title": "Istuntoa ei voi tarkistaa",
+      "message": "Palvelin ei vastannut. Tarkista yhteys ja yritä uudelleen.",
+      "retry": "Yritä uudelleen"
+    },
+    "login": {
+      "title": "Kirjaudu sisään",
+      "email": "Sähköposti",
+      "password": "Salasana",
+      "submit": "Kirjaudu sisään",
+      "submitting": "Kirjaudutaan..."
+    },
+    "notices": {
+      "expired": "Istuntosi on vanhentunut. Kirjaudu uudelleen.",
+      "loggedOut": "Olet kirjautunut ulos."
+    },
+    "errors": {
+      "invalid": "Väärä sähköposti tai salasana.",
+      "validation": "Anna sähköposti ja salasana.",
+      "rateLimited": "Liian monta epäonnistunutta yritystä. Yritä uudelleen: {{wait}}.",
+      "rateLimitedNoWait": "Liian monta epäonnistunutta yritystä. Yritä myöhemmin uudelleen.",
+      "network": "Palvelimeen ei saada yhteyttä. Tarkista yhteys ja yritä uudelleen.",
+      "unexpected": "Kirjautuminen epäonnistui odottamattomasti. Yritä uudelleen."
+    },
+    "user": {
+      "label": "Kirjautunut käyttäjä"
+    },
+    "roles": {
+      "admin": "Ylläpitäjä",
+      "planner": "Suunnittelija",
+      "viewer": "Katselija"
+    },
+    "logout": "Kirjaudu ulos",
+    "logoutFailed": "Uloskirjautuminen epäonnistui. Yritä uudelleen."
+  },
+  "forbidden": {
+    "title": "Ei käyttöoikeutta",
+    "description": "Roolisi ei sisällä tätä näkymää."
   }
 }

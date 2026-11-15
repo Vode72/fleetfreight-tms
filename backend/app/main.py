@@ -1,3 +1,6 @@
+import logging
+import secrets
+from datetime import timedelta
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, Response, status
@@ -6,10 +9,15 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.auth.deps import guard
+from app.auth.router import router as auth_router
+from app.config import Settings, get_settings
+from app.security_headers import SecurityHeadersMiddleware
 from db.session import get_session
+from domain.passwords import PasswordService
+from domain.rate_limit import AttemptLimiter
 
-app = FastAPI(title=get_settings().app_name)
+logger = logging.getLogger("fleetfreight.app")
 
 
 class HealthResponse(BaseModel):
@@ -17,19 +25,66 @@ class HealthResponse(BaseModel):
     database: Literal["ok", "error"]
 
 
-# INTENTIONALLY PUBLIC: /health needs no authentication so that container healthchecks and
-# monitoring can call it. In phase 1D every other endpoint is protected by default and this
-# one is listed as an explicit exception. It exposes no data beyond ok/error.
-@app.get(
-    "/health",
-    response_model=HealthResponse,
-    responses={503: {"model": HealthResponse, "description": "Database unreachable"}},
-)
-def health(response: Response, session: Annotated[Session, Depends(get_session)]) -> HealthResponse:
-    try:
-        session.execute(text("SELECT 1"))
-    except SQLAlchemyError:
-        # Reported as 503 to the caller; not swallowed silently.
-        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        return HealthResponse(status="error", database="error")
-    return HealthResponse(status="ok", database="ok")
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+    docs = settings.docs_enabled
+    application = FastAPI(
+        title=settings.app_name,
+        # Secure by default: `guard` authenticates every route (and checks CSRF on unsafe
+        # methods) unless the route is listed in app.auth.public.PUBLIC_ROUTES.
+        dependencies=[Depends(guard)],
+        # Interactive docs only in development. app.openapi() still works in every environment,
+        # which scripts/export_openapi.py relies on.
+        docs_url="/docs" if docs else None,
+        redoc_url="/redoc" if docs else None,
+        openapi_url="/openapi.json" if docs else None,
+    )
+    window = timedelta(minutes=settings.login_window_minutes)
+    application.state.settings = settings
+    application.state.password_service = PasswordService()
+    application.state.login_limiter = AttemptLimiter(settings.login_max_failures, window)
+    # Coarser per-IP limit so rotating e-mail addresses from one address does not bypass the above.
+    application.state.login_ip_limiter = AttemptLimiter(settings.login_max_failures * 4, window)
+
+    application.state.log_hmac_key = (
+        settings.log_hmac_key.encode("utf-8") if settings.log_hmac_key else secrets.token_bytes(32)
+    )
+    if not settings.log_hmac_key:
+        logger.warning(
+            "LOG_HMAC_KEY is not set: using a random key; log identifiers reset on restart"
+        )
+    if settings.environment == "production":
+        if not settings.trusted_proxy_ips:
+            logger.warning(
+                "TRUSTED_PROXY_IPS is empty: the client IP is the direct peer address. Behind a "
+                "reverse proxy all clients share one address and the per-IP login limit applies "
+                "to them together. See backend/README.md."
+            )
+        elif "*" in settings.trusted_proxy_ips:
+            logger.warning("TRUSTED_PROXY_IPS contains '*': clients can spoof their IP address")
+
+    application.add_middleware(SecurityHeadersMiddleware)
+    application.include_router(auth_router)
+
+    # PUBLIC (listed in app.auth.public.PUBLIC_ROUTES): /health needs no authentication so that
+    # container healthchecks and monitoring can call it. It exposes no data beyond ok/error.
+    @application.get(
+        "/health",
+        response_model=HealthResponse,
+        responses={503: {"model": HealthResponse, "description": "Database unreachable"}},
+    )
+    def health(
+        response: Response, session: Annotated[Session, Depends(get_session)]
+    ) -> HealthResponse:
+        try:
+            session.execute(text("SELECT 1"))
+        except SQLAlchemyError:
+            # Reported as 503 to the caller; not swallowed silently.
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+            return HealthResponse(status="error", database="error")
+        return HealthResponse(status="ok", database="ok")
+
+    return application
+
+
+app = create_app()

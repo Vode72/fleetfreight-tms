@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { LanguageSelect } from "./LanguageSelect";
 import { ThemeSelect } from "./ThemeSelect";
+import { UserMenu } from "./UserMenu";
 
 export function TopBar() {
   const { t } = useTranslation();
@@ -12,9 +13,12 @@ export function TopBar() {
       <Link to="/" className="topbar-title">
         {t("app.name")}
       </Link>
-      <div className="topbar-settings" role="group" aria-label={t("layout.settings")}>
-        <ThemeSelect />
-        <LanguageSelect />
+      <div className="topbar-right">
+        <div className="topbar-settings" role="group" aria-label={t("layout.settings")}>
+          <ThemeSelect />
+          <LanguageSelect />
+        </div>
+        <UserMenu />
       </div>
     </header>
   );

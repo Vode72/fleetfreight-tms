@@ -1,0 +1,8 @@
+# Local development only. Compose merges this file automatically with `docker compose up`.
+# Never use it in production: run `docker compose -f docker-compose.yml up` there.
+services:
+  backend:
+    environment:
+      ENVIRONMENT: development # enables /docs and the demo seed command
+      SESSION_COOKIE_SECURE: "false" # plain http on localhost
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}

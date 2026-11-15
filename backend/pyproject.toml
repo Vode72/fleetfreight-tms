@@ -10,6 +10,9 @@ dependencies = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg[binary]>=3.2",
+    "argon2-cffi>=25.1.0",
+    # 26.x ships a Python 3.15-only abi3t wheel that Python 3.15.0b4 cannot import; 25.x uses abi3.
+    "argon2-cffi-bindings<26",
 ]
 
 [dependency-groups]

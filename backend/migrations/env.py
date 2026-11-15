@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 
 from app.config import get_settings
+from db import models  # noqa: F401  (registers the models on Base.metadata)
 from db.session import Base, make_engine
 
 config = context.config

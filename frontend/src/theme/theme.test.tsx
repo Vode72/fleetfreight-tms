@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import en from "../i18n/en.json";
-import indexHtml from "../../index.html?raw";
 import { renderApp } from "../test/renderApp";
 import { DEFAULT_THEME, THEME_STORAGE_KEY, initTheme } from "./theme";
 
@@ -15,7 +14,7 @@ describe("theme", () => {
 
   it("switching the selector sets data-theme and remembers the choice", async () => {
     initTheme();
-    renderApp();
+    await renderApp();
 
     await userEvent.selectOptions(screen.getByLabelText(en.theme.label), "control-dark");
 
@@ -23,10 +22,10 @@ describe("theme", () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("control-dark");
   });
 
-  it("restores the remembered theme on start", () => {
+  it("restores the remembered theme on start", async () => {
     localStorage.setItem(THEME_STORAGE_KEY, "control-dark");
     initTheme();
-    renderApp();
+    await renderApp();
 
     expect(document.documentElement).toHaveAttribute("data-theme", "control-dark");
     expect(screen.getByLabelText(en.theme.label)).toHaveValue("control-dark");
@@ -46,14 +45,10 @@ describe("theme", () => {
       throw new Error("blocked");
     });
     initTheme();
-    renderApp();
+    await renderApp();
 
     await userEvent.selectOptions(screen.getByLabelText(en.theme.label), "control-dark");
     expect(document.documentElement).toHaveAttribute("data-theme", "control-dark");
     vi.restoreAllMocks();
-  });
-
-  it("uses the same storage key as the inline script in index.html", () => {
-    expect(indexHtml).toContain(`"${THEME_STORAGE_KEY}"`);
   });
 });

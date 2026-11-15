@@ -7,8 +7,8 @@ import { renderApp } from "../test/renderApp";
 import { SIDEBAR_STORAGE_KEY } from "./useSidebarCollapsed";
 
 describe("navigation", () => {
-  it("renders landmarks and the three sections with their links", () => {
-    renderApp();
+  it("renders landmarks and the three sections with their links", async () => {
+    await renderApp();
 
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expect(screen.getByRole("main")).toBeInTheDocument();
@@ -30,8 +30,8 @@ describe("navigation", () => {
     }
   });
 
-  it("marks the current page with aria-current and shows its placeholder", () => {
-    renderApp("/trips");
+  it("marks the current page with aria-current and shows its placeholder", async () => {
+    await renderApp("/trips");
 
     expect(screen.getByRole("link", { name: en.nav.items.trips })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: en.nav.items.orders })).not.toHaveAttribute("aria-current");
@@ -41,7 +41,7 @@ describe("navigation", () => {
   });
 
   it("navigates with the keyboard", async () => {
-    renderApp();
+    await renderApp();
 
     screen.getByRole("link", { name: en.nav.items.pricing }).focus();
     await userEvent.keyboard("{Enter}");
@@ -49,13 +49,13 @@ describe("navigation", () => {
     expect(screen.getByRole("link", { name: en.nav.items.pricing })).toHaveAttribute("aria-current", "page");
   });
 
-  it("shows a not-found view for unknown paths", () => {
-    renderApp("/nope");
+  it("shows a not-found view for unknown paths", async () => {
+    await renderApp("/nope");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(en.notFound.title);
   });
 
   it("collapses the sidebar, keeps link names, and remembers the choice", async () => {
-    renderApp();
+    await renderApp();
 
     const toggle = screen.getByRole("button", { name: en.nav.toggle });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -69,7 +69,7 @@ describe("navigation", () => {
 
 describe("dashboard tabs", () => {
   it("shows the health status and moves between tabs with the arrow keys", async () => {
-    renderApp();
+    await renderApp();
 
     expect(screen.getByRole("tab", { name: en.dashboard.tabs.overview })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("region", { name: en.health.title })).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("dashboard tabs", () => {
   });
 
   it("wraps with ArrowLeft and ArrowRight and supports Home and End", async () => {
-    renderApp();
+    await renderApp();
     const overview = screen.getByRole("tab", { name: en.dashboard.tabs.overview });
     const preview = screen.getByRole("tab", { name: en.dashboard.tabs.themePreview });
 
@@ -106,8 +106,8 @@ describe("dashboard tabs", () => {
     expect(overview).toHaveFocus();
   });
 
-  it("makes the tab panel focusable", () => {
-    renderApp();
+  it("makes the tab panel focusable", async () => {
+    await renderApp();
     expect(screen.getByRole("tabpanel")).toHaveAttribute("tabindex", "0");
   });
 });
