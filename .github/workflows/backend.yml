@@ -1,0 +1,82 @@
+name: backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      UV_PYTHON: "3.15"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fleetfreight
+          POSTGRES_PASSWORD: ci-only-password
+          # Empty database used for the migration check; pytest creates fleetfreight_test itself.
+          POSTGRES_DB: fleetfreight_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fleetfreight -d fleetfreight_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.8"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install Python 3.15
+        run: uv python install 3.15
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy
+
+      - name: Pytest
+        env:
+          # The database name must end with "_test" (guard in tests/conftest.py).
+          TEST_DATABASE_URL: postgresql+psycopg://fleetfreight:ci-only-password@localhost:5432/fleetfreight_test
+        run: uv run pytest
+
+      - name: Alembic upgrade head on an empty database
+        env:
+          DATABASE_URL: postgresql+psycopg://fleetfreight:ci-only-password@localhost:5432/fleetfreight_ci
+        run: |
+          uv run alembic upgrade head
+          uv run alembic current
