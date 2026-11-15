@@ -60,6 +60,12 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D33 | **Lämpötilasäädelty käsittely kolmessa terminaalissa: Central, Tampere ja Oulu** (kylmätila ja kylmäkoneiden sähköpistokkeet). Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Hyväksytty 14.11.2026 | Toni, chat |
 | D34 | Käyttöliittymä on **kaksikielinen (englanti ja suomi), vaihdettavissa** asetuksista. Kaikki tekstit käännöstiedostoissa alusta asti, ei kovakoodattuja tekstejä komponenteissa. Oletuskieli englanti | Hyväksytty 14.11.2026 (oletuskieli: Oletus) | Toni, chat |
 | D35 | Reititys: **`react-router`** (uusin vakaa, 8.x) | Oletus (Toni ei ole erikseen päättänyt) | PR 1C |
+| D36 | **Pressukuljetus on perustapaus**, ei pätevyys. Trailerityyppi kertoo perusominaisuudet (sivulastaus: pressu, mega, sivuaukeava; ei umpikaappi). Erityisominaisuudet ovat yksinkertaisia valintoja trailerilla ja vaatimuksia orderilla: **XL-sertifioitu (EN 12642 XL), kelakouru, TIR-tullivaijeri, ylhäältä lastaus**. Ei erillistä pressulogiikkaa eikä uusia tauluja | Hyväksytty 15.11.2026 | Toni, chat |
+| D37 | **Kolme kuormatyyppiä: FTL (täysi kuorma), PTL (osakuorma) ja LTL (kappaletavara)**, ja niille omat riippuvuudet ja toiminnot (luku 3B) | Hyväksytty 15.11.2026 (yksityiskohdat luvussa 3B: Ehdotus) | Toni, chat |
+| D38 | **Kuormatyyppi on kaupallinen tuote, reitti on operatiivinen toteutus.** Kuormatyyppi määrää hinnoittelun, Nodet näyttävät todellisen reitin. Poikkeama (esim. LTL suoraan ilman terminaalia) antaa Plan Check -varoituksen, ei estoa | Hyväksytty 15.11.2026 | Toni, chat |
+| D39 | **Kuormatila voi olla traileri tai kuorma-auton oma kuormatila** (nouto- ja jakeluautot, usein perälauta). Mallinnetaan vaiheessa 2. Trip = kuormatilan kuormattu kierros, ja ajotyyppeihin lisätään kuorma-auton kuormattu ajo | Hyväksytty 15.11.2026 | Toni, chat |
+| D40 | **Demodatan rajat ja kertoimet (Euroopan malli):** LTL enintään 2,4 LDM tai 2 500 kg, PTL siitä 10 LDM tai 15 000 kg asti, yli → järjestelmä ehdottaa FTL-hintaa. Rahdituspaino: 1 LDM = 1 850 kg, 1 m³ = 333 kg, lavapaikka = 740 kg. Kaikki asetuksina ja asiakashinnastossa ylikirjoitettavina | Hyväksytty 15.11.2026 | Toni, chat |
+| D41 | **Ensimmäiseen versioon kaikki:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot (Plan Check, vaihe 5), sekä **lavanvaihto ja lavasaldot** (lavatyyppi ja vaihdetut lavat lastaus- ja purkutapahtumiin vaiheessa 2, saldot asiakkaittain ja laskutus vaiheessa 6) | Hyväksytty 15.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -183,11 +189,11 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 
 | Taulu | Moduuli | Sisältö |
 |---|---|---|
-| orders | kuorma | asiakastilaus, osapuolet, tavara, aikaikkunat, vaatimukset (ADR, lämpötila, perälauta) |
+| orders | kuorma | asiakastilaus, **kuormatyyppi FTL/PTL/LTL (D37)**, osapuolet, tavara, rahdituspaino, aikaikkunat, vaatimukset (ADR, lämpötila, perälauta, XL, kelakouru, TIR, ylhäältä lastaus) |
 | order_nodes | kuorma | orderin käsittely Nodessa: LOAD / UNLOAD / REMAIN, suunniteltu ja toteutunut. Orderin reititys johdetaan tästä ja legeistä |
 | trips | kuorma | operatiivinen kuljetuskokonaisuus: traileri, lautta, statusketju |
 | locations | yhteinen | asiakkaat, terminaalit ja satamat koordinaatteineen. Terminaaleilla: lastauslaiturit (D32), kylmätila ja lämpötila-alue sekä kylmäkonepistokkeiden määrä (D33) |
-| handling_events | kuorma | IOP, IOD, POD, UNLOAD, LOAD: suunniteltu ja toteutunut aika |
+| handling_events | kuorma | IOP, IOD, POD, UNLOAD, LOAD: suunniteltu ja toteutunut aika, lavatyyppi ja vaihdetut / vaihtamatta jääneet lavat (D41) |
 | drivers | resurssi | kuljettaja, kuljetusyhtiö, kortit, ADR-pätevyys |
 | nodes | kuorma / resurssi | keikan pisteet järjestyksessä: sijainti, tyyppi (vetäjän lähtö, trailerin nouto, terminaali, lastaus, purku, satama lähtö / saapuminen, korjaamo, katsastus, pesu, kuljettajanvaihto), live / drop, aikaikkuna, suunniteltu / ennustettu / toteutunut aika |
 | legs | kuorma / resurssi | siirtymä kahden peräkkäisen Noden välillä: Job (vapaaehtoinen), Trip, vetäjä, traileri, ajotyyppi (SOLO / EMPTY_TRAILER / LOADED_TRAILER), kulkumuoto (ROAD / FERRY), tarkoitus (esim. RETURN_TO_BASE), km ja aika |
@@ -200,6 +206,43 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 | ferry_operators, ferry_sailings, ferry_bookings | kuorma | lauttayhtiöt, vuorot ja varaukset (nykyinen `ferry_rates` liitetään reitteihin). Varauksella: saattaen / saattamaton, cut-off, release, noutotunnus, ilmainen säilytysaika ja maksut, sähköön kytkentä (D27) |
 | dangerous_goods | kuorma | ADR-rivit orderilla: UN-nro, luokka, pakkausryhmä, määrä, tunnelikoodi |
 | qualifications | resurssi | kuljettajan ja kaluston pätevyydet ja kelpoisuudet: ADR, GDP, thermo, perälauta, voimassaolo |
+
+---
+
+## 3B. Kuormatyypit (D37)
+
+Kuormatyyppi on orderin pakollinen tieto. Se ohjaa reititystä, kapasiteettia, hinnoittelua, kulujen jakoa ja Plan Checkiä.
+Rajat ja kertoimet ovat asetuksia, eivät koodiin kirjoitettuja lukuja. Demossa käytetään keksittyjä arvoja.
+
+| | **FTL** täysi kuorma | **PTL** osakuorma | **LTL** kappaletavara |
+|---|---|---|---|
+| **Kuvaus** | Koko traileri yhdelle tilaajalle | Osa trailerista, suora kuljetus | Yksittäiset lavat ja kollit, konsolidoitu terminaalin kautta |
+| **Tyypillinen koko** | koko kuormatila, kapasiteetti trailerin tiedoista (ei vakio 13,6 LDM) | LTL- ja FTL-rajan välissä *(LDM- ja painoraja asetuksissa)* | pienet lähetykset *(LDM- ja painoraja asetuksissa)* |
+| **Reititys (Node–Leg)** | Suoraan, ei UNLOAD/LOAD-käsittelyä terminaalissa. Terminaali-Node sallittu REMAIN-käyntinä (vetäjänvaihto, yöpysäköinti, satama) | Yleensä suoraan, voi jakaa trailerin muiden PTL- ja LTL-osuuksien kanssa (multi-drop) | **Oletuksena terminaalin kautta**: nouto → terminaali → runkokuljetus → terminaali → jakelu |
+| **Trailerin jakaminen** | Ei. Kuormatila on varattu orderille kokonaan | Kyllä, PTL- ja LTL-osuuksien kanssa kapasiteetin rajoissa | Kyllä, konsolidoidaan terminaalissa |
+| **Kapasiteetin laskenta** | Koko kuormatila varataan | LDM / lavapaikat ja paino **legeittäin** (huippukuorma jokaisella legillä) | LDM, paino ja tilavuus legeittäin. Hinnoitteluun **rahdituspaino** |
+| **Hinnoittelu** | Hinta per kuljetus (asiakashinnasto: reitti + FTL) | Hinta LDM:n tai lavapaikkojen mukaan | Hinta rahdituspainon mukaan (kg-portaat tai €/100 kg) |
+| **Rahdituspaino** | ei käytetä | valinnainen | suurin seuraavista: todellinen paino, LDM × kerroin, m³ × kerroin *(kertoimet asetuksissa)* |
+| **Kulujen jako (R2, D19)** | Kaikki keikan kulut orderille | LDM:n mukaan | LDM:n tai rahdituspainon mukaan. Terminaalikäsittely aiheuttajalle |
+| **Dokumentit** | Rahtikirja per lähetys: CMR kansainvälisessä, kotimaan rahtikirja kotimaassa *(valinta lähtö- ja määrämaan mukaan, lakiperuste tarkistetaan)* | sama | sama, lisäksi terminaaliohjeet (Gateway Instructions) ja runkokuljetuksen kuormaluettelo |
+| **Plan Check** | Varoittaa, jos samaan kuormatilaan yritetään toista orderia | Varoittaa ylikapasiteetista legeittäin ja purkujärjestyksestä | Varoittaa (ei estä), jos reitti ei kulje terminaalin kautta. Varoittaa konsolidoinnin cut-offista |
+| **Tyypilliset lisät** | Odotusaika, polttoainelisä, ADR, thermo, lauttalisät (BAF, ETS), peruutusmaksu | samat + lisäpysähdys multi-dropissa | samat + terminaalikäsittely, jakelulisä, perälauta (terminaaliflow D25) |
+
+**Riippuvuudet muihin päätöksiin:**
+- **Thermo (D33):** LTL-thermo konsolidoidaan vain kylmäterminaalissa (Central, Tampere, Oulu)
+- **ADR (D24):** ADR + elintarvike -esto koskee myös konsolidoitua LTL-trailer-kuormaa, ei vain yksittäistä orderia
+- **Perälauta (D25):** perälautaorder kulkee aina terminaalin kautta kuormatyypistä riippumatta. PTL ja FTL eivät silloin voi mennä suoraan
+- **Kulujen jako legeittäin:** jaettava kulu kohdistetaan vain niille ordereille, jotka ovat kyydissä kyseisellä legillä (LTL on Cross Dockin jälkeen eri Tripillä, D14)
+- **Lautat:** LTL kulkee lautalla runkokuljetuksen trailerissa, ja lauttakulu jaetaan trailerin ordereille (D19)
+
+**Muut kuormatyyppeihin liittyvät tiedot (ff-logistiikka 15.11.2026):**
+- **Pinottavuus** ordeririveillä: pinoamaton lava varaa lattiapinnan, mikä vaikuttaa LDM:ään ja hintaan
+- **LDM-kaava:** pituus × leveys / 2,4 m. EUR-lava (1,2 × 0,8 m) = 0,4 LDM, FIN-lava (1,2 × 1,0 m) = 0,5 LDM
+- **LTL-verkon aikataulut:** runkolinjojen lähdöt, terminaalien cut-off-ajat ja toimitusaikalupaus
+- **Kollitason tiedot:** kollimäärä ja poikkeamat (vaurio, puuttuva kolli) käsittelytapahtumiin
+- **Rahdinmaksaja:** lähettäjä tai vastaanottaja
+- **LTL-thermo** Turun ja Kuopion alueilla jaetaan kylmäterminaalista (Central, Tampere, Oulu), ja Plan Check huomaa sen
+- Demoarvot: D40. Laajuus: D41
 
 ---
 
@@ -277,6 +320,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 ### Vaihe 6: kaupallinen puoli
 - [ ] Hinnoittelumoottori ja kulujen jako (R2), kate orderille ja Tripille
 - [ ] Dokumentit: Transport Order, CMR, Gateway Instructions, lasku, Credit Note
+- [ ] Lavasaldot asiakkaittain ja vaihtamatta jääneiden lavojen laskutus (D41)
 - [ ] Trailer pool -näkymä, lautat ja satamakäsittely, raportit ja Power BI -endpointit
 
 ### Vaihe 6B: live-seuranta (D30)
