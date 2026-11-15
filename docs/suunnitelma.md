@@ -33,7 +33,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D6 | Frontend siirretään Create React Appista Viteen. Kieli pysyy JavaScriptinä, TypeScript ei ole päätetty | Korvattu → D11 | FF #11 |
 | D7 | FleetFlow'n koodikehitys jäädytetään FF-002E:tä lukuun ottamatta. GitHub Pages -demo säilyy, kunnes yhdistetty demo on julkaistu | Ehdotus | luku 5 |
 | D8 | Kaikki kummankin projektin toimialuekäsitteet tulevat mukaan (luku 2B). Mitään ei pudoteta, ja päällekkäiset toteutukset yhdistetään | Hyväksytty 14.11.2026 | Toni, chat |
-| D9 | Kaksi vaihdettavaa teemaa koko sovellukseen: **Business Light** (FleetFlow'n SAP Light / Budjettikirjan beige-ruskea-harmaa) ja **Control Dark** (Freight Plannerin tumma, oranssi aksentti). Valinta tallentuu käyttäjälle | Hyväksytty 14.11.2026 | Toni, chat |
+| D9 | Kaksi vaihdettavaa teemaa koko sovellukseen: **Business Light** (beige-harmaa vaalea teema, sininen aksentti) ja **Control Dark** (Freight Plannerin tumma, oranssi aksentti). Valinta tallentuu käyttäjälle | Hyväksytty 14.11.2026 | Toni, chat |
 | D10 | Tyylit toteutetaan CSS-muuttujina (design tokenit), ei inline-väreinä. Freight Plannerin "inline CSS kaikkialla" -sääntö ei siirry uuteen sovellukseen, koska teemanvaihto vaatii muuttujat | Hyväksytty 14.11.2026 | D9 |
 | D11 | Uuden sovelluksen perusta: React + TypeScript + Vite frontendissä, Python backendissä. Korvaa D6:n "kieli pysyy JavaScriptinä" | Hyväksytty 14.11.2026 | Toni, chat |
 | D12 | Backend FastAPI + Pydantic + SQLAlchemy + Alembic, tietokanta PostgreSQL (Docker). TypeScript-tyypit generoidaan backendin OpenAPI-kuvauksesta (`openapi-typescript`). Testit pytest + Vitest | Hyväksytty 14.11.2026 | D11 |
@@ -59,6 +59,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D32 | **Kaikissa terminaaleissa on lastauslaiturit**, joten perästä purku onnistuu kaikkialla (perälautaorderien terminaaliflow D25 toimii jokaisessa terminaalissa) | Hyväksytty 14.11.2026 | Toni, chat |
 | D33 | **Lämpötilasäädelty käsittely kolmessa terminaalissa: Central, Tampere ja Oulu** (kylmätila ja kylmäkoneiden sähköpistokkeet). Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Hyväksytty 14.11.2026 | Toni, chat |
 | D34 | Käyttöliittymä on **kaksikielinen (englanti ja suomi), vaihdettavissa** asetuksista. Kaikki tekstit käännöstiedostoissa alusta asti, ei kovakoodattuja tekstejä komponenteissa. Oletuskieli englanti | Hyväksytty 14.11.2026 (oletuskieli: Oletus) | Toni, chat |
+| D35 | Reititys: **`react-router`** (uusin vakaa, 8.x) | Oletus (Toni ei ole erikseen päättänyt) | PR 1C |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -160,7 +161,7 @@ Tietokanta: PostgreSQL (Docker), Alembic-migraatiot alusta asti
 
 Kaikki komponentit käyttävät vain muuttujia. Värit ovat nykyisten sovellusten käytetyimmät arvot (FleetFlow `App.css`, Freight Planner komponenttien inline-värit).
 
-| Token | Business Light (FleetFlow SAP Light) | Control Dark (Freight Planner) |
+| Token | Business Light | Control Dark (Freight Planner) |
 |---|---|---|
 | `--bg-main` | `#f3efe7` | `#0f172a` |
 | `--panel-bg` | `#fbf8f1` | `#1e293b` |
@@ -170,7 +171,11 @@ Kaikki komponentit käyttävät vain muuttujia. Värit ovat nykyisten sovelluste
 | `--text-muted` | `#6b7280` | `#94a3b8` |
 | `--accent` | `#0a6ed1` | `#f97316` |
 
-Lisäksi yhteiset semanttiset tokenit molempiin teemoihin: tilavärit (Suunniteltu, Vahvistettu, Käynnissä, Toimitettu, Laskutettu), kapasiteettipalkit (vihreä / oranssi / punainen), rajoitusten vakavuus (red / orange / yellow) sekä ADR-, GDP- ja thermo-merkit. Näin värikoodaus toimii samoin kummassakin teemassa.
+Lisäksi yhteiset semanttiset tokenit molempiin teemoihin: tilavärit (Suunniteltu, Vahvistettu, Käynnissä, Toimitettu, Laskutettu, Peruttu), kapasiteettipalkit (vihreä / oranssi / punainen), rajoitusten vakavuus (red / orange / yellow) sekä ADR-, GDP- ja thermo-merkit. Näin värikoodaus toimii samoin kummassakin teemassa.
+
+Johdetut tokenit (molemmissa teemoissa): `--text-muted-strong`, `--accent-text`, `--accent-contrast` (teksti aksenttivärin päällä), `--border-strong`, `--surface-hover` ja `--surface-selected`.
+
+Sääntö (WCAG AA, 4.5:1 tekstille): perusarvot `--text-muted` ja `--accent` kelpaavat tekstinä vain pinnoilla, joilla ne läpäisevät AA:n (`--panel-bg`, Control Darkissa myös `--bg-main`). Muilla pinnoilla (esim. `--panel-header`) käytetään johdettuja `--text-muted-strong` ja `--accent-text`. Kontrastitesti valvoo tätä.
 
 Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 

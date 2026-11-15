@@ -22,6 +22,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // Process CSS so tests can read the token files as raw text (contrast and colour-lint tests).
+    css: true,
     setupFiles: ["./src/test/setup.ts"],
   },
 });

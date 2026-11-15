@@ -1,31 +1,88 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--bg-main);
+  color: var(--text-main);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height);
 }
 
-.app-main {
-  padding: var(--space-3);
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.25;
 }
 
-.app-title {
-  margin: 0 0 var(--space-3);
-  color: var(--color-accent);
+a {
+  color: var(--accent-text);
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--text-main);
+  background: var(--panel-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--surface-hover);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.panel section > h2 {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-lg);
 }
 
 .health-status {
   display: inline-flex;
-  gap: var(--space-2);
+  gap: var(--space-3);
   align-items: center;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  margin: var(--space-3) var(--space-3) 0 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
   border-left-width: 4px;
+  border-radius: var(--radius-md);
 }
 
-.health-status[data-state="loading"] { border-left-color: var(--color-text-muted); }
-.health-status[data-state="ok"] { border-left-color: var(--color-ok); }
-.health-status[data-state="database-down"] { border-left-color: var(--color-warn); }
-.health-status[data-state="unreachable"] { border-left-color: var(--color-error); }
+.health-status[data-state="loading"] { border-left-color: var(--text-muted); }
+.health-status[data-state="ok"] { border-left-color: var(--capacity-ok); }
+.health-status[data-state="database-down"] { border-left-color: var(--capacity-warn); }
+.health-status[data-state="unreachable"] { border-left-color: var(--capacity-over); }

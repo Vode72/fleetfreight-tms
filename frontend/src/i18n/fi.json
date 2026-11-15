@@ -2,6 +2,88 @@
   "app": {
     "name": "FleetFreight TMS"
   },
+  "layout": {
+    "skipToContent": "Siirry pääsisältöön",
+    "settings": "Näyttöasetukset"
+  },
+  "theme": {
+    "label": "Teema",
+    "businessLight": "Business Light",
+    "controlDark": "Control Dark"
+  },
+  "language": {
+    "label": "Kieli",
+    "en": "English",
+    "fi": "Suomi"
+  },
+  "nav": {
+    "label": "Päävalikko",
+    "toggle": "Sivupalkki",
+    "dashboard": "Etusivu",
+    "sections": {
+      "loadPlanning": "Kuormasuunnittelu",
+      "trafficPlanning": "Liikennesuunnittelu",
+      "administration": "Hallinta"
+    },
+    "items": {
+      "orders": "Tilaukset",
+      "trips": "Keikat",
+      "customers": "Asiakkaat",
+      "board": "Taulu",
+      "jobWorkspace": "Työnäkymä",
+      "fleetTimeline": "Kalustoaikajana",
+      "routeRisk": "Reitti ja riskit",
+      "fleetPartners": "Kalusto ja kumppanit",
+      "pricing": "Hinnoittelu",
+      "settings": "Asetukset"
+    }
+  },
+  "dashboard": {
+    "title": "Etusivu",
+    "tabsLabel": "Etusivun osiot",
+    "tabs": {
+      "overview": "Yleiskatsaus",
+      "themePreview": "Teeman esikatselu"
+    }
+  },
+  "placeholder": {
+    "title": "Tulossa",
+    "description": "Tätä näkymää ei ole vielä rakennettu. Se valmistuu myöhemmässä vaiheessa."
+  },
+  "notFound": {
+    "title": "Sivua ei löydy",
+    "description": "Tällaista näkymää ei ole.",
+    "back": "Takaisin etusivulle"
+  },
+  "preview": {
+    "status": "Tila",
+    "capacity": "Kapasiteetti",
+    "severity": "Rajoituksen vakavuus",
+    "badges": "Pätevyydet ja vaatimukset",
+    "statuses": {
+      "planned": "Suunniteltu",
+      "confirmed": "Vahvistettu",
+      "inProgress": "Käynnissä",
+      "delivered": "Toimitettu",
+      "invoiced": "Laskutettu",
+      "cancelled": "Peruttu"
+    },
+    "capacityLevels": {
+      "ok": "OK",
+      "warn": "Lähellä rajaa",
+      "over": "Yli rajan"
+    },
+    "severities": {
+      "red": "Punainen: estää",
+      "orange": "Oranssi: varoitus",
+      "yellow": "Keltainen: huomautus"
+    },
+    "badgeNames": {
+      "adr": "ADR",
+      "gdp": "GDP",
+      "thermo": "Lämpö"
+    }
+  },
   "health": {
     "title": "Taustajärjestelmän tila",
     "loading": "Tarkistetaan taustajärjestelmää...",

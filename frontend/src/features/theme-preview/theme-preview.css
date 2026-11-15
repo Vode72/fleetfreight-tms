@@ -1,0 +1,71 @@
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.chip-list,
+.capacity-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: var(--space-1) var(--space-3);
+  color: var(--tone);
+  background: var(--tone-bg);
+  border: 1px solid var(--tone);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.chip[data-tone="status-planned"] { --tone: var(--status-planned); --tone-bg: var(--status-planned-bg); }
+.chip[data-tone="status-confirmed"] { --tone: var(--status-confirmed); --tone-bg: var(--status-confirmed-bg); }
+.chip[data-tone="status-in-progress"] { --tone: var(--status-in-progress); --tone-bg: var(--status-in-progress-bg); }
+.chip[data-tone="status-delivered"] { --tone: var(--status-delivered); --tone-bg: var(--status-delivered-bg); }
+.chip[data-tone="status-invoiced"] { --tone: var(--status-invoiced); --tone-bg: var(--status-invoiced-bg); }
+.chip[data-tone="status-cancelled"] { --tone: var(--status-cancelled); --tone-bg: var(--status-cancelled-bg); }
+.chip[data-tone="severity-red"] { --tone: var(--severity-red); --tone-bg: var(--severity-red-bg); }
+.chip[data-tone="severity-orange"] { --tone: var(--severity-orange); --tone-bg: var(--severity-orange-bg); }
+.chip[data-tone="severity-yellow"] { --tone: var(--severity-yellow); --tone-bg: var(--severity-yellow-bg); }
+.chip[data-tone="badge-adr"] { --tone: var(--badge-adr); --tone-bg: var(--badge-adr-bg); }
+.chip[data-tone="badge-gdp"] { --tone: var(--badge-gdp); --tone-bg: var(--badge-gdp-bg); }
+.chip[data-tone="badge-thermo"] { --tone: var(--badge-thermo); --tone-bg: var(--badge-thermo-bg); }
+
+.capacity-list {
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capacity-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.capacity-label {
+  font-size: var(--font-size-sm);
+}
+
+.capacity-track {
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  background: var(--capacity-track);
+  border-radius: var(--radius-sm);
+}
+
+.capacity-fill {
+  display: block;
+  height: 100%;
+}
+
+.capacity-fill[data-level="ok"] { background: var(--capacity-ok); }
+.capacity-fill[data-level="warn"] { background: var(--capacity-warn); }
+.capacity-fill[data-level="over"] { background: var(--capacity-over); }

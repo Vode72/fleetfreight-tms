@@ -1,0 +1,215 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: var(--topbar-height) minmax(0, 1fr);
+  height: 100%;
+}
+
+.app-shell[data-sidebar="collapsed"] {
+  grid-template-columns: var(--sidebar-width-collapsed) minmax(0, 1fr);
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  z-index: 10;
+  padding: var(--space-3) var(--space-4);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-radius: var(--radius-md);
+  transform: translateY(-300%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* Top bar */
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: 0 var(--space-4);
+  background: var(--panel-header);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar-title {
+  color: var(--text-main);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.topbar-title::before {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 1em;
+  margin-right: var(--space-3);
+  vertical-align: -2px;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.topbar-settings {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.topbar-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.topbar-field select {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+/* Sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar-heading {
+  padding: 0 var(--space-4) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-main);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-link:hover {
+  background: var(--surface-hover);
+}
+
+.sidebar-link[aria-current="page"] {
+  background: var(--surface-selected);
+  color: var(--accent-text);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar-link .icon {
+  flex: none;
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: auto var(--space-3) 0;
+  font-size: var(--font-size-sm);
+  background: transparent;
+  border-color: var(--border);
+}
+
+.app-shell[data-sidebar="collapsed"] .sidebar-section {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.app-shell[data-sidebar="collapsed"] .sidebar-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.app-shell[data-sidebar="collapsed"] .sidebar-toggle {
+  justify-content: center;
+  margin-inline: var(--space-2);
+  padding-inline: 0;
+}
+
+/* Main area */
+.app-main {
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  overflow: auto;
+}
+
+.app-main:focus {
+  outline: none;
+}
+
+.page-title {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-xl);
+}
+
+.panel {
+  padding: var(--space-4);
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel > h2 {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-lg);
+}
+
+.panel p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+/* Tabs */
+.tablist {
+  display: flex;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  margin-bottom: -1px;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--panel-bg);
+  color: var(--accent-text);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.tabpanel {
+  padding-top: var(--space-4);
+}
