@@ -70,8 +70,8 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D43 | **Tripin tietosivu välilehdillä:** Yleiset, Node–Leg, Orderit, Vaaralliset aineet, Lämpötila, Dokumentit, Kulut ja kate. ADR- ja lämpötilatiedot eivät ole erillisiä sivuja vaan tripin välilehtiä. Näiden kahden välilehden sisältö määräytyy D44:n, D46:n ja D47:n mukaan | Hyväksytty 16.11.2026 | Toni, chat |
 | D44 | **Vaaralliset aineet ja lämpötilavaatimus kirjataan orderille, Trip johtaa ne.** Orderin luonnissa on ADR-täppä, josta avautuu ADR-välisivu DG-riveille: UN-numero, kuljetusnimi, luokka, pakkausryhmä, määrä ja yksikkö, kuljetuskategoria, rajoitettu määrä -lippu. Thermo vastaavasti: min, max, esijäähdytys, GDP. Tripillä ei ole käsin asetettavaa täppää: kun tripillä on yksikin ADR-order, tripin otsikossa, Tripit-listassa ja lähtöpöydällä näkyy ADR-merkki, ja tiukin lämpötila johdetaan kyydissä olevista ordereista | Hyväksytty 16.11.2026 | Toni, chat |
 | D45 | **ADR-avustin tripille, periaate:** avustin on päätöstuki, ei päätä. Se laskee ja näyttää tripin DG-tilanteen (pisteet, vapautus, merkinnät, pakolliset varusteet ja asiakirjat) ja valitsee sovellettavan säännöstön **legeittäin**. Kertoimet, rajat ja säännöt ovat versioitu sääntötaulukko ADR-painoksen mukaan. Vastuu luokittelusta lähettäjällä, tarkistus turvallisuusneuvonantajalla | Hyväksytty 16.11.2026 | Toni, chat |
-| D46 | **ADR-avustimen säännöt (luonnos, kaikki tarkistetaan ADR-, IMDG- ja MoU-tekstistä ennen toteutusta, ei muistista):** 1.1.3.6-pisteet kuljetusyksikölle ja "mitä jos" -laskelma uudelle orderille; alle rajan ei oransseja kilpiä mutta kuljetusasiakirja, sammutin ja perehdytys säilyvät; suuret varoituslipukkeet kappaletavarassa vain luokat 1 ja 7; legin säännöstö ROAD = ADR, Itämeren ro-ro-lautta = Itämeren MoU, muu merilegi = IMDG; DG-ilmoitus varustamolle ennen cut-offia. Avoin kohta: A1 | Ehdotus | chat 16.11. |
-| D47 | **Lämpötila-välilehti ja -valvonta:** kuormatilan lohkot ja asetusarvot (tiukin orderivaatimus), kylmäkone ja ATP-luokka voimassaoloineen, anturit kalibrointipäivineen, esijäähdytyksen kuittaus, käyrä sallitulla alueella ja Node-merkinnöillä, hälytykset ja kuljettajan kuittaus syineen, satamasähkö (D27), CSV ja PDF-raportti tallennetusta datasta (ei muokattavissa jälkikäteen). Demossa anturidata simuloidaan (D30). Lisäksi Lämpötilavalvonta-näkymä käynnissä oleville thermo-tripeille | Ehdotus | chat 16.11. |
+| D46 | **ADR-avustimen säännöt (tarkistettu lähteistä 16.11.2026, ks. luku 3C):** pisteet kuljetusyksikölle 1.1.3.6.4:n mukaan ja "mitä jos" -laskelma uudelle orderille; alle rajan luku 5.3 (oranssit kilvet ja suuret varoituslipukkeet), 5.4.3 (kirjalliset turvallisuusohjeet), osa 8 poikkeuksin ja osa 9 eivät koske, mutta kuljetusasiakirja ja jäljelle jäävät osan 8 vaatimukset säilyvät; yli rajan oranssit kilvet, kappaletavarassa suuret varoituslipukkeet lisäksi luokille 1 ja 7; legin säännöstö ROAD = ADR, Itämeren ro-ro-lautta = Itämeren MoU, muu merilegi = IMDG; **merilegillä 1.1.3.6-vapautusta ei käytetä** (A1); DG-ilmoitus varustamolle ennen cut-offia. Sääntötaulukossa ADR 2025 ja ADR 2027 erikseen | Ehdotus | chat 16.11. |
+| D47 | **Lämpötila-välilehti ja -valvonta:** kuormatilan lohkot ja asetusarvot (tiukin orderivaatimus), kylmäkone ja ATP-luokka voimassaoloineen, anturit kalibrointipäivineen, esijäähdytyksen kuittaus, käyrä sallitulla alueella ja Node-merkinnöillä, hälytykset ja kuljettajan kuittaus syineen, satamasähkö (D27), CSV ja PDF-raportti tallennetusta datasta (ei muokattavissa jälkikäteen). Demossa anturidata simuloidaan (D30). Lisäksi Lämpötilavalvonta-näkymä käynnissä oleville thermo-tripeille | Hyväksytty 16.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -104,7 +104,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 
 ### Avoimet kysymykset (selvitettävä ennen toteutusta)
 
-- **A1 (D46):** koskeeko ADR 1.1.3.6 -pistevapautus Itämeren MoU:n alaista lauttalegiä, vai vaaditaanko merellä täydet merkinnät ja DG-ilmoitus pisteistä riippumatta? Selvitetään MoU-tekstistä ennen vaihetta 5. Siihen asti avustin näyttää lauttalegillä "tarkista", ei "OK".
+- **A1 (D46): ratkaistu 16.11.2026.** Itämeren MoU:n §3(2) luettelee ne ADR:n 1.1.3-vapautukset, joiden ansiosta IMDG:tä ei sovelleta laivalla, eikä 1.1.3.6 ole luettelossa. Merilegillä pistevapautus ei siis päde: DG-tiedot (UN-numerot ja luokat) annetaan varustamolle aina. Kuljetusyksikön merkinnät merilegillä (MoU §10) tarkistetaan koko MoU-tekstistä ennen vaihetta 5, koska käytettävissä oli vain ote.
 
 Perustelut ja skenaarioittaiset rivit: `analyysi/paperitestit.md`. Avoimet kysymykset Tonille: saman raportin luku 4 (14 kysymystä).
 
@@ -253,6 +253,25 @@ Rajat ja kertoimet ovat asetuksia, eivät koodiin kirjoitettuja lukuja. Demossa 
 - **Rahdinmaksaja:** lähettäjä tai vastaanottaja
 - **LTL-thermo** Turun ja Kuopion alueilla jaetaan kylmäterminaalista (Central, Tampere, Oulu), ja Plan Check huomaa sen
 - Demoarvot: D40. Laajuus: D41
+
+---
+
+## 3C. ADR-avustimen lähteet ja tarkistus (D46)
+
+Tarkistettu 16.11.2026. Ennen vaihetta 5 sääntötaulukko tarkistetaan vielä virallisesta ADR-tekstistä (UNECE), koska osa alla olevasta on luettu otteista tai viranomaisten tiivistelmistä.
+
+| Sääntö | Sisältö | Lähde |
+|---|---|---|
+| 1.1.3.6.2 | Rajan alla ei sovelleta: luku 1.10 (paitsi luokan 1 suuren vaaran aineet), luku 5.3, 5.4.3, valtaosa luvusta 7.2, CV1, osa 8 (poikkeuksin), osa 9 | BAM DGG-Info, ADR 2025 |
+| 1.1.3.6.3 | Kategoria 0: määrä 0, eli vapautusta ei voi käyttää. Kategoriat 1–3 rajoin, kategoria 4 rajaton | ADR 2025 (BAM, UNECE) |
+| 1.1.3.6.4 | Summa ≤ 1 000: kat. 1 × 50, kat. 1 taulukon huomautus a × 20, kat. 2 × 3, kat. 3 × 1, kat. 4 ei lasketa | BAM DGG-Info, ADR 2025 |
+| ADR 2027 | Voimaan 1.1.2027: huomautus a ja kerroin 20 poistuvat. Siirtymäsäännös 1.6.1.61: vanhaa saa käyttää tietyille UN-numeroille 31.12.2030 asti | ASTRA, ADR 2027 -muutokset |
+| 5.3.1.5 | Kappaletavarassa suuret varoituslipukkeet ajoneuvoon vain luokat 1 ja 7 | HSE (UK), CDG |
+| 1.1.4.2.1 | IMDG-merkityt yksiköt hyväksytään kuljetusketjussa, jossa on merikuljetus, kun 5.3.2:n oranssit kilvet ovat kunnossa | ADR (EU-virallinen julkaisu), HSE |
+| MoU §1 | Kaikki ro-ro-alukset Itämerellä, Pohjanlahdella, Suomenlahdella ja Skagen–Lysekil-linjaan asti | MoU 2022 (Tallinna), Transportstyrelsen |
+| MoU §3(2) | Laivalla sallitut ADR 1.1.3 -vapautukset luetellaan, 1.1.3.6 ei ole mukana | MoU 2022 (Tallinna) |
+
+Vastuu: lähettäjä luokittelee, turvallisuusneuvonantaja tarkistaa. Avustin laskee ja varoittaa, ei hyväksy.
 
 ---
 
