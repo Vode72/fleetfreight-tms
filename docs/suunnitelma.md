@@ -1,6 +1,6 @@
 # FleetFreight TMS: Freight Planner + FleetFlow → yhdistetty TMS
 
-Päivitetty: 16.11.2026 · Tila: hyväksytty, päätösrekisteri D1–D48 (tilat luvussa 2)
+Päivitetty: 16.11.2026 · Tila: päätösrekisteri D1–D48, tilat luvussa 2 (osa päätöksistä Ehdotus tai Oletus)
 Lähteet: Freight Planner `main` (`1128d19`), FleetFlow `main` (`f9a04f0`),
 FleetFlow PR #6 (draft) ja issuet #7–#12.
 

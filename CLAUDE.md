@@ -26,14 +26,14 @@ ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita p
 cp .env.example .env                 # vain kehitysarvot, ei salasanoja repoon
 docker compose up --build            # override-tiedosto tuo kehitysasetukset automaattisesti
 curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
-docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät, DEMO_PASSWORD .env:stä
+docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät; vain kehityskäynnistyksellä (override), DEMO_PASSWORD .env:stä
 cd frontend && npm ci && npm run dev
 ```
 
 Tuotanto ilman override-tiedostoa: `docker compose -f docker-compose.yml up -d`.
 Tarkemmat ohjeet: `backend/README.md`.
 
-### Tarkistukset ennen PR:ää (samat kuin CI)
+### Tarkistukset ennen PR:ää (CI ajaa samat)
 
 ```bash
 # backend/
@@ -47,7 +47,10 @@ npm run typecheck && npm run lint && npm test && npm run build
 # API-tyypit backendin muutosten jälkeen
 cd backend && uv run python -m scripts.export_openapi /tmp/openapi.json
 cd ../frontend && OPENAPI_URL=/tmp/openapi.json npm run gen:api
+git diff --exit-code src/api/schema.ts   # CI kaatuu, jos tyypit ovat vanhentuneet
 ```
+
+CI ajaa lisäksi `uv run alembic upgrade head` tyhjää kantaa vasten.
 
 Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"` (sääntö 2).
 
