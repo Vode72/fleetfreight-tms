@@ -208,68 +208,100 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 
 ### Tietomalli v1 (vaihe 2)
 
-Tila: **Ehdotus, odottaa Tonin hyväksyntää** (16.11.2026). Kokoaa päätökset D13–D51. Taulut luodaan Alembic-revisioina tässä järjestyksessä: perusrekisterit → kuorma → keikka → resurssit ja ajoaika → erityiskuljetukset → kulut. Kentät ovat pääkenttiä; tarkat tyypit, indeksit ja rajoitteet päätetään kunkin revision PR:ssä. Raha kokonaislukuina (D28), ajat `timestamptz`, toteutuneet tapahtumat vain lisätään, korjaukset vastakirjauksina (sääntö 9).
+Tila: **Ehdotus, odottaa Tonin hyväksyntää** (16.11.2026, ff-logistiikka tarkistanut). Kokoaa päätökset D13–D51. Avoimet kysymykset K1–K7 alla ratkaistaan ennen ensimmäistä revisiota. Taulut luodaan Alembic-revisioina tässä järjestyksessä: perusrekisterit → kuorma → keikka → resurssit ja ajoaika → kylmä, tulli ja dokumentit → kulut ja lavasaldot. Kentät ovat pääkenttiä; tarkat tyypit, indeksit ja rajoitteet päätetään kunkin revision PR:ssä.
+
+**Yhteiset säännöt kaikille tauluille**
+- Raha kokonaislukuina (`*_cents`, `*_e4`, D28). Ajat `timestamptz`; paikallinen aika lasketaan paikan aikavyöhykkeestä.
+- **Toteumataulut** (`handling_events`, `customs_events`, `duty_events`, `temperature_readings`, `pallet_ledger`, `costs`): rivit vain lisätään. Jokaisella on `source` (FEC, terminaali, asiakas, manuaali, ajopiirturi, simulaatio) ja `reversal_of_id` korjauksia varten (sääntö 9).
+- **Johdettuja tietoja ei tallenneta toiseen kertaan:** tripin alku ja loppu (Nodeista), purkujärjestys (Nodejen järjestyksestä), keikan resurssivaraukset (tripeistä ja Jobeista), lavasaldo (riveistä).
+- **Liput ja alirivit täsmäävät:** orderin ADR-, thermo- ja tullattava-lippu vaativat vastaavat rivit (tarkistus).
 
 **Olemassa (vaihe 1 ja 2A):** `users` (rooli, teema, kieli), `sessions`.
 
-#### Perusrekisterit
+#### Perusrekisterit ja asetustaulut
 
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
-| customers | nimi, tyyppi, Y-tunnus (keksitty), rahdinmaksajan oletus, asiakashinnaston viite | 2B |
-| locations | tyyppi (asiakkaan toimipaikka, terminaali, satama, varikko, korjaamo, pesu, katsastus), asiakas (valinnainen), osoite, maa, koordinaatit, aukioloajat; terminaalilla laiturit, kylmätila, lämpötila-alue ja pistokkeiden määrä | D31–D33 |
-| customs_areas | maa tai alue, kuuluuko EU:n tullialueeseen, arvonlisäveroalueeseen ja yhteiseen passitukseen; voimassaolo (versioitu taulukko) | D48 |
-| carriers | kuljetusliike: oma tai alihankkija, yhteystiedot (keksityt) | 2B |
+| customers | nimi, tyyppi, Y- tai ALV-tunnus (keksitty), maa, asiakashinnaston viite | 2B |
+| locations | tyyppi (asiakkaan toimipaikka, terminaali, satama, varikko, korjaamo, pesu, katsastus, pysäköinti, tankkaus, tullitoimipaikka), asiakas (valinnainen), osoite, maa, koordinaatit, **IANA-aikavyöhyke**, aukioloajat, ajanvaraus pakollinen, suurin sallittu ajoneuvo, sivulastaus mahdollinen; terminaalilla laiturit, kylmätila, lämpötila-alue ja pistokkeiden määrä | D31–D33 |
+| customs_areas | maa tai alue, EU:n tullialue, arvonlisäveroalue, yhteinen passitus; voimassaolo (versioitu) | D48 |
+| adr_rules | ADR-painos, kuljetuskategorioiden rajat ja kertoimet, yhteenkuormauskiellot lipukkeittain; voimassaolo (versioitu, sisältö tarkistetaan lähteistä luvun 3C mukaan) | D45, D46 |
+| pallet_types | lavatyyppi, mitat, LDM | D40, D41 |
+| road_restrictions | maa, tyyppi (ajokielto, painoraja), voimassaolo ja aikaväli | 2B |
+| ltl_linehauls | runkolinja terminaalien välillä, lähtöajat, cut-off, toimitusaikalupaus | 3B |
+| carriers | kuljetusliike: oma tai alihankkija, maa, Y- tai ALV-tunnus (keksitty), liikennelupa ja vastuuvakuutus voimassaoloineen | 2B |
 | drivers | kuljetusliike, nimi (Demo), kotipaikka, työsuhde (oma / alihankkijan nimetty) | R6, D20 |
-| trucks | kuljetusliike, rekisteri (keksitty), tyyppi (vetäjä / kuorma-auto), **oma kuormatila** kuorma-autolla (LDM, lavapaikat, paino, perälauta) | D39 |
-| trailers | tyyppi (pressu, mega, sivuaukeava, thermo, …), LDM, lavapaikat, maksimipaino, erityisominaisuudet (XL, kelakouru, TIR-vaijeri, ylhäältä lastaus, perälauta) | D36 |
-| reefer_units | kuormatilan (traileri tai kuorma-auto) kylmäkone: lohkot ja niiden lämpötila-alueet, polttoaine / sähkö, ATP-luokka ja voimassaolo | D47 |
-| sensors | kuormatila ja lohko, tunniste, kalibrointipäivä ja seuraava kalibrointi | D47 |
-| qualifications | kuljettajan tai kaluston pätevyys / kelpoisuus: ADR, GDP, thermo, perälauta; voimassaolo | R6 |
-| ferry_operators, ferry_routes, ferry_sailings | lauttayhtiö (Demo), reitti satamien välillä, vuoro: lähtö, saapuminen, check-in ja cut-off | D23, D27 |
+| trucks | kuljetusliike, rekisteri (keksitty), tyyppi (vetäjä / kuorma-auto), omamassa, suurin kokonaismassa, akselit, katsastus ja huolto; kuorma-autolla **oma kuormatila** (sisämitat, LDM, lavapaikat, paino, perälauta, ATP) | D39 |
+| trailers | rekisteri (keksitty), tyyppi (pressu, mega, sivuaukeava, thermo, …), sisämitat ja oviaukko, LDM, lavapaikat, omamassa ja suurin kokonaismassa, akselit, erityisominaisuudet (XL, kelakouru, TIR-vaijeri, ylhäältä lastaus, perälauta), **ATP-luokka ja voimassaolo**, omistusmuoto (oma, leasing, vuokra, partnerin) ja vuokrakausi, katsastus ja huolto | D36, D47 |
+| compartments | kuormatila (traileri tai kuorma-auto), lohkon numero, lämpötila-alue | D47 |
+| reefer_units | kuormatila, kylmäkone, polttoaine / sähkö | D47 |
+| sensors | lohko tai order (asiakkaan oma loggeri), tunniste, kalibrointi ja seuraava kalibrointi | D47 |
+| qualifications | **kuljettajan** pätevyys (ADR ja laajuus, ajokortti, ammattipätevyys, kuljettajakortti, GDP) tai **kaluston** kelpoisuus (ADR, GDP-lämpötilakartoitus, perälauta); erilliset viiteavaimet ja tarkistus, voimassaolo | R6 |
+| ferry_operators, ferry_routes, ferry_sailings | lauttayhtiö (Demo), reitti satamien välillä, vuoro: alus (rahti / ro-pax), lähtö, saapuminen, check-in, cut-off, kesto | D23, D27 |
 
 #### Kuorma
 
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
-| orders | asiakas, **kuormatyyppi FTL / PTL / LTL**, tila (Order-ketju + Peruttu), lastaus- ja purkupaikka, aikaikkunat, rahdinmaksaja, alkuperäinen Order ID (jaettu order), vaatimukset (perälauta, XL, kelakouru, TIR, ylhäältä lastaus), **tullattava**, **ADR** ja **thermo**-liput | D22, D37, D44, D48, D50 |
-| order_lines | kollit ja lavat: lavatyyppi, määrä, mitat, paino, tilavuus, pinottavuus; laskettu LDM ja rahdituspaino | 3B, D40 |
-| dangerous_goods | order, UN-numero, kuljetusnimi, luokka, pakkausryhmä, määrä ja yksikkö, kuljetuskategoria, tunnelikoodi, rajoitettu määrä -lippu | D44, D46 |
-| temperature_requirements | order, min, max, esijäähdytys, GDP | D44, D47 |
-| customs_declarations, customs_items | menettely, MRN (demo), edellinen asiakirja, tullitoimipaikat, ilmoittaja, vakuus, Incoterms, sinetin numero; T1-tavararivit | D48 |
+| orders | tilaava asiakas, **lähettäjä ja vastaanottaja**, rahdinmaksaja (asiakasviite), asiakkaan viite, **kuormatyyppi FTL / PTL / LTL**, tila (Order-ketju + Peruttu), lastaus- ja purkupaikka, aikaikkunat, Incoterms, **tavaralaji** (elintarvike, rehu, lääke, kemikaali, yleinen; K4), vaatimukset (perälauta, XL, kelakouru, TIR, ylhäältä lastaus), lavanvaihto sovittu, liput tullattava, ADR, thermo, alkuperäinen Order ID (jaettu order) | D22, D24, D37, D41, D44, D48, D50 |
+| order_lines | tavaran kuvaus, kollilaji, merkinnät, lavatyyppi, määrä, mitat, paino, tilavuus, pinottavuus; laskettu LDM ja rahdituspaino | 3B, D40 |
+| dangerous_goods | order ja valinnainen order_line, UN-numero, kuljetusnimi, luokka, varoituslipukkeet (pää- ja sivuvaarat), pakkausryhmä, kollien määrä ja pakkauslaji, määrä ja yksikkö, kuljetuskategoria, tunnelikoodi, ympäristölle vaarallinen / merta saastuttava, rajoitettu määrä- ja poikkeusmäärä-liput | D44, D46 |
+| temperature_requirements | order, min, max, esijäähdytys vaaditaan, GDP | D44, D47 |
 
 #### Keikka (Node–Leg)
 
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
-| trips | **kuormatila** (traileri tai kuorma-auto), tila (Trip-ketju + Peruttu), suunniteltu alku ja loppu | D14, D39, D50 |
-| nodes | trip, järjestys, sijainti, tyyppi (vetäjän lähtö, trailerin nouto, terminaali, lastaus, purku, satama lähtö / saapuminen, korjaamo, katsastus, pesu, vetäjänvaihto), live / drop, aikaikkuna, suunniteltu / ennustettu / toteutunut aika | D13, D18 |
-| legs | trip, lähtö- ja tulo-Node, job (valinnainen), vetäjä, ajotyyppi (SOLO, EMPTY_TRAILER, LOADED_TRAILER, kuorma-auton kuormattu ajo), kulkumuoto (ROAD / FERRY), km, ajoaika | D13, D17, D39 |
-| order_nodes | order, Node, toiminto LOAD / UNLOAD / REMAIN, purkujärjestys (LIFO) | D14, D41 |
-| ferry_bookings | legi (FERRY), vuoro, saattaen / saattamaton, cut-off, release, noutotunnus, ilmainen säilytysaika, maksut, sähköön kytkentä, DG-ilmoitus lähetetty | D23, D27, D46 |
-| handling_events | order, Node, tyyppi (IOP, LOAD, UNLOAD, IOD, POD), suunniteltu ja toteutunut aika, kollimäärä ja poikkeamat, **lavatyyppi ja vaihdetut / vaihtamatta jääneet lavat** | D16, D41 |
-| customs_events | order, Node, vaihe (vienti hyväksytty, passitus avattu, saapunut, päätetty, tullattu), suunniteltu ja toteutunut aika | D48 |
+| trips | **kuormatila** (traileri tai kuorma-auto; K1: tyhjä luonnostripillä), tila (Trip-ketju + Peruttu) | D14, D39, D50 |
+| nodes | trip (K2), järjestys, sijainti, tyyppi, toiminnot (irti / kiinni, vetäjänvaihto, sähköön kytkentä, sinetöinti), live / drop, aikaikkuna, **saapuminen ja lähtö: suunniteltu, ennuste ja toteutunut**, suunniteltu käsittelyaika, ajanvarausnumero | D13, D18, D27 |
+| legs | lähtö- ja tulo-Node, job (valinnainen), ajotyyppi (SOLO, EMPTY_TRAILER, LOADED_TRAILER, kuorma-auton kuormattu ajo; tarkistetaan kyydissä olevista ordereista), kulkumuoto (ROAD / FERRY), km, ajoaika (FERRY: 0), **reitin maat ja km per maa, tiukin tunnelikategoria**; trippi suoraan tai K3:n mukaan liitostaulun kautta | D13, D17, D39 |
+| order_nodes | order, Node, toiminto LOAD / UNLOAD / REMAIN (REMAIN vain ohjetta vaativissa terminaaleissa), järjestys saman Noden sisällä, lastauskohta kuormatilassa, lohko (thermo) | D14, D33, D41 |
+| ferry_bookings | legi (FERRY), vuoro, varausnumero, saattaen / saattamaton, tila (varattu → gate-in → laivassa → purettu → vapautettu → noudettu; myöhästynyt, uudelleenvarattu), yksikön pituus, korkeus, paino ja rekisterit, hytti tai makuupaikka (saattaen), cut-off, release, noutotunnus, ilmainen säilytysaika, sähköön kytkentä, DG-ilmoitus lähetetty; maksut `costs`-riveinä | D23, D27, D46 |
+| handling_events | order, Node, tyyppi (IOP, LOAD, UNLOAD, IOD, POD, esijäähdytys kuitattu), aika, kollimäärä, lavatyyppi ja vaihdetut / vaihtamatta jääneet lavat, source, reversal_of_id | D16, D41, D47 |
+| deviations | order, Node tai trip, tyyppi (vaurio, vajaus, myöhästyminen, CMR-huomautus), kuvaus, syy | 2B |
+| seals | kuormatila ja trip, numero, kiinnitetty Nodessa, tarkistettu Nodessa, ehjä | D48 |
 
 #### Resurssit ja ajoaika
 
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
-| jobs | vetäjä tai kuorma-auto, kuljettaja (tyhjä alihankkijan työssä), kuljetusliike, tila (Job-ketju + Peruttu); ei omaa `trip_id`:tä (legien kautta) | D18, D20, D50 |
-| duty_events | kuljettaja, job, tyyppi (ajo, muu työ, tauko, lepo, valmius, lauttalepo), alku ja loppu, suunniteltu / toteutunut | D23 |
-| resource_reservations | vetäjä, traileri tai kuljettaja, aikaväli, syy; historia säilyy | — |
-| trailer_positions | traileri, sijainti, tila (vapaa, varattu, lastattu, tyhjä, huollossa), alku | 2B |
-| temperature_readings | sensori, aika, lämpötila; vain lisätään | D47 |
-| temperature_alarms | trip, lohko, alku ja loppu, raja, kuittaaja ja syy | D47 |
+| jobs | vetäjä tai kuorma-auto (tyhjä sallittu alihankkijan työssä), kuljettaja (tyhjä alihankkijan työssä), kuljetusliike, tila (Job-ketju + Peruttu); ei omaa `trip_id`:tä | D18, D20, D50 |
+| duty_events | kuljettaja, job, tyyppi (ajo, muu työ, tauko, lepo, valmius, lauttalepo, matkustus), alku ja loppu, sijainti tai maa, levon paikka (ajoneuvo / majoitus / lautta), source | D23 |
+| resource_reservations | vetäjä, traileri tai kuljettaja, aikaväli, syy (huolto, loma, poissaolo); ei keikkavarauksia | — |
+| trailer_positions | traileri, sijainti, tila (vapaa, lastattu, tyhjä, merellä, satamassa odottaa vapautusta, huollossa), alku; kirjoitetaan Noden toteumista | 2B |
 
-#### Kulut ja lavasaldot
+#### Kylmä, tulli ja dokumentit
 
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
-| costs | kulu- tai myyntirivi, palvelukoodi, summa `*_cents`, linkki tripiin, orderiin, legiin tai jobiin, kuljetusliike (ostot legeittäin), laskutustila (myös peruutusmaksu) | D18, D28, A2 |
-| cost_allocations | kulu, order, jakoperuste (LDM oletus), osuus; jäädytetään laskutuksessa | R2, D15, D19 |
-| pallet_ledger | asiakas, lavatyyppi, käsittelytapahtuma, muutos (+/−); saldo lasketaan riveistä | D41 |
+| trip_compartment_settings | trip, lohko, asetusarvo, hälytysrajat, mistä Nodesta alkaen | D47 |
+| temperature_readings | sensori, aika, lämpötila, source | D47 |
+| temperature_alarms | trip, lohko, alku ja loppu, raja, kuittaaja ja syy | D47 |
+| customs_declarations, customs_items | menettely, MRN (demo), edellinen asiakirja, tullitoimipaikat, ilmoittaja, vakuus; ilmoitus ↔ order (K6); T1-tavararivit | D48 |
+| customs_events | ilmoitus, Node, vaihe (vienti hyväksytty, passitus avattu, saapunut, päätetty, tullattu), aika, source, reversal_of_id | D48 |
+| documents | tyyppi (Transport Order, CMR, kotimaan rahtikirja, Gateway Instructions, lastauslista, tulliyhteenveto, lämpötilaraportti), order / trip / job / Node, versio, luotu, lähetetty, sisällön tiiviste, tila | R7, D47, D48 |
 
-Asiakashinnasto, lisähintamoottori ja palvelukoodisto siirtyvät Freight Plannerista vaiheessa 3, ja niiden taulut suunnitellaan siellä.
+#### Kulut, laskutus ja lavasaldot
+
+| Taulu | Pääkentät | Päätökset |
+|---|---|---|
+| service_codes | palvelukoodi (keksitty), nimi, oletusjakoperuste; siirtyy Freight Plannerista ja luodaan ennen `costs`-taulua | D19 |
+| costs | kulu- tai myyntirivi, palvelukoodi, määrä, yksikkö, yksikköhinta `*_e4`, summa `*_cents`, ALV-koodi, linkki tripiin, orderiin, legiin tai jobiin, kuljetusliike (ostot legeittäin), ostolaskun viite, source, reversal_of_id (myös peruutusmaksu) | D18, D28, A2 |
+| cost_allocations | kulu, order, jakoperuste (LDM oletus, K5), osuus; jäädytetään laskutuksessa | R2, D15, D19 |
+| invoices, invoice_lines | asiakas, numero, päivä, tila; rivi viittaa `costs`-riviin; hyvityslasku viittaa alkuperäiseen laskuun | D16, R3 |
+| pallet_ledger | vastapuoli (asiakas, kuljetusliike tai paikka; K7), lavatyyppi, käsittelytapahtuma, lavakuitin numero, muutos (+/−), source, reversal_of_id; saldo lasketaan riveistä | D41 |
+
+Asiakashinnasto ja lisähintamoottori siirtyvät Freight Plannerista vaiheessa 3, ja niiden taulut suunnitellaan siellä.
+
+#### Avoimet kysymykset ennen ensimmäistä revisiota (Tonin päätös)
+
+- **K1:** Reititys ennen tripiä (tila Reititetty): luonnostrippi ilman kuormatilaa (suositus) vai erillinen reittisuunnitelma?
+- **K2:** Huolto-, pesu- ja siirtoajot ilman kuormaa: Nodet ja legit ilman tripiä, Jobiin sidottuina (suositus), vai oma trippilaji "resurssisiirto"?
+- **K3:** Kuuluuko kuorma-auto + perävaunu -yhdistelmä v1:een? Jos kuuluu, legi on vetoyksikön siirtymä ja sen suhde tripeihin N:M, jottei sama ajo laske kilometrejä kahdesti.
+- **K4:** ADR + elintarvike -esto (D24): vain samaan aikaan kyydissä olevat orderit vai koko trip? Vaaditaanko pesu ennen elintarviketta, jos kuormatilassa oli ADR-tavaraa? Tavaralaji orderille vai riville?
+- **K5:** Tripin yhteiset kulut multi-dropissa ja PTL:ssä: jako LDM:n vai LDM × km:n mukaan?
+- **K6:** Passitus: yksi ilmoitus per order vai useita ordereita samassa ilmoituksessa?
+- **K7:** Lavasaldot myös kuljetusliikkeille ja paikoille vai vain asiakkaille?
 
 ---
 
