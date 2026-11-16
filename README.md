@@ -30,4 +30,4 @@ React · TypeScript · Vite · Python · FastAPI · PostgreSQL · Alembic · pyt
 
 ## Status
 
-Planning phase. See [docs/suunnitelma.md](docs/suunnitelma.md) (Finnish) for the decision register, data model and roadmap.
+Phase 1 (skeleton, authentication, themes, CI) is complete; phase 2 (data model) is next. See [docs/suunnitelma.md](docs/suunnitelma.md) (Finnish) for the decision register, data model and roadmap, and [backend/README.md](backend/README.md) for running the app.

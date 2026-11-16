@@ -47,7 +47,7 @@ uv python install 3.15
 uv sync
 docker compose up -d db             # or any local PostgreSQL
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload   # with ENVIRONMENT=development and SESSION_COOKIE_SECURE=false in .env
 ```
 
 Settings are read from environment variables, then from `.env` in the repository root or in `backend/`.

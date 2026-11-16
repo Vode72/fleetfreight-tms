@@ -5,7 +5,7 @@ import { readStored, writeStored } from "../lib/safeStorage";
 export const THEMES = ["business-light", "control-dark"] as const;
 export type Theme = (typeof THEMES)[number];
 export const DEFAULT_THEME: Theme = "business-light";
-/** Keep in sync with the inline script in index.html (checked by theme.test.tsx). */
+/** Keep in sync with public/theme-init.js (checked by themeInit.test.ts). */
 export const THEME_STORAGE_KEY = "ff.theme";
 
 function isTheme(value: string | null): value is Theme {

@@ -1,6 +1,6 @@
 # Vaihe 1: runko
 
-Tila: **suunnitelma, odottaa Tonin hyväksyntää** · Päivitetty 14.11.2026
+Tila: **valmis** (PR:t #3–#8 yhdistetty, CI vihreä) · Päivitetty 16.11.2026
 
 Tavoite: toimiva, testattu ja suojattu tyhjä sovellus, jonka päälle vaiheen 2 tietomalli rakennetaan.
 Vaiheessa ei vielä tehdä toimialuelogiikkaa.

@@ -1,7 +1,7 @@
+"""User-related pure helpers (pure domain module: no FastAPI or database imports)."""
+
 import hashlib
 import hmac
-
-"""User-related pure helpers."""
 
 
 def normalize_email(email: str) -> str:

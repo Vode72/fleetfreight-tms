@@ -20,7 +20,36 @@ ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita p
 - **Tietokanta:** PostgreSQL (Docker Compose)
 - **Tyypit:** frontendin API-tyypit generoidaan backendin OpenAPI-kuvauksesta (`openapi-typescript`). Älä kirjoita API-tyyppejä käsin.
 
-Käynnistys- ja testikomennot lisätään tähän vaiheessa 1, kun runko on olemassa.
+### Käynnistys (kehitys)
+
+```bash
+cp .env.example .env                 # vain kehitysarvot, ei salasanoja repoon
+docker compose up --build            # override-tiedosto tuo kehitysasetukset automaattisesti
+curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
+docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät, DEMO_PASSWORD .env:stä
+cd frontend && npm ci && npm run dev
+```
+
+Tuotanto ilman override-tiedostoa: `docker compose -f docker-compose.yml up -d`.
+Tarkemmat ohjeet: `backend/README.md`.
+
+### Tarkistukset ennen PR:ää (samat kuin CI)
+
+```bash
+# backend/
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pytest                        # TEST_DATABASE_URL, nimen loppu _test
+
+# frontend/
+npm run typecheck && npm run lint && npm test && npm run build
+
+# API-tyypit backendin muutosten jälkeen
+cd backend && uv run python -m scripts.export_openapi /tmp/openapi.json
+cd ../frontend && OPENAPI_URL=/tmp/openapi.json npm run gen:api
+```
+
+Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"` (sääntö 2).
 
 ---
 
