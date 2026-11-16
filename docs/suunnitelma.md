@@ -66,6 +66,12 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D39 | **Kuormatila voi olla traileri tai kuorma-auton oma kuormatila** (nouto- ja jakeluautot, usein perälauta). Mallinnetaan vaiheessa 2. Trip = kuormatilan kuormattu kierros, ja ajotyyppeihin lisätään kuorma-auton kuormattu ajo | Hyväksytty 15.11.2026 | Toni, chat |
 | D40 | **Demodatan rajat ja kertoimet (Euroopan malli):** LTL enintään 2,4 LDM tai 2 500 kg, PTL siitä 10 LDM tai 15 000 kg asti, yli → järjestelmä ehdottaa FTL-hintaa. Rahdituspaino: 1 LDM = 1 850 kg, 1 m³ = 333 kg, lavapaikka = 740 kg. Kaikki asetuksina ja asiakashinnastossa ylikirjoitettavina | Hyväksytty 15.11.2026 | Toni, chat |
 | D41 | **Ensimmäiseen versioon kaikki:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot (Plan Check, vaihe 5), sekä **lavanvaihto ja lavasaldot** (lavatyyppi ja vaihdetut lavat lastaus- ja purkutapahtumiin vaiheessa 2, saldot asiakkaittain ja laskutus vaiheessa 6) | Hyväksytty 15.11.2026 | Toni, chat |
+| D42 | **Lähtöpöytä ja Tripit-sivu.** Lähtöpöydällä kootaan Trip: vapaat orderit, kuormatila, vetäjät ja kuljettajat, lautat ja muut Nodet yhdistetään Node–Leg-ketjuksi, ja Plan Check ajetaan ennen vahvistusta. Tripit-sivulla kaikki tripit tiloittain (KPI:t, haku, täyttö, lautta, Plan Check, kate). Layout: Design-kangas 16.11.2026 | Hyväksytty 16.11.2026 | Toni, chat |
+| D43 | **Tripin tietosivu välilehdillä:** Yleiset, Node–Leg, Orderit, Vaaralliset aineet, Lämpötila, Dokumentit, Kulut ja kate. ADR- ja lämpötilatiedot eivät ole erillisiä sivuja vaan tripin välilehtiä. Näiden kahden välilehden sisältö määräytyy D44:n, D46:n ja D47:n mukaan | Hyväksytty 16.11.2026 | Toni, chat |
+| D44 | **Vaaralliset aineet ja lämpötilavaatimus kirjataan orderille, Trip johtaa ne.** Orderin luonnissa on ADR-täppä, josta avautuu ADR-välisivu DG-riveille: UN-numero, kuljetusnimi, luokka, pakkausryhmä, määrä ja yksikkö, kuljetuskategoria, rajoitettu määrä -lippu. Thermo vastaavasti: min, max, esijäähdytys, GDP. Tripillä ei ole käsin asetettavaa täppää: kun tripillä on yksikin ADR-order, tripin otsikossa, Tripit-listassa ja lähtöpöydällä näkyy ADR-merkki, ja tiukin lämpötila johdetaan kyydissä olevista ordereista | Hyväksytty 16.11.2026 | Toni, chat |
+| D45 | **ADR-avustin tripille, periaate:** avustin on päätöstuki, ei päätä. Se laskee ja näyttää tripin DG-tilanteen (pisteet, vapautus, merkinnät, pakolliset varusteet ja asiakirjat) ja valitsee sovellettavan säännöstön **legeittäin**. Kertoimet, rajat ja säännöt ovat versioitu sääntötaulukko ADR-painoksen mukaan. Vastuu luokittelusta lähettäjällä, tarkistus turvallisuusneuvonantajalla | Hyväksytty 16.11.2026 | Toni, chat |
+| D46 | **ADR-avustimen säännöt (tarkistettu lähteistä 16.11.2026, ks. luku 3C):** pisteet kuljetusyksikölle 1.1.3.6.4:n mukaan ja "mitä jos" -laskelma uudelle orderille; alle rajan luku 5.3 (oranssit kilvet ja suuret varoituslipukkeet), 5.4.3 (kirjalliset turvallisuusohjeet), osa 8 poikkeuksin ja osa 9 eivät koske, mutta kuljetusasiakirja ja jäljelle jäävät osan 8 vaatimukset säilyvät; yli rajan oranssit kilvet, kappaletavarassa suuret varoituslipukkeet lisäksi luokille 1 ja 7; legin säännöstö ROAD = ADR, Itämeren ro-ro-lautta = Itämeren MoU, muu merilegi = IMDG; **merilegillä 1.1.3.6-vapautusta ei käytetä** (A1); DG-ilmoitus varustamolle ennen cut-offia. Sääntötaulukossa ADR 2025 ja ADR 2027 erikseen | Hyväksytty 16.11.2026 (MoU §10 -merkinnät tarkistetaan ennen vaihetta 5) | Toni, chat |
+| D47 | **Lämpötila-välilehti ja -valvonta:** kuormatilan lohkot ja asetusarvot (tiukin orderivaatimus), kylmäkone ja ATP-luokka voimassaoloineen, anturit kalibrointipäivineen, esijäähdytyksen kuittaus, käyrä sallitulla alueella ja Node-merkinnöillä, hälytykset ja kuljettajan kuittaus syineen, satamasähkö (D27), CSV ja PDF-raportti tallennetusta datasta (ei muokattavissa jälkikäteen). Demossa anturidata simuloidaan (D30). Lisäksi Lämpötilavalvonta-näkymä käynnissä oleville thermo-tripeille | Hyväksytty 16.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -95,6 +101,10 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | R5 | Fyysinen Leg vs. Order Leg | Ei kumpaakaan | Molemmat käsitteinä, suhde avoin | **Ratkaistu: D13.** Yksi Leg-käsite: fyysinen siirtymä kahden Noden välillä (ajotyyppi SOLO / EMPTY_TRAILER / LOADED_TRAILER, kulkumuoto ROAD / FERRY). Job vapaaehtoinen (saattamaton traileri lautalla). Kilometrit ja ajoaika lasketaan vain legeistä |
 | R6 | Kuljettajat | Ei kuljettajia, vain vetäjät ja kuljetusyhtiöt | Kuljettaja on keskiössä | Uusi `drivers`-taulu: kuljetusyhtiö, kotipaikka (kotiinpaluu ja viikkolepo), työsuhde (oma / alihankkijan nimetty). Pätevyydet `qualifications`-tauluun |
 | R7 | Gateway Instructions | Suunniteltu "Gateway Instruction List" | "Gateway Instructions PDF" | Sama dokumentti, johdetaan legeistä. V1:ssä versionumero ja "muuttunut lähetyksen jälkeen" -varoitus |
+
+### Avoimet kysymykset (selvitettävä ennen toteutusta)
+
+- **A1 (D46): ratkaistu 16.11.2026.** Itämeren MoU:n §3(2) luettelee ne ADR:n 1.1.3-vapautukset, joiden ansiosta IMDG:tä ei sovelleta laivalla, eikä 1.1.3.6 ole luettelossa. Merilegillä pistevapautus ei siis päde: DG-tiedot (UN-numerot ja luokat) annetaan varustamolle aina. Kuljetusyksikön merkinnät merilegillä (MoU §10) tarkistetaan koko MoU-tekstistä ennen vaihetta 5, koska käytettävissä oli vain ote.
 
 Perustelut ja skenaarioittaiset rivit: `analyysi/paperitestit.md`. Avoimet kysymykset Tonille: saman raportin luku 4 (14 kysymystä).
 
@@ -246,6 +256,25 @@ Rajat ja kertoimet ovat asetuksia, eivät koodiin kirjoitettuja lukuja. Demossa 
 
 ---
 
+## 3C. ADR-avustimen lähteet ja tarkistus (D46)
+
+Tarkistettu 16.11.2026. Ennen vaihetta 5 sääntötaulukko tarkistetaan vielä virallisesta ADR-tekstistä (UNECE), koska osa alla olevasta on luettu otteista tai viranomaisten tiivistelmistä.
+
+| Sääntö | Sisältö | Lähde |
+|---|---|---|
+| 1.1.3.6.2 | Rajan alla ei sovelleta: luku 1.10 (paitsi luokan 1 suuren vaaran aineet), luku 5.3, 5.4.3, valtaosa luvusta 7.2, CV1, osa 8 (poikkeuksin), osa 9 | BAM DGG-Info, ADR 2025 |
+| 1.1.3.6.3 | Kategoria 0: määrä 0, eli vapautusta ei voi käyttää. Kategoriat 1–3 rajoin, kategoria 4 rajaton | ADR 2025 (BAM, UNECE) |
+| 1.1.3.6.4 | Summa ≤ 1 000: kat. 1 × 50, kat. 1 taulukon huomautus a × 20, kat. 2 × 3, kat. 3 × 1, kat. 4 ei lasketa | BAM DGG-Info, ADR 2025 |
+| ADR 2027 | Voimaan 1.1.2027: huomautus a ja kerroin 20 poistuvat. Siirtymäsäännös 1.6.1.61: vanhaa saa käyttää tietyille UN-numeroille 31.12.2030 asti | ASTRA, ADR 2027 -muutokset |
+| 5.3.1.5 | Kappaletavarassa suuret varoituslipukkeet ajoneuvoon vain luokat 1 ja 7 | HSE (UK), CDG |
+| 1.1.4.2.1 | IMDG-merkityt yksiköt hyväksytään kuljetusketjussa, jossa on merikuljetus, kun 5.3.2:n oranssit kilvet ovat kunnossa | ADR (EU-virallinen julkaisu), HSE |
+| MoU §1 | Kaikki ro-ro-alukset Itämerellä, Pohjanlahdella, Suomenlahdella ja Skagen–Lysekil-linjaan asti | MoU 2022 (Tallinna), Transportstyrelsen |
+| MoU §3(2) | Laivalla sallitut ADR 1.1.3 -vapautukset luetellaan, 1.1.3.6 ei ole mukana | MoU 2022 (Tallinna) |
+
+Vastuu: lähettäjä luokittelee, turvallisuusneuvonantaja tarkistaa. Avustin laskee ja varoittaa, ei hyväksy.
+
+---
+
 ## 4. Optimointi: FleetFlow'n alkuperäinen ydin
 
 Optimointi rakennetaan kolmessa kerroksessa. Jokainen kerros on käyttökelpoinen sellaisenaan:
@@ -299,6 +328,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 - [ ] Alembic-revisiot: `locations`, `customers`, `carriers`, `drivers`, `trucks`, `trailers`, `qualifications`
 - [ ] Alembic-revisiot: `orders`, `dangerous_goods`, `trips`, `nodes`, `legs`, `order_nodes`, `handling_events`
 - [ ] Alembic-revisiot: `jobs`, `duty_events`, `resource_reservations`, `trailer_positions`, ferry-taulut, `costs`, `cost_allocations`
+- [ ] Orderin DG-rivit ja lämpötilavaatimus (D44) sekä kuormatilan lohkot, kylmäkone, ATP ja anturit (D47), kun D44 ja D47 on hyväksytty
 - [ ] Kolmen tilaketjun tilakoneet testeineen (R3)
 - [ ] Demodata: molempien projektien demodata yhdistettynä, "Demo"-säännöt, FleetFlow'n ristiriitainen JOB-001-data korjattuna
 
@@ -310,11 +340,12 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 
 ### Vaihe 4: läpimenevä polku (ensimmäinen demottava versio)
 - [ ] Order → Trip → Nodet ja legit → Job kuljettajalle → yksinkertainen Plan Check
-- [ ] Näkymät: Orderit, Routing, Keikka, Board ja Job Workspace
+- [ ] Näkymät: Orderit, Lähtöpöytä, Tripit, tripin tietosivu (D42, D43; DG- ja lämpötilavälilehdet täyttyvät D44, D46 ja D47 hyväksynnän jälkeen), Routing, Board ja Job Workspace
 - [ ] Skenaario Jyväskylä–Vantaa–Lübeck toimii demossa alusta loppuun
 
 ### Vaihe 5: toteutettavuus (kerros 1)
 - [ ] `feasibility.py` sääntö kerrallaan: 561/2006 (myös lauttalepo, D23), 2002/15/EY, aikaikkunat, lautat, maarajoitukset, kaluston ja kuljettajan soveltuvuus (ADR, GDP, thermo, pitkät tavarat, perälauta)
+- [ ] ADR-avustin (D45, D46) ja lämpötilasäännöt (D47) Plan Checkiin (D46, D47 ja A1 ratkaistava ensin)
 - [ ] Fleet Timeline ja Route & Risk
 
 ### Vaihe 6: kaupallinen puoli
@@ -325,6 +356,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 
 ### Vaihe 6B: live-seuranta (D30)
 - [ ] Simuloidut sijainnit legeistä ja FEC-kuittauksista, WebSocket, ETA-ennuste ja myöhästymisvaroitus Route & Risk -näkymään
+- [ ] Simuloitu lämpötiladata, hälytykset ja Lämpötilavalvonta-näkymä, lämpötilaraportti PDF (D47)
 
 ### Vaihe 7: ehdotukset (kerros 2)
 - [ ] Jobin sijoitusehdotukset ja hyväksyntä
