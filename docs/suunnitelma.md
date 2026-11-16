@@ -1,6 +1,6 @@
 # FleetFreight TMS: Freight Planner + FleetFlow → yhdistetty TMS
 
-Päivitetty: 14.11.2026 (v2: uusi sovellus, siirtoinventaario ja paperitestit) · Tila: luonnos, odottaa Tonin hyväksyntää
+Päivitetty: 16.11.2026 · Tila: päätösrekisteri D1–D48, tilat luvussa 2 (osa päätöksistä Ehdotus tai Oletus)
 Lähteet: Freight Planner `main` (`1128d19`), FleetFlow `main` (`f9a04f0`),
 FleetFlow PR #6 (draft) ja issuet #7–#12.
 
@@ -159,7 +159,7 @@ Frontend (React + TypeScript + Vite)
 API-tyypit generoidaan backendin OpenAPI-kuvauksesta (openapi-typescript)
 
 Backend (FastAPI + Pydantic + SQLAlchemy, moduuleittain)
-├── auth          käyttäjät, roolit, tokenit
+├── auth          käyttäjät, roolit, palvelinpuolen istunnot
 ├── orders        orderit, order routing, legit, käsittelytapahtumat, ADR- ja GDP-tiedot
 ├── trips         keikat, pysähdykset, siirtymät, kapasiteetti legin aikavälillä
 ├── pricing       kulut, jakoperusteet, lisähinnat, asiakashinnasto, kate   ← FP:n moduulit
@@ -332,23 +332,23 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 - [x] Toni vastasi paperitestien kysymyksiin 14.11.2026 (D13–D27; D19–D21 oletuksina)
 - [x] D4, D5, D10, D12 ja D28 hyväksytty 14.11.2026
 - [x] Nimi: FleetFreight TMS (D29)
-- [ ] Repo `fleetfreight-tms` luodaan
+- [x] Repo `fleetfreight-tms` luotu
 - [ ] FleetFlow: FF-002E (#10) ja PR #6:n korjaus (Job-rajaus avoimeksi, ChatGPT-linkki pois), sitten koodi jäädytetään (D7)
 - [ ] Freight Planner: KONTEKSTI-tiedostoon merkitään, mitä on oikeasti toteutettu (esim. perälaudan flow ja pitkien tavaroiden esto ovat vain dokumentoituja)
 
 ### Vaihe 1: runko
-- [ ] Repo, Docker Compose (PostgreSQL), FastAPI-runko, Vite + React + TypeScript -runko, CI (pytest, Vitest, lint, typecheck)
-- [ ] Teemat CSS-muuttujina (D9, D10) ja sovelluksen layout (sivupalkki ja välilehdet)
-- [ ] Autentikointi ja roolit alusta asti
-- [ ] `CLAUDE.md` + `AGENTS.md` (D5) ja agenttien ohjeet uudelle pinolle
-- [ ] OpenAPI → TypeScript-tyyppien generointi
+- [x] Repo, Docker Compose (PostgreSQL), FastAPI-runko, Vite + React + TypeScript -runko, CI (pytest, Vitest, lint, typecheck)
+- [x] Teemat CSS-muuttujina (D9, D10) ja sovelluksen layout (sivupalkki ja välilehdet)
+- [x] Autentikointi ja roolit alusta asti
+- [x] `CLAUDE.md` + `AGENTS.md` (D5) ja agenttien ohjeet uudelle pinolle
+- [x] OpenAPI → TypeScript-tyyppien generointi
 
 ### Vaihe 2: tietomalli
 - [ ] Alembic-revisiot: `locations`, `customers`, `carriers`, `drivers`, `trucks`, `trailers`, `qualifications`
 - [ ] Alembic-revisiot: `orders`, `dangerous_goods`, `trips`, `nodes`, `legs`, `order_nodes`, `handling_events`
 - [ ] Alembic-revisiot: `jobs`, `duty_events`, `resource_reservations`, `trailer_positions`, ferry-taulut, `costs`, `cost_allocations`
 - [ ] Orderin tullitiedot, tullitapahtumat Nodeissa ja T1-tavararivit (D48)
-- [ ] Orderin DG-rivit ja lämpötilavaatimus (D44) sekä kuormatilan lohkot, kylmäkone, ATP ja anturit (D47), kun D44 ja D47 on hyväksytty
+- [ ] Orderin DG-rivit ja lämpötilavaatimus (D44) sekä kuormatilan lohkot, kylmäkone, ATP ja anturit (D47)
 - [ ] Kolmen tilaketjun tilakoneet testeineen (R3)
 - [ ] Demodata: molempien projektien demodata yhdistettynä, "Demo"-säännöt, FleetFlow'n ristiriitainen JOB-001-data korjattuna
 
@@ -367,7 +367,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 ### Vaihe 5: toteutettavuus (kerros 1)
 - [ ] `feasibility.py` sääntö kerrallaan: 561/2006 (myös lauttalepo, D23), 2002/15/EY, aikaikkunat, lautat, maarajoitukset, kaluston ja kuljettajan soveltuvuus (ADR, GDP, thermo, pitkät tavarat, perälauta)
 - [ ] Tulli- ja verorajan tunnistus reitiltä ja tullivaroitukset (D48)
-- [ ] ADR-avustin (D45, D46) ja lämpötilasäännöt (D47) Plan Checkiin (D46, D47 ja A1 ratkaistava ensin)
+- [ ] ADR-avustin (D45, D46) ja lämpötilasäännöt (D47) Plan Checkiin
 - [ ] Fleet Timeline ja Route & Risk
 
 ### Vaihe 6: kaupallinen puoli
@@ -401,6 +401,6 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 
 - Ensin suunnitelma, sitten Tonin hyväksyntä, sitten koodi
 - Oma haara per tehtävä. PR, testit ja katselmointi ennen yhdistämistä
-- Claude Code -agentit (ohjeet päivitetään uudelle pinolle vaiheessa 1): logistiikka (logiikka ennen koodia), backend, frontend, reviewer (jokainen PR) ja auditor (vaiheiden välissä)
+- Claude Code -agentit (ohjeet päivitetään uudelle pinolle vaiheessa 1): logistiikka (logiikka ennen koodia), backend, frontend, reviewer (jokainen PR), security (auth, oikeudet, endpointit) ja auditor (vaiheiden välissä)
 - Codexia käytettäessä `AGENTS.md` viittaa samaan `CLAUDE.md`:hen, joten säännöt ovat samat molemmille
 - Päätösrekisteri (luku 2) päivitetään aina, kun päätös syntyy tai muuttuu

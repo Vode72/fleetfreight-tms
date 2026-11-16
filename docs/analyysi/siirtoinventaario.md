@@ -1,5 +1,7 @@
 # Siirtoinventaario: Freight Planner + FleetFlow → uusi TMS
 
+> **Historiallinen analyysi 14.11.2026.** Osa käsitteistä (esim. `order_legs`, `stops`, `movements`) ja agenttinimistä on korvattu. Voimassa olevat päätökset: [suunnitelma.md](../suunnitelma.md), luku 2.
+
 Tarkastaja: fp-auditor · Päivämäärä: 14.11.2026
 Lähteet: Freight Planner `main` `1128d19` (`/home/claude/fp`), FleetFlow `main` `f9a04f0` (`/home/claude/fleetflow-planner`), PR #6:n dokumentti (`git -C /home/claude/ff show FETCH_HEAD:docs/order-routing-trip-principles.md`), suunnitelma `/home/claude/fp/docs/tms-yhdistamissuunnitelma.md`.
 

@@ -1,5 +1,7 @@
 # Paperitestit: yhdistetyn TMS:n tietomalli
 
+> **Historiallinen analyysi 14.11.2026.** Osa käsitteistä (esim. `order_legs`, `stops`, `movements`) ja agenttinimistä on korvattu. Voimassa olevat päätökset: [suunnitelma.md](../suunnitelma.md), luku 2.
+
 Laatija: `fp-logistiikka` (logiikkakatselmointi, ei koodia) · 14.11.2026
 Kohde: `fp/docs/tms-yhdistamissuunnitelma.md` luvut 2, 2B ja 3
 Vertailupohja: FleetFlow `docs/order-routing-trip-principles.md` (FETCH_HEAD), Freight Plannerin `FREIGHT_PLANNER_KONTEKSTI.txt` ja `CLAUDE.md`, FleetFlow'n `FLEETFLOW_MASTER_CONTEXT.md`

@@ -7,7 +7,7 @@ from app.config import get_settings
 
 
 class Base(DeclarativeBase):
-    """Declarative base for ORM models (models arrive in phase 2)."""
+    """Declarative base for ORM models (see db/models.py)."""
 
 
 def make_engine(url: str) -> Engine:

@@ -7,11 +7,11 @@ Requires Node 22.
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev        # http://localhost:5173
 ```
 
-The page shows the backend health status, so start the backend too (port 8000, see `../backend/README.md`).
+Every page except the login page requires a session, so start the backend too (port 8000, see `../backend/README.md`) and create demo users with its seed command.
 
 The browser only calls relative `/api/...` URLs. The Vite dev server forwards them to the backend and
 strips the `/api` prefix (`/api/health` -> `GET /health`), so no backend address is hard-coded and
@@ -53,8 +53,8 @@ into both files; a test fails if their keys differ. Switch language in code with
 
 ## Styling
 
-Components use only CSS variables from `src/theme/`. Currently placeholders; the real themes
-(Business Light, Control Dark) come in the next PR.
+Components use only CSS variables from `src/theme/`. Two themes: Business Light (default) and
+Control Dark. Tests check that components contain no hard-coded colours and that text contrast meets WCAG AA.
 
 ## Dependencies
 
