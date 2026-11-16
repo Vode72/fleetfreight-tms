@@ -50,7 +50,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D23 | Ensimmäisessä versiossa ovat sekä saattamattomat että saattaen ajettavat lautat. Lauttamatkan aikainen lepo huomioidaan ajoaikalaskennassa (ehdot luetaan 561/2006:sta ennen toteutusta) | Hyväksytty 14.11.2026 | Toni, chat |
 | D24 | ADR ja elintarvike samalla trailerilla on esto, jota liikenteenohjaaja ei voi ohittaa | Hyväksytty 14.11.2026 | Toni, chat |
 | D25 | Perälauta: puoliperävaunussa ei ole perälautaa, joten purku tehdään aina terminaalin kautta (terminaaliflow) | Hyväksytty 14.11.2026 | Toni, chat |
-| D26 | Tullaus ensimmäisessä versiossa: tullattava-lippu orderilla, asiakirjaviite ja Plan Check -varoitus puuttuvasta tullauksesta. Tulliasiakirjat ja T1 myöhemmin | Hyväksytty 14.11.2026 | Toni, chat |
+| D26 | Tullaus ensimmäisessä versiossa: tullattava-lippu orderilla, asiakirjaviite ja Plan Check -varoitus puuttuvasta tullauksesta. Tulliasiakirjat ja T1 myöhemmin. *(Korvattu: D48, 16.11.2026.)* | Hyväksytty 14.11.2026, korvattu | Toni, chat |
 | D27 | Saattamattoman trailerin satamakäsittely: cut-off-aika, vapautus (release), noutotunnus / PIN, säilytysaika ja satamamaksut sekä **sähköön kytkentä satamassa (kyllä / ei)** thermotrailereille | Hyväksytty 14.11.2026 | Toni, chat |
 | D28 | Raha tallennetaan PostgreSQL:ssä kokonaislukuina (`*_cents` ×100, `*_e4` ×10 000), laskenta `Decimal`. Freight Plannerin `money.py` ja sen testit siirtyvät muuttamatta | Hyväksytty 14.11.2026 | Toni, chat |
 | D29 | Uuden projektin nimi on **FleetFreight TMS** (repo `fleetfreight-tms`) | Hyväksytty 14.11.2026 | Toni, chat |
@@ -67,11 +67,12 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D40 | **Demodatan rajat ja kertoimet (Euroopan malli):** LTL enintään 2,4 LDM tai 2 500 kg, PTL siitä 10 LDM tai 15 000 kg asti, yli → järjestelmä ehdottaa FTL-hintaa. Rahdituspaino: 1 LDM = 1 850 kg, 1 m³ = 333 kg, lavapaikka = 740 kg. Kaikki asetuksina ja asiakashinnastossa ylikirjoitettavina | Hyväksytty 15.11.2026 | Toni, chat |
 | D41 | **Ensimmäiseen versioon kaikki:** vähimmäisveloitus ja osakuorman hintakatto (= FTL-hinta), purkujärjestys (LIFO multi-dropissa) ja lastauslista kuljettajalle, ADR-pisteet kuljetusyksikölle ja luokkien yhteenkuormauskiellot (Plan Check, vaihe 5), sekä **lavanvaihto ja lavasaldot** (lavatyyppi ja vaihdetut lavat lastaus- ja purkutapahtumiin vaiheessa 2, saldot asiakkaittain ja laskutus vaiheessa 6) | Hyväksytty 15.11.2026 | Toni, chat |
 | D42 | **Lähtöpöytä ja Tripit-sivu.** Lähtöpöydällä kootaan Trip: vapaat orderit, kuormatila, vetäjät ja kuljettajat, lautat ja muut Nodet yhdistetään Node–Leg-ketjuksi, ja Plan Check ajetaan ennen vahvistusta. Tripit-sivulla kaikki tripit tiloittain (KPI:t, haku, täyttö, lautta, Plan Check, kate). Layout: Design-kangas 16.11.2026 | Hyväksytty 16.11.2026 | Toni, chat |
-| D43 | **Tripin tietosivu välilehdillä:** Yleiset, Node–Leg, Orderit, Vaaralliset aineet, Lämpötila, Dokumentit, Kulut ja kate. ADR- ja lämpötilatiedot eivät ole erillisiä sivuja vaan tripin välilehtiä. Näiden kahden välilehden sisältö määräytyy D44:n, D46:n ja D47:n mukaan | Hyväksytty 16.11.2026 | Toni, chat |
+| D43 | **Tripin tietosivu välilehdillä:** Yleiset, Node–Leg, Orderit, Vaaralliset aineet, Lämpötila, Tulli (lisätty 16.11.2026, D48), Dokumentit, Kulut ja kate. ADR- ja lämpötilatiedot eivät ole erillisiä sivuja vaan tripin välilehtiä. Näiden kahden välilehden sisältö määräytyy D44:n, D46:n ja D47:n mukaan | Hyväksytty 16.11.2026 | Toni, chat |
 | D44 | **Vaaralliset aineet ja lämpötilavaatimus kirjataan orderille, Trip johtaa ne.** Orderin luonnissa on ADR-täppä, josta avautuu ADR-välisivu DG-riveille: UN-numero, kuljetusnimi, luokka, pakkausryhmä, määrä ja yksikkö, kuljetuskategoria, rajoitettu määrä -lippu. Thermo vastaavasti: min, max, esijäähdytys, GDP. Tripillä ei ole käsin asetettavaa täppää: kun tripillä on yksikin ADR-order, tripin otsikossa, Tripit-listassa ja lähtöpöydällä näkyy ADR-merkki, ja tiukin lämpötila johdetaan kyydissä olevista ordereista | Hyväksytty 16.11.2026 | Toni, chat |
 | D45 | **ADR-avustin tripille, periaate:** avustin on päätöstuki, ei päätä. Se laskee ja näyttää tripin DG-tilanteen (pisteet, vapautus, merkinnät, pakolliset varusteet ja asiakirjat) ja valitsee sovellettavan säännöstön **legeittäin**. Kertoimet, rajat ja säännöt ovat versioitu sääntötaulukko ADR-painoksen mukaan. Vastuu luokittelusta lähettäjällä, tarkistus turvallisuusneuvonantajalla | Hyväksytty 16.11.2026 | Toni, chat |
 | D46 | **ADR-avustimen säännöt (tarkistettu lähteistä 16.11.2026, ks. luku 3C):** pisteet kuljetusyksikölle 1.1.3.6.4:n mukaan ja "mitä jos" -laskelma uudelle orderille; alle rajan luku 5.3 (oranssit kilvet ja suuret varoituslipukkeet), 5.4.3 (kirjalliset turvallisuusohjeet), osa 8 poikkeuksin ja osa 9 eivät koske, mutta kuljetusasiakirja ja jäljelle jäävät osan 8 vaatimukset säilyvät; yli rajan oranssit kilvet, kappaletavarassa suuret varoituslipukkeet lisäksi luokille 1 ja 7; legin säännöstö ROAD = ADR, Itämeren ro-ro-lautta = Itämeren MoU, muu merilegi = IMDG; **merilegillä 1.1.3.6-vapautusta ei käytetä** (A1); DG-ilmoitus varustamolle ennen cut-offia. Sääntötaulukossa ADR 2025 ja ADR 2027 erikseen | Hyväksytty 16.11.2026 (MoU §10 -merkinnät tarkistetaan ennen vaihetta 5) | Toni, chat |
 | D47 | **Lämpötila-välilehti ja -valvonta:** kuormatilan lohkot ja asetusarvot (tiukin orderivaatimus), kylmäkone ja ATP-luokka voimassaoloineen, anturit kalibrointipäivineen, esijäähdytyksen kuittaus, käyrä sallitulla alueella ja Node-merkinnöillä, hälytykset ja kuljettajan kuittaus syineen, satamasähkö (D27), CSV ja PDF-raportti tallennetusta datasta (ei muokattavissa jälkikäteen). Demossa anturidata simuloidaan (D30). Lisäksi Lämpötilavalvonta-näkymä käynnissä oleville thermo-tripeille | Hyväksytty 16.11.2026 | Toni, chat |
+| D48 | **Tullaus v1:ssä täytenä, ADR:n mallilla (korvaa D26):** orderilla Tullattava-täppä, josta avautuu tullin välisivu: menettely (vienti, tuonti, passitus T1 / T2 / T-, TIR, ATA), MRN, edellinen asiakirja, lähtö-, kauttakulku- ja määrätullitoimipaikka, ilmoittaja (asiakas tai tulliasiamies), vakuus, Incoterms, sinetti tai TIR-vaijeri (D36). Tripillä johdettu TULLI-merkki ja Tulli-välilehti. Tullin vaiheet tapahtumina Nodeissa (vienti hyväksytty, passitus avattu, saapunut määrätoimipaikkaan, passitus päätetty, tullattu). Plan Check tunnistaa reitin Nodeista tulli- ja verorajan ylitykset (EU:n ulkopuoliset maat, Ahvenanmaan veroraja) ja varoittaa puuttuvasta tullattava-tiedosta, MRN:stä tai vakuudesta, tullitoimipaikan aukioloajasta ja cut-offista. **T1 mukana heti:** passituksen tiedot tavarariveineen ja PDF-yhteenveto, joka on selvästi merkitty demoksi eikä jäljittele virallista saateasiakirjaa. Ei oikeaa sähköistä ilmoittamista (NCTS); MRN:t ovat demotunnisteita. Säännöt ja maat tarkistetaan lähteistä ennen toteutusta (luku 3D) | Hyväksytty 16.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -275,6 +276,20 @@ Vastuu: lähettäjä luokittelee, turvallisuusneuvonantaja tarkistaa. Avustin la
 
 ---
 
+## 3D. Tullauksen lähteet (D48)
+
+Tarkistettu 16.11.2026 alustavasti. Ennen vaiheen 5 toteutusta maat, menettelyt ja koodit tarkistetaan Tullin ja EU:n ohjeista.
+
+| Asia | Sisältö | Lähde |
+|---|---|---|
+| Ahvenanmaa | Kuuluu EU:n tullialueeseen, mutta ei arvonlisä- eikä valmisteveroalueeseen. Verorajan ylitys rinnastuu vientiin ja tuontiin | Verohallinto |
+| T1-passitus | Muiden kuin unionitavaroiden siirto EU-maiden tai yhteisen passituksen maiden välillä ilman tullausta | Tulli |
+| Ilmoituslajit | T1 (ei EU-asemaa), T2 (EU-asema), T- (sekalähetys) | Norjan tulli, NCTS |
+| MRN | Jokainen passitus saa yksilöllisen MRN-tunnuksen. Edellisen asiakirjan koodit Tullin koodilistasta | Norjan tulli, Tulli |
+| Vakuus | Passituksen aloittajalla on oltava voimassa oleva vakuus tulleille ja veroille | Alan ohje (tarkistetaan Tullilta) |
+
+---
+
 ## 4. Optimointi: FleetFlow'n alkuperäinen ydin
 
 Optimointi rakennetaan kolmessa kerroksessa. Jokainen kerros on käyttökelpoinen sellaisenaan:
@@ -328,6 +343,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 - [ ] Alembic-revisiot: `locations`, `customers`, `carriers`, `drivers`, `trucks`, `trailers`, `qualifications`
 - [ ] Alembic-revisiot: `orders`, `dangerous_goods`, `trips`, `nodes`, `legs`, `order_nodes`, `handling_events`
 - [ ] Alembic-revisiot: `jobs`, `duty_events`, `resource_reservations`, `trailer_positions`, ferry-taulut, `costs`, `cost_allocations`
+- [ ] Orderin tullitiedot, tullitapahtumat Nodeissa ja T1-tavararivit (D48)
 - [ ] Orderin DG-rivit ja lämpötilavaatimus (D44) sekä kuormatilan lohkot, kylmäkone, ATP ja anturit (D47), kun D44 ja D47 on hyväksytty
 - [ ] Kolmen tilaketjun tilakoneet testeineen (R3)
 - [ ] Demodata: molempien projektien demodata yhdistettynä, "Demo"-säännöt, FleetFlow'n ristiriitainen JOB-001-data korjattuna
@@ -345,12 +361,14 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 
 ### Vaihe 5: toteutettavuus (kerros 1)
 - [ ] `feasibility.py` sääntö kerrallaan: 561/2006 (myös lauttalepo, D23), 2002/15/EY, aikaikkunat, lautat, maarajoitukset, kaluston ja kuljettajan soveltuvuus (ADR, GDP, thermo, pitkät tavarat, perälauta)
+- [ ] Tulli- ja verorajan tunnistus reitiltä ja tullivaroitukset (D48)
 - [ ] ADR-avustin (D45, D46) ja lämpötilasäännöt (D47) Plan Checkiin (D46, D47 ja A1 ratkaistava ensin)
 - [ ] Fleet Timeline ja Route & Risk
 
 ### Vaihe 6: kaupallinen puoli
 - [ ] Hinnoittelumoottori ja kulujen jako (R2), kate orderille ja Tripille
 - [ ] Dokumentit: Transport Order, CMR, Gateway Instructions, lasku, Credit Note
+- [ ] Tulliyhteenveto ja T1-yhteenveto PDF:nä, merkitty demoksi (D48)
 - [ ] Lavasaldot asiakkaittain ja vaihtamatta jääneiden lavojen laskutus (D41)
 - [ ] Trailer pool -näkymä, lautat ja satamakäsittely, raportit ja Power BI -endpointit
 
