@@ -41,7 +41,13 @@ def test_login_success_sets_cookie_and_me_works(
 
     me = client.get("/auth/me")
     assert me.status_code == 200
-    assert me.json() == {"id": str(user.id), "email": "planner@demo.example.com", "role": "planner"}
+    assert me.json() == {
+        "id": str(user.id),
+        "email": "planner@demo.example.com",
+        "role": "planner",
+        "theme": None,
+        "language": None,
+    }
 
 
 def test_login_normalizes_email(client: TestClient, add_user: Callable[..., User]) -> None:

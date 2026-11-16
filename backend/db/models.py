@@ -26,6 +26,8 @@ class User(Base):
         UniqueConstraint("email", name="uq_users_email"),
         CheckConstraint("email = lower(email)", name="ck_users_email_lowercase"),
         CheckConstraint("role IN ('admin', 'planner', 'viewer')", name="ck_users_role"),
+        CheckConstraint("theme IN ('business-light', 'control-dark')", name="ck_users_theme"),
+        CheckConstraint("language IN ('en', 'fi')", name="ck_users_language"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -43,6 +45,9 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # UI preferences (D49); NULL = default. Allowed values: domain/preferences.py.
+    theme: Mapped[str | None] = mapped_column(String(20))
+    language: Mapped[str | None] = mapped_column(String(5))
 
 
 class AuthSession(Base):

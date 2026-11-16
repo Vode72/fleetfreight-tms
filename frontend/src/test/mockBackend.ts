@@ -62,6 +62,12 @@ export function mockBackend(
       backend.user = null;
       return empty(204);
     },
+    "PATCH /auth/me/preferences": (call) => {
+      if (!backend.user) return empty(401);
+      const body = JSON.parse(call.body) as { theme?: string | null; language?: string | null };
+      backend.user = { ...backend.user, ...body };
+      return json(backend.user);
+    },
     "GET /health": () => json({ status: "ok", database: "ok" }),
   };
 

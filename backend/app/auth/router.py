@@ -1,10 +1,10 @@
 import logging
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Self
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,7 @@ from app.config import Settings
 from db.models import AuthSession, User
 from db.session import get_session
 from domain.passwords import PasswordService, VerifyResult
+from domain.preferences import validate_language, validate_theme
 from domain.rate_limit import AttemptLimiter
 from domain.roles import Role
 from domain.sessions import expires_at, generate_token, hash_token
@@ -41,6 +42,43 @@ class MeResponse(BaseModel):
     id: UUID
     email: str
     role: Role
+    theme: str | None = None
+    language: str | None = None
+
+
+class PreferencesUpdate(BaseModel):
+    """Only the fields that are sent are changed; an explicit null resets a field to the default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    theme: str | None = None
+    language: str | None = None
+
+    @field_validator("theme")
+    @classmethod
+    def _theme(cls, value: str | None) -> str | None:
+        return None if value is None else validate_theme(value)
+
+    @field_validator("language")
+    @classmethod
+    def _language(cls, value: str | None) -> str | None:
+        return None if value is None else validate_language(value)
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("at least one of theme, language is required")
+        return self
+
+
+def _me_response(user: User) -> MeResponse:
+    return MeResponse(
+        id=user.id,
+        email=user.email,
+        role=Role(user.role),
+        theme=user.theme,
+        language=user.language,
+    )
 
 
 def _client_ip(request: Request) -> str:
@@ -166,4 +204,21 @@ def logout(
 
 @router.get("/me", response_model=MeResponse)
 def me(ctx: Annotated[AuthContext, Depends(current_context)]) -> MeResponse:
-    return MeResponse(id=ctx.user.id, email=ctx.user.email, role=Role(ctx.user.role))
+    return _me_response(ctx.user)
+
+
+@router.patch("/me/preferences", response_model=MeResponse)
+def update_preferences(
+    body: PreferencesUpdate,
+    ctx: Annotated[AuthContext, Depends(current_context)],
+    session: Annotated[Session, Depends(get_session)],
+) -> MeResponse:
+    """Change the signed-in user's own theme and/or language (any role)."""
+    user = ctx.user
+    if "theme" in body.model_fields_set:
+        user.theme = body.theme
+    if "language" in body.model_fields_set:
+        user.language = body.language
+    session.add(user)
+    session.commit()
+    return _me_response(user)

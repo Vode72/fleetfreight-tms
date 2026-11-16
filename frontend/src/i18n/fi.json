@@ -132,5 +132,9 @@
   "forbidden": {
     "title": "Ei käyttöoikeutta",
     "description": "Roolisi ei sisällä tätä näkymää."
+  },
+  "preferences": {
+    "saveFailed": "Valinnan tallennus tilille epäonnistui. Valinta säilyy tässä selaimessa.",
+    "dismiss": "Sulje"
   }
 }
