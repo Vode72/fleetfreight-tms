@@ -72,7 +72,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D45 | **ADR-avustin tripille, periaate:** avustin on päätöstuki, ei päätä. Se laskee ja näyttää tripin DG-tilanteen (pisteet, vapautus, merkinnät, pakolliset varusteet ja asiakirjat) ja valitsee sovellettavan säännöstön **legeittäin**. Kertoimet, rajat ja säännöt ovat versioitu sääntötaulukko ADR-painoksen mukaan. Vastuu luokittelusta lähettäjällä, tarkistus turvallisuusneuvonantajalla | Hyväksytty 16.11.2026 | Toni, chat |
 | D46 | **ADR-avustimen säännöt (tarkistettu lähteistä 16.11.2026, ks. luku 3C):** pisteet kuljetusyksikölle 1.1.3.6.4:n mukaan ja "mitä jos" -laskelma uudelle orderille; alle rajan luku 5.3 (oranssit kilvet ja suuret varoituslipukkeet), 5.4.3 (kirjalliset turvallisuusohjeet), osa 8 poikkeuksin ja osa 9 eivät koske, mutta kuljetusasiakirja ja jäljelle jäävät osan 8 vaatimukset säilyvät; yli rajan oranssit kilvet, kappaletavarassa suuret varoituslipukkeet lisäksi luokille 1 ja 7; legin säännöstö ROAD = ADR, Itämeren ro-ro-lautta = Itämeren MoU, muu merilegi = IMDG; **merilegillä 1.1.3.6-vapautusta ei käytetä** (A1); DG-ilmoitus varustamolle ennen cut-offia. Sääntötaulukossa ADR 2025 ja ADR 2027 erikseen | Hyväksytty 16.11.2026 (MoU §10 -merkinnät tarkistetaan ennen vaihetta 5) | Toni, chat |
 | D47 | **Lämpötila-välilehti ja -valvonta:** kuormatilan lohkot ja asetusarvot (tiukin orderivaatimus), kylmäkone ja ATP-luokka voimassaoloineen, anturit kalibrointipäivineen, esijäähdytyksen kuittaus, käyrä sallitulla alueella ja Node-merkinnöillä, hälytykset ja kuljettajan kuittaus syineen, satamasähkö (D27), CSV ja PDF-raportti tallennetusta datasta (ei muokattavissa jälkikäteen). Demossa anturidata simuloidaan (D30). Lisäksi Lämpötilavalvonta-näkymä käynnissä oleville thermo-tripeille | Hyväksytty 16.11.2026 | Toni, chat |
-| D48 | **Tullaus v1:ssä täytenä, ADR:n mallilla (korvaa D26):** orderilla Tullattava-täppä, josta avautuu tullin välisivu: menettely (vienti, tuonti, passitus T1 / T2 / T-, TIR, ATA), MRN, edellinen asiakirja, lähtö-, kauttakulku- ja määrätullitoimipaikka, ilmoittaja (asiakas tai tulliasiamies), vakuus, Incoterms, sinetti tai TIR-vaijeri (D36). Tripillä johdettu TULLI-merkki ja Tulli-välilehti. Tullin vaiheet tapahtumina Nodeissa (vienti hyväksytty, passitus avattu, saapunut määrätoimipaikkaan, passitus päätetty, tullattu). Plan Check tunnistaa reitin Nodeista tulli- ja verorajan ylitykset (EU:n ulkopuoliset maat, Ahvenanmaan veroraja) ja varoittaa puuttuvasta tullattava-tiedosta, MRN:stä tai vakuudesta, tullitoimipaikan aukioloajasta ja cut-offista. **T1 mukana heti:** passituksen tiedot tavarariveineen ja PDF-yhteenveto, joka on selvästi merkitty demoksi eikä jäljittele virallista saateasiakirjaa. Ei oikeaa sähköistä ilmoittamista (NCTS); MRN:t ovat demotunnisteita. Säännöt ja maat tarkistetaan lähteistä ennen toteutusta (luku 3D) | Hyväksytty 16.11.2026 | Toni, chat |
+| D48 | **Tullaus v1:ssä täytenä, ADR:n mallilla (korvaa D26):** orderilla Tullattava-täppä, josta avautuu tullin välisivu: menettely (vienti, tuonti, passitus T1 / T2 / T-, TIR, ATA), MRN, edellinen asiakirja, lähtö-, kauttakulku- ja määrätullitoimipaikka, ilmoittaja (asiakas tai tulliasiamies), vakuus, Incoterms ja sinetin numero. TIR-vaijeri pysyy D36:n mukaisesti orderin vaatimuksena ja trailerin ominaisuutena, eikä sitä kirjata tullisivulle uudelleen. Tripillä johdettu TULLI-merkki ja Tulli-välilehti. Tullin vaiheet tapahtumina Nodeissa (vienti hyväksytty, passitus avattu, saapunut määrätoimipaikkaan, passitus päätetty, tullattu); toteutuneita tullitapahtumia ei poisteta, korjaukset vastakirjauksina (sääntö 9). Plan Check tunnistaa reitin Nodeista tulli- ja verorajan ylitykset versioidun alue- ja maataulukon perusteella (EU:n tullialueen ulkopuoliset maat, yhteisen passituksen maat, veroalueen ulkopuoliset alueet kuten Ahvenanmaa) ja varoittaa puuttuvasta tullattava-tiedosta, MRN:stä tai vakuudesta, tullitoimipaikan aukioloajasta ja cut-offista. **T1 mukana heti:** passituksen tiedot tavarariveineen ja PDF-yhteenveto, joka on selvästi merkitty demoksi eikä jäljittele virallista saateasiakirjaa. Ei oikeaa sähköistä ilmoittamista (NCTS); MRN:t, tullitoimipaikat ja vakuudet ovat keksittyjä ("Demo"-nimet, ei oikeita koodeja tai MRN-muotoa). Säännöt ja maat tarkistetaan lähteistä ennen toteutusta (luku 3D) | Hyväksytty 16.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -215,6 +215,9 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 | cost_allocations | kuorma | kulujen jako ordereille jakoperusteen mukaan, jäädytetään laskutuksessa |
 | trailer_positions | resurssi | trailer poolin sijainti- ja tilahistoria (seisontapäivät, siirrot) |
 | ferry_operators, ferry_sailings, ferry_bookings | kuorma | lauttayhtiöt, vuorot ja varaukset (nykyinen `ferry_rates` liitetään reitteihin). Varauksella: saattaen / saattamaton, cut-off, release, noutotunnus, ilmainen säilytysaika ja maksut, sähköön kytkentä (D27) |
+| customs_declarations | kuorma | orderin tullitiedot (D48): menettely, MRN, edellinen asiakirja, tullitoimipaikat, ilmoittaja, vakuus, Incoterms, sinetin numero |
+| customs_items | kuorma | T1-tavararivit: kuvaus, nimike, kollit, bruttopaino |
+| customs_events | kuorma | tullin vaiheet Nodeissa: suunniteltu ja toteutunut aika, ei poisteta, korjaukset vastakirjauksina |
 | dangerous_goods | kuorma | ADR-rivit orderilla: UN-nro, luokka, pakkausryhmä, määrä, tunnelikoodi |
 | qualifications | resurssi | kuljettajan ja kaluston pätevyydet ja kelpoisuudet: ADR, GDP, thermo, perälauta, voimassaolo |
 
@@ -278,15 +281,16 @@ Vastuu: lähettäjä luokittelee, turvallisuusneuvonantaja tarkistaa. Avustin la
 
 ## 3D. Tullauksen lähteet (D48)
 
-Tarkistettu 16.11.2026 alustavasti. Ennen vaiheen 5 toteutusta maat, menettelyt ja koodit tarkistetaan Tullin ja EU:n ohjeista.
+Lähteet avattu 16.11.2026 verkkohaulla (hakutulosten otteet, ei koko säädöstekstiä). Ennen vaiheen 5 toteutusta maat, menettelyt ja koodit tarkistetaan Tullin ja EU:n ohjeista, ja ne kirjataan versioituna sääntötaulukkona kuten ADR (D45).
 
-| Asia | Sisältö | Lähde |
-|---|---|---|
-| Ahvenanmaa | Kuuluu EU:n tullialueeseen, mutta ei arvonlisä- eikä valmisteveroalueeseen. Verorajan ylitys rinnastuu vientiin ja tuontiin | Verohallinto |
-| T1-passitus | Muiden kuin unionitavaroiden siirto EU-maiden tai yhteisen passituksen maiden välillä ilman tullausta | Tulli |
-| Ilmoituslajit | T1 (ei EU-asemaa), T2 (EU-asema), T- (sekalähetys) | Norjan tulli, NCTS |
-| MRN | Jokainen passitus saa yksilöllisen MRN-tunnuksen. Edellisen asiakirjan koodit Tullin koodilistasta | Norjan tulli, Tulli |
-| Vakuus | Passituksen aloittajalla on oltava voimassa oleva vakuus tulleille ja veroille | Alan ohje (tarkistetaan Tullilta) |
+| Asia | Sisältö | Lähde | Tila |
+|---|---|---|---|
+| Ahvenanmaa | Kuuluu EU:n tullialueeseen, mutta ei arvonlisä- eikä valmisteveroalueeseen. Verorajan ylitys rinnastuu vientiin ja tuontiin | [Verohallinto: Ahvenanmaan veroraja, valmisteverotus](https://vero.fi/syventavat-vero-ohjeet/ohje-hakusivu/48585/ahvenanmaan_veroraja__valmisteverotu/) | Tarkistettu otteesta |
+| T1-passitus | Muiden kuin unionitavaroiden siirto EU-maissa tai yhteisen passituksen maiden välillä ilman tullausta | [Tulli: Passitus](https://tulli.fi/en/businesses/transport/transit) | Tarkistettu otteesta |
+| Ilmoituslajit | T1 (ei EU-asemaa), T2 (EU-asema), T- (sekalähetys). Lähde on Norjan tulli, koska Norja on yhteisen passituksen maa ja sen ohje oli selkein; tarkistetaan Tullin ohjeesta | [Toll.no: Transit declaration](https://www.toll.no/en/corporate/transport-and-customs-warehouse/transit-declaration) | Tarkistettava Tullilta |
+| MRN | Jokainen passitus saa yksilöllisen MRN-tunnuksen. Edellisen asiakirjan koodit Tullin koodilistasta | Toll.no (yllä), [Tulli: Edellisen asiakirjan ilmoittaminen](https://tulli.fi/en/businesses/transport/transit/declaring-the-previous-document) | Tarkistettu otteesta |
+| Vakuus | Passituksen aloittajalla on oltava voimassa oleva vakuus tulleille ja veroille | Alan palveluntarjoajan ohje | Tarkistettava Tullilta |
+| Maataulukko | EU:n tullialue, yhteisen passituksen maat, veroalueen ulkopuoliset alueet | — | Avoin, kootaan ennen vaihetta 5 |
 
 ---
 
@@ -357,6 +361,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 ### Vaihe 4: läpimenevä polku (ensimmäinen demottava versio)
 - [ ] Order → Trip → Nodet ja legit → Job kuljettajalle → yksinkertainen Plan Check
 - [ ] Näkymät: Orderit, Lähtöpöytä, Tripit, tripin tietosivu (D42, D43; DG- ja lämpötilavälilehdet täyttyvät D44, D46 ja D47 hyväksynnän jälkeen), Routing, Board ja Job Workspace
+- [ ] Orderin ADR-, lämpötila- ja tullivälisivut, tripin ADR-, TULLI- ja thermo-merkit Tripit-listassa ja lähtöpöydällä, käännösavaimet en ja fi (D34, D44, D48)
 - [ ] Skenaario Jyväskylä–Vantaa–Lübeck toimii demossa alusta loppuun
 
 ### Vaihe 5: toteutettavuus (kerros 1)
@@ -368,7 +373,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 ### Vaihe 6: kaupallinen puoli
 - [ ] Hinnoittelumoottori ja kulujen jako (R2), kate orderille ja Tripille
 - [ ] Dokumentit: Transport Order, CMR, Gateway Instructions, lasku, Credit Note
-- [ ] Tulliyhteenveto ja T1-yhteenveto PDF:nä, merkitty demoksi (D48)
+- [ ] Tulliyhteenveto ja T1-yhteenveto PDF:nä (D48): oma asettelu, ei virallisen asiakirjan asettelua eikä viivakoodia, "DEMO" näkyvästi jokaisella sivulla
 - [ ] Lavasaldot asiakkaittain ja vaihtamatta jääneiden lavojen laskutus (D41)
 - [ ] Trailer pool -näkymä, lautat ja satamakäsittely, raportit ja Power BI -endpointit
 
