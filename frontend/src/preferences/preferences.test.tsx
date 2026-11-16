@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { LANGUAGE_STORAGE_KEY, setLanguage } from "../i18n";
 import en from "../i18n/en.json";
@@ -8,6 +8,8 @@ import fi from "../i18n/fi.json";
 import { empty, mockBackend, USERS } from "../test/mockBackend";
 import { renderApp } from "../test/renderApp";
 import { THEME_STORAGE_KEY, initTheme } from "../theme/theme";
+import { clearFailedFields } from "./saveNotice";
+import { resetSaveQueue, waitForSaves } from "./saveQueue";
 
 async function signIn() {
   await userEvent.type(screen.getByLabelText(en.auth.login.email), USERS.planner.email);
@@ -16,6 +18,11 @@ async function signIn() {
 }
 
 describe("server-side preferences (D49)", () => {
+  afterEach(() => {
+    resetSaveQueue();
+    clearFailedFields();
+  });
+
   it("adopts the saved theme and language on page load and refreshes the local cache", async () => {
     const backend = mockBackend({ user: { ...USERS.planner, theme: "control-dark", language: "fi" } });
     await renderApp("/", { backend });
@@ -136,5 +143,66 @@ describe("server-side preferences (D49)", () => {
     await screen.findByLabelText(en.auth.login.email);
     expect(document.documentElement).toHaveAttribute("data-theme", "control-dark");
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("control-dark");
+  });
+  it("quick switches send one request at a time and the server ends with the last choice", async () => {
+    const backend = mockBackend({ user: USERS.planner });
+    const original = backend.routes["PATCH /auth/me/preferences"];
+    if (!original) throw new Error("missing PATCH handler");
+    const release: (() => void)[] = [];
+    let concurrent = 0;
+    let maxConcurrent = 0;
+    backend.routes["PATCH /auth/me/preferences"] = async (call) => {
+      concurrent += 1;
+      maxConcurrent = Math.max(maxConcurrent, concurrent);
+      await new Promise<void>((resolve) => release.push(resolve));
+      concurrent -= 1;
+      return original(call);
+    };
+    await renderApp("/", { backend });
+
+    const select = screen.getByLabelText(en.theme.label);
+    await userEvent.selectOptions(select, "control-dark");
+    await userEvent.selectOptions(select, "business-light");
+    await userEvent.selectOptions(select, "control-dark");
+
+    while (release.length > 0 || backend.callsTo("PATCH", "/auth/me/preferences").length < 2) {
+      await waitFor(() => {
+        expect(release.length).toBeGreaterThan(0);
+      });
+      release.shift()?.();
+    }
+    await waitForSaves();
+
+    const bodies = backend.callsTo("PATCH", "/auth/me/preferences").map((c) => JSON.parse(c.body) as unknown);
+    expect(maxConcurrent).toBe(1);
+    expect(bodies).toEqual([{ theme: "control-dark" }, { theme: "control-dark" }]);
+    expect(backend.user?.theme).toBe("control-dark");
+  });
+
+  it("the notice stays while another field is still unsaved", async () => {
+    const backend = mockBackend({ user: USERS.planner });
+    const original = backend.routes["PATCH /auth/me/preferences"];
+    if (!original) throw new Error("missing PATCH handler");
+    backend.routes["PATCH /auth/me/preferences"] = (call) =>
+      "theme" in (JSON.parse(call.body) as object) ? empty(500) : original(call);
+    await renderApp("/", { backend });
+
+    await userEvent.selectOptions(screen.getByLabelText(en.theme.label), "control-dark");
+    expect(await screen.findByText(en.preferences.saveFailed)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText(en.language.label), "fi");
+    await waitForSaves();
+    expect(screen.getByText(fi.preferences.saveFailed)).toBeInTheDocument();
+  });
+
+  it("a save that ends in 401 (session ended) shows no notice", async () => {
+    const backend = mockBackend({ user: USERS.planner });
+    backend.routes["PATCH /auth/me/preferences"] = () => empty(401);
+    await renderApp("/", { backend });
+
+    await userEvent.selectOptions(screen.getByLabelText(en.theme.label), "control-dark");
+    await waitForSaves();
+
+    expect(screen.queryByText(en.preferences.saveFailed)).not.toBeInTheDocument();
   });
 });

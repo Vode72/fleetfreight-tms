@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 
 import { useAuth } from "../auth/useAuth";
-import { patchPreferences, type PreferencesUpdate } from "./preferencesApi";
-import { dismissSaveFailed, showSaveFailed } from "./saveNotice";
+import type { PreferencesUpdate } from "./preferencesApi";
+import { enqueueSave } from "./saveQueue";
 
 /**
  * Returns a function that saves a preference in the background for the signed-in user.
@@ -16,10 +16,7 @@ export function useSavePreference(): (update: PreferencesUpdate) => void {
   return useCallback(
     (update) => {
       if (!signedIn) return;
-      void patchPreferences(update).then((saved) => {
-        if (saved) dismissSaveFailed();
-        else showSaveFailed();
-      });
+      void enqueueSave(update);
     },
     [signedIn],
   );

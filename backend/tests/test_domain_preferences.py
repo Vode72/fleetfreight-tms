@@ -40,3 +40,31 @@ def test_valid_language(language: str) -> None:
 def test_invalid_language(value: str) -> None:
     with pytest.raises(ValueError):
         validate_language(value)
+
+
+def _in_list(values: tuple[str, ...] | frozenset[str] | list[str]) -> str:
+    return ", ".join(f"'{v}'" for v in sorted(values))
+
+
+def test_check_constraints_match_domain_values() -> None:
+    """The model's and the migration's CHECK lists must list exactly the domain values."""
+    from pathlib import Path
+
+    from sqlalchemy import CheckConstraint
+
+    from db.models import User
+
+    checks = {
+        c.name: str(c.sqltext)
+        for c in User.__table__.constraints  # type: ignore[attr-defined]
+        if isinstance(c, CheckConstraint) and isinstance(c.name, str)
+    }
+    assert checks["ck_users_theme"] == f"theme IN ({_in_list(THEMES)})"
+    assert checks["ck_users_language"] == f"language IN ({_in_list(LANGUAGES)})"
+
+    migration = (
+        Path(__file__).parents[1] / "migrations/versions/a1c4e7d90b25_add_user_preferences.py"
+    )
+    text = migration.read_text(encoding="utf-8")
+    assert f"theme IN ({_in_list(THEMES)})" in text
+    assert f"language IN ({_in_list(LANGUAGES)})" in text
