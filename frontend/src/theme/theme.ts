@@ -8,7 +8,7 @@ export const DEFAULT_THEME: Theme = "business-light";
 /** Keep in sync with public/theme-init.js (checked by themeInit.test.ts). */
 export const THEME_STORAGE_KEY = "ff.theme";
 
-function isTheme(value: string | null): value is Theme {
+export function isTheme(value: string | null): value is Theme {
   return THEMES.some((theme) => theme === value);
 }
 

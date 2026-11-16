@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Outlet } from "react-router";
 
+import { SaveFailedNotice } from "../preferences/SaveFailedNotice";
 import "./layout.css";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -20,6 +21,7 @@ export function AppLayout() {
       <main id="main" className="app-main" tabIndex={-1}>
         <Outlet />
       </main>
+      <SaveFailedNotice />
     </div>
   );
 }

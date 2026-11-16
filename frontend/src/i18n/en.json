@@ -132,5 +132,9 @@
   "forbidden": {
     "title": "No access",
     "description": "Your role does not include this view."
+  },
+  "preferences": {
+    "saveFailed": "Could not save your preference to your account. It stays in this browser.",
+    "dismiss": "Dismiss"
   }
 }

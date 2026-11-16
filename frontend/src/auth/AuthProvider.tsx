@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { applyServerPreferences } from "../preferences/applyServerPreferences";
 import { onUnauthorized } from "../api/unauthorized";
 import { fetchMe, postLogin, postLogout, type LoginResult } from "./authApi";
 import { AuthContext, type AuthContextValue, type AuthState } from "./authContext";
@@ -16,8 +17,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     void fetchMe(controller.signal).then((result) => {
       if (controller.signal.aborted) return;
-      if (result.kind === "user") setState({ status: "authenticated", user: result.user });
-      else if (result.kind === "unauthenticated") setState({ status: "unauthenticated", reason: "initial" });
+      if (result.kind === "user") {
+        applyServerPreferences(result.user);
+        setState({ status: "authenticated", user: result.user });
+      } else if (result.kind === "unauthenticated") setState({ status: "unauthenticated", reason: "initial" });
       else setState({ status: "error" });
     });
     return () => {
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!result.ok) return result;
     const me = await fetchMe();
     if (me.kind !== "user") return { ok: false, reason: me.kind === "error" ? "network" : "unexpected" };
+    applyServerPreferences(me.user);
     setState({ status: "authenticated", user: me.user });
     return { ok: true };
   }, []);

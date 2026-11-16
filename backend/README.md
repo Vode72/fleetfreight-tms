@@ -57,7 +57,11 @@ If the database password contains URL special characters (`@`, `:`, `/`, `#`), U
 
 Server-side sessions: `POST /auth/login` (JSON `email`, `password`) answers 204 and sets an httpOnly,
 `SameSite=Lax` cookie holding a random token (only its SHA-256 digest is stored). `POST /auth/logout`
-revokes the session, `GET /auth/me` returns `id`, `email`, `role`. Roles: `admin`, `planner`, `viewer`.
+revokes the session, `GET /auth/me` returns `id`, `email`, `role`, `theme`, `language` (the last two are `null` until set).
+Roles: `admin`, `planner`, `viewer`.
+`PATCH /auth/me/preferences` (JSON `theme`: `business-light` | `control-dark`, `language`: `en` | `fi`;
+at least one field, unknown fields and other values give 422, `null` resets a field) changes the
+signed-in user's own preferences (any role) and returns the updated `/auth/me` body (D49).
 
 - Every route requires a session unless listed in `app/auth/public.py`. Use
   `Depends(require_role("admin"))` for role checks.

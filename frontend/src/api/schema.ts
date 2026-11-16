@@ -58,6 +58,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Preferences
+         * @description Change the signed-in user's own theme and/or language (any role).
+         */
+        patch: operations["update_preferences_auth_me_preferences_patch"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -114,6 +134,20 @@ export interface components {
             /** Email */
             email: string;
             role: components["schemas"]["Role"];
+            /** Theme */
+            theme?: string | null;
+            /** Language */
+            language?: string | null;
+        };
+        /**
+         * PreferencesUpdate
+         * @description Only the fields that are sent are changed; an explicit null resets a field to the default.
+         */
+        PreferencesUpdate: {
+            /** Theme */
+            theme?: string | null;
+            /** Language */
+            language?: string | null;
         };
         /**
          * Role
@@ -229,6 +263,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    update_preferences_auth_me_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
