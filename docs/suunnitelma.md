@@ -84,7 +84,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D57 | **Tripin kiinteät kulut (K5)** (esim. trailerin vuokra, tyhjä palautus) jaetaan ordereille LDM:n mukaan; legikohtaiset kulut vain legillä kyydissä oleville. Palvelukoodikohtainen poikkeus sallittu (D19) | Hyväksytty 17.11.2026 | Toni, chat |
 | D58 | **Passitus (K6):** yksi passitusilmoitus voi kattaa useita ordereita, tavararivit ordereittain. Myös yksi ilmoitus per order on mahdollinen | Hyväksytty 17.11.2026 | Toni, chat |
 | D59 | **Lavanvaihto (K7, toteuttaa D41):** asiakaskohtainen asetus "lavanvaihto sovittu", oletuksena pois päältä. Kun päällä, purussa ja lastauksessa kirjataan vaihdetut lavat, ja saldot pidetään kaikille vastapuolille (asiakas, kuljetusliike, paikka). Vajeiden laskutus vaiheessa 6. Yleinen alan käytäntö: lavanvaihto on sopimuskohtainen | Hyväksytty 17.11.2026 | Toni, chat |
-| D60 | **Irtoperä v1:ssä:** kuormatila on oma yksikkönsä (`load_units`), jonka tyyppi on traileri, irtoperä tai kiinteä kori. Irtoperän voi jättää ja noutaa kuten trailerin, ja trippi seuraa kuormatilaa (D55). Trailerit ja kuorma-auton kiinteä kori ovat samassa rekisterissä. Merikontti ja juna (RAIL) myöhemmin | Hyväksytty 17.11.2026 | Toni, chat |
+| D60 | **Kuormatilarekisteri:** kuormatila on oma yksikkönsä (`load_units`), jonka tyyppi v1:ssä on **traileri** tai **kuorma-auton kiinteä kori** (D39). Trippi seuraa kuormatilaa (D55). Vaihtokori (irrotettava kuormatila), merikontti ja juna (RAIL) myöhemmin; vaihtokori lisätään uutena tyyppinä samaan tauluun | Hyväksytty 17.11.2026 | Toni, chat |
 | D61 | **HCT ja dolly v1:ssä:** dolly on kalustoa ilman kuormatilaa ja kytketään legille. Plan Check laskee yhdistelmän pituuden ja kokonaismassan ja tarkistaa, onko reitti sallittu yhdistelmälle. Raja-arvot ja sallitut reitit tarkistetaan lähteistä ennen vaihetta 5; demossa ne ovat asetuksia | Hyväksytty 17.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
@@ -218,7 +218,7 @@ Tiiviys pysyy samana molemmissa: business-UI, paljon tietoa yhdellä ruudulla.
 
 ### Tietomalli v1 (vaihe 2)
 
-Tila: **Ehdotus, odottaa Tonin lopullista hyväksyntää** (päivitetty 17.11.2026, ff-logistiikka tarkistanut). Kokoaa päätökset D13–D61; kysymykset K1–K7 ratkaistu 17.11.2026 (D52–D59), irtoperä ja HCT D60–D61. Taulut luodaan Alembic-revisioina taulukoiden järjestyksessä: perusrekisterit → kuorma → keikka (Jobit ennen legejä) → resurssit ja ajoaika → kylmä, tulli ja dokumentit → kulut ja lavasaldot. Viittaus osoittaa aina aiemmin luotuun tauluun. Kentät ovat pääkenttiä; tarkat tyypit, indeksit ja rajoitteet päätetään kunkin revision PR:ssä.
+Tila: **Ehdotus, odottaa Tonin lopullista hyväksyntää** (päivitetty 17.11.2026, ff-logistiikka tarkistanut). Kokoaa päätökset D13–D61; kysymykset K1–K7 ratkaistu 17.11.2026 (D52–D59), kuormatilarekisteri ja HCT D60–D61. Taulut luodaan Alembic-revisioina taulukoiden järjestyksessä: perusrekisterit → kuorma → keikka (Jobit ennen legejä) → resurssit ja ajoaika → kylmä, tulli ja dokumentit → kulut ja lavasaldot. Viittaus osoittaa aina aiemmin luotuun tauluun. Kentät ovat pääkenttiä; tarkat tyypit, indeksit ja rajoitteet päätetään kunkin revision PR:ssä.
 
 **Yhteiset säännöt kaikille tauluille**
 - Raha kokonaislukuina (`*_cents`, `*_e4`, D28). Ajat `timestamptz`; paikallinen aika lasketaan paikan aikavyöhykkeestä.
@@ -241,9 +241,9 @@ Tila: **Ehdotus, odottaa Tonin lopullista hyväksyntää** (päivitetty 17.11.20
 | ltl_linehauls | runkolinja terminaalien välillä, lähtöajat, cut-off, toimitusaikalupaus | 3B |
 | carriers | kuljetusliike: oma tai alihankkija, maa, Y- tai ALV-tunnus (keksitty), liikennelupa ja vastuuvakuutus voimassaoloineen | 2B |
 | drivers | kuljetusliike, nimi (Demo), kotipaikka, työsuhde (oma / alihankkijan nimetty) | R6, D20 |
-| trucks | kuljetusliike, rekisteri (keksitty), tyyppi (vetäjä / kuorma-auto), pituus, omamassa, suurin kokonaismassa, akselit, katsastus ja huolto; kuorma-auton kiinteä kori tai irtoperän kiinnitys on `load_units`-taulussa | D39, D60 |
+| trucks | kuljetusliike, rekisteri (keksitty), tyyppi (vetäjä / kuorma-auto), pituus, omamassa, suurin kokonaismassa, akselit, katsastus ja huolto; kuorma-auton kiinteä kori on `load_units`-taulussa | D39, D60 |
 | dollies | rekisteri (keksitty), pituus, omamassa, suurin kokonaismassa, akselit, katsastus | D61 |
-| load_units | **kuormatila**: tyyppi (traileri, irtoperä, kiinteä kori), kiinteällä korilla kuorma-auto, rekisteri tai tunnus (keksitty), korityyppi (pressu, mega, sivuaukeava, thermo, …), sisämitat ja oviaukko, ulkopituus, LDM, lavapaikat, omamassa ja suurin kokonaismassa, akselit, erityisominaisuudet (XL, kelakouru, TIR-vaijeri, ylhäältä lastaus, perälauta), ATP-luokka ja voimassaolo, omistusmuoto ja vuokrakausi, katsastus ja huolto | D36, D39, D47, D60 |
+| load_units | **kuormatila**: tyyppi (traileri, kiinteä kori; vaihtokori myöhemmin), kiinteällä korilla kuorma-auto, rekisteri tai tunnus (keksitty), korityyppi (pressu, mega, sivuaukeava, thermo, …), sisämitat ja oviaukko, ulkopituus, LDM, lavapaikat, omamassa ja suurin kokonaismassa, akselit, erityisominaisuudet (XL, kelakouru, TIR-vaijeri, ylhäältä lastaus, perälauta), ATP-luokka ja voimassaolo, omistusmuoto ja vuokrakausi, katsastus ja huolto | D36, D39, D47, D60 |
 | compartments | kuormatila (`load_units`), lohkon numero, lämpötila-alue | D47 |
 | reefer_units | kuormatila, kylmäkone, polttoaine / sähkö | D47 |
 | qualifications | **kuljettajan** pätevyys (ADR ja laajuus, ajokortti, ammattipätevyys, kuljettajakortti, GDP) tai **kaluston** kelpoisuus (ADR, GDP-lämpötilakartoitus, perälauta); erilliset viiteavaimet ja tarkistus, voimassaolo | R6 |
@@ -278,7 +278,7 @@ Tila: **Ehdotus, odottaa Tonin lopullista hyväksyntää** (päivitetty 17.11.20
 |---|---|---|
 | duty_events | kuljettaja, job, tyyppi (ajo, muu työ, tauko, lepo, valmius, lauttalepo, matkustus), alku ja loppu, sijainti tai maa, levon paikka (ajoneuvo / majoitus / lautta), source | D23 |
 | resource_reservations | vetäjä, kuormatila, dolly tai kuljettaja, aikaväli, syy (huolto, loma, poissaolo); ei keikkavarauksia | — |
-| trailer_positions | kuormatila (`load_units`: traileri tai irtoperä), sijainti, tila (vapaa, lastattu, tyhjä, merellä, satamassa odottaa vapautusta, huollossa), alku, source; trailer poolin oma toteumahistoria (seisontapäivät ja siirrot myös ilman keikkaa), kirjataan Noden toteumista tai käsin | 2B |
+| trailer_positions | kuormatila (`load_units`: traileri), sijainti, tila (vapaa, lastattu, tyhjä, merellä, satamassa odottaa vapautusta, huollossa), alku, source; trailer poolin oma toteumahistoria (seisontapäivät ja siirrot myös ilman keikkaa), kirjataan Noden toteumista tai käsin | 2B |
 
 #### Kylmä, tulli ja dokumentit
 
