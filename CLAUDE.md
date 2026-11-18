@@ -110,7 +110,7 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 ## Kieli
 
 - Koodi, nimet, kommentit ja commit-viestit englanniksi
-- UI-termistö on alan arkikieltä ja sama kuin dokumentaatiossa (D74), esim. Tripit, Orderit, Board
+- UI-termistö on alan arkikieltä ja sama kuin dokumentaatiossa (D74), esim. Tripit, Orderit, Tripsuunnittelu, Board
 - Dokumentaatio (`docs/`) suomeksi, README englanniksi
 - **Käyttöliittymä on kaksikielinen, englanti ja suomi (D34).** Kaikki käyttäjälle näkyvät tekstit käännösavaimina
   käännöstiedostoissa (`en` ja `fi`), ei kovakoodattuja tekstejä komponenteissa. Uusi teksti lisätään aina molemmille kielille.
