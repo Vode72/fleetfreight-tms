@@ -20,10 +20,13 @@ D73 (the own company is stored once):
 - That the referenced customer is the own company spans two tables; it is checked in
   domain.parties.validate_carrier_customer_link (service layer, seed, tests).
 - Existing data: an own carrier is linked to the own company's customer row and its duplicated
-  name, business ID and country are cleared. If an own carrier exists but no own company, the
+  name, business ID and country are cleared. A business ID that only the carrier had is first
+  copied to the customer row; the customer row's name and country win (the carrier's copies are
+  dropped). If an own carrier exists but no own company, the
   upgrade stops with an error instead of guessing.
 The downgrade copies name, business ID and country back from the customer row before it restores
-NOT NULL, and recreates the old foreign keys (driver_qualifications CASCADE again).
+NOT NULL, and recreates the old foreign keys (driver_qualifications CASCADE again). The downgrade
+drops archived_at, so archiving information is lost.
 """
 
 from collections.abc import Sequence
@@ -96,6 +99,12 @@ def upgrade() -> None:
         )
     op.alter_column("carriers", "name", existing_type=sa.String(length=200), nullable=True)
     op.alter_column("carriers", "country", existing_type=sa.String(length=2), nullable=True)
+    # Keep a business ID that only the carrier row had: copy it to the own company before clearing.
+    op.execute(
+        "UPDATE customers SET business_id = c.business_id FROM carriers c"
+        " WHERE customers.type = 'own_company' AND customers.business_id IS NULL"
+        " AND c.type = 'own' AND c.business_id IS NOT NULL"
+    )
     op.execute(
         "UPDATE carriers SET customer_id = (SELECT id FROM customers WHERE type = 'own_company'),"
         " name = NULL, business_id = NULL, country = NULL WHERE type = 'own'"
