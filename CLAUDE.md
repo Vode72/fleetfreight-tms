@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D78).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D79).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
