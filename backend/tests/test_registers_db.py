@@ -113,6 +113,12 @@ def test_terminal_accepted_with_terminal_fields(test_engine: Engine) -> None:
     _location(test_engine, type="terminal", loading_docks=4, cold_storage=False)
 
 
+def test_rail_terminal_has_no_terminal_fields(test_engine: Engine) -> None:
+    _location(test_engine, "Demo Rail A", type="rail_terminal")
+    _rejected(_location, test_engine, "Demo Rail B", type="rail_terminal", loading_docks=2)
+    _rejected(_location, test_engine, "Demo Rail C", type="rail_terminal", cold_storage=False)
+
+
 def test_location_rejects_unknown_type_country_and_blank_name(test_engine: Engine) -> None:
     _rejected(_location, test_engine, type="warehouse")
     _rejected(_location, test_engine, country="f1")

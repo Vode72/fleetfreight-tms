@@ -71,7 +71,7 @@ def test_seed_content(test_engine: Engine) -> None:
         )
     assert cold == {"Demo Terminal Central", "Demo Terminal Tampere", "Demo Terminal Oulu"}
     assert warm == 2
-    assert q("SELECT count(*) FROM locations WHERE type = 'port'") == 12
+    assert q("SELECT count(*) FROM locations WHERE type = 'port'") == 15
     with test_engine.connect() as conn:
         ports = {r[0] for r in conn.execute(text("SELECT name FROM locations WHERE type = 'port'"))}
     assert ports == {
@@ -89,6 +89,9 @@ def test_seed_content(test_engine: Engine) -> None:
             "Antwerpen",
             "Lübeck \u2013 Lehmannkai",
             "Lübeck \u2013 Seelandkai",
+            "Naantali",
+            "Långnäs",
+            "Kapellskär",
         )
     }
     assert (
@@ -279,6 +282,35 @@ def test_site_features(test_engine: Engine) -> None:
     assert names("booking_required AND name = 'Demo Paper Mill Site'")
     assert names("has_loading_dock = false") == {"Demo Kauppa Oy \u2013 Kuopio Shop Site"}
     assert names("has_loading_dock IS NULL AND type = 'customer_site'") == set()
+
+
+def test_rail_terminals_and_aland_port(test_engine: Engine) -> None:
+    _run(test_engine)
+    assert _rows(
+        test_engine,
+        "SELECT name, country, timezone FROM locations WHERE type = 'rail_terminal' ORDER BY name",
+    ) == [
+        ("Demo Rail Terminal Rostock", "DE", "Europe/Berlin"),
+        ("Demo Rail Terminal Travemünde", "DE", "Europe/Berlin"),
+        ("Demo Rail Terminal Verona", "IT", "Europe/Rome"),
+    ]
+    assert _rows(
+        test_engine,
+        "SELECT country, timezone FROM locations WHERE name = 'Demo Port Långnäs'",
+    ) == [("AX", "Europe/Mariehamn")]
+    assert _rows(
+        test_engine,
+        "SELECT country, timezone FROM locations WHERE name = 'Demo Port Kapellskär'",
+    ) == [("SE", "Europe/Stockholm")]
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM locations WHERE type = 'rail_terminal' "
+            "AND (loading_docks IS NOT NULL OR cold_storage IS NOT NULL "
+            "OR opening_hours IS NOT NULL)",
+        )
+        == 0
+    )
 
 
 def test_norway_customs_and_adr_consignor(test_engine: Engine) -> None:

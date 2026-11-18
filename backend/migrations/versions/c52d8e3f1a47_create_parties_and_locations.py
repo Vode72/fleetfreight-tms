@@ -102,7 +102,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("name", name="uq_locations_name"),
         sa.CheckConstraint(
             "type IN ('customer_site', 'customs_office', 'depot', 'fuel', 'inspection', "
-            "'parking', 'port', 'terminal', 'wash', 'workshop')",
+            "'parking', 'port', 'rail_terminal', 'terminal', 'wash', 'workshop')",
             name="ck_locations_type",
         ),
         sa.CheckConstraint("country ~ '^[A-Z]{2}$'", name="ck_locations_country"),

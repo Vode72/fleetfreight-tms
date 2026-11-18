@@ -21,6 +21,8 @@ class LocationType(StrEnum):
     WASH = "wash"
     INSPECTION = "inspection"
     PARKING = "parking"
+    # Intermodal rail terminal (terminal fields of type "terminal" do not apply).
+    RAIL_TERMINAL = "rail_terminal"
     FUEL = "fuel"
     CUSTOMS_OFFICE = "customs_office"
 

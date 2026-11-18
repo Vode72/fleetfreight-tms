@@ -15,7 +15,18 @@ from domain.locations import (
 D = Decimal
 
 
-@pytest.mark.parametrize("tz", ["Europe/Helsinki", "Europe/Berlin", "Europe/Tallinn", "UTC"])
+@pytest.mark.parametrize(
+    "tz",
+    [
+        "Europe/Helsinki",
+        "Europe/Berlin",
+        "Europe/Tallinn",
+        "Europe/Mariehamn",
+        "Europe/Stockholm",
+        "Europe/Rome",
+        "UTC",
+    ],
+)
 def test_valid_timezone(tz: str) -> None:
     assert validate_timezone(tz) == tz
 

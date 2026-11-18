@@ -3,13 +3,13 @@
 Usage (from the backend directory):
     ENVIRONMENT=development uv run python -m scripts.seed_demo_data
 
-Contents: the own company, the terminal network (D31-D33), ports, customs offices, demo customers
-with sites, carriers, drivers and driver qualifications. All names contain "Demo"; addresses and
-identifiers are invented. Coordinates: terminals at the general city centre (D31), ports at a
-general point of the port area, customer sites and customs offices at invented points (customer
-sites in Finland lie 10-40 km from the nearest terminal, except the Jyvaskyla site, which is
-served from Tampere or Kuopio). No two places share coordinates except a port area and its
-quays. No real companies, addresses or contact data.
+Contents: the own company, the terminal network (D31-D33), ports, rail terminals, customs
+offices, demo customers with sites, carriers, drivers and driver qualifications. All names
+contain "Demo"; addresses and identifiers are invented. Coordinates: terminals at the general
+city centre (D31), ports at a general point of the port area, customer sites and customs offices
+at invented points (customer sites in Finland lie 10-40 km from the nearest terminal, except the
+Jyvaskyla site, which is served from Tampere or Kuopio). No two places share coordinates except
+a port area and its quays. No real companies, addresses or contact data.
 
 Opening hours (local time): Central and Tampere terminals 24/7, other terminals Mon-Fri 05-23
 and Sat 06-14; customer sites vary. Ports have opening_hours NULL, which means "not checked"
@@ -113,6 +113,10 @@ def _port(
     return _Place(f"Demo Port {name}", LocationType.PORT, country, lat, lon, tz, parent=parent)
 
 
+def _rail(city: str, country: str, lat: str, lon: str, tz: str) -> _Place:
+    return _Place(f"Demo Rail Terminal {city}", LocationType.RAIL_TERMINAL, country, lat, lon, tz)
+
+
 def _site(
     name: str,
     customer: str,
@@ -165,10 +169,18 @@ PLACES: tuple[_Place, ...] = (
     _port("Lübeck", "DE", "53.865000", "10.685000", "Europe/Berlin"),
     _port("Lübeck \u2013 Lehmannkai", "DE", "53.880000", "10.700000", "Europe/Berlin", _LUBECK),
     _port("Lübeck \u2013 Seelandkai", "DE", "53.900000", "10.730000", "Europe/Berlin", _LUBECK),
+    _port("Naantali", "FI", "60.450000", "22.020000", "Europe/Helsinki"),
+    # Åland (country code AX, outside the EU VAT area) and Sweden.
+    _port("Långnäs", "AX", "60.110000", "20.290000", "Europe/Mariehamn"),
+    _port("Kapellskär", "SE", "59.720000", "19.060000", "Europe/Stockholm"),
     _port("Rostock", "DE", "54.150000", "12.100000", "Europe/Berlin"),
     _port("Gdynia", "PL", "54.530000", "18.550000", "Europe/Warsaw"),
     _port("Tallinn", "EE", "59.450000", "24.770000", "Europe/Tallinn"),
     _port("Antwerpen", "BE", "51.270000", "4.350000", "Europe/Brussels"),
+    # Rail terminals: invented points in the city area, not at the ports.
+    _rail("Rostock", "DE", "54.100000", "12.050000", "Europe/Berlin"),
+    _rail("Travemünde", "DE", "53.940000", "10.880000", "Europe/Berlin"),
+    _rail("Verona", "IT", "45.430000", "10.990000", "Europe/Rome"),
     # Customs offices (D48): invented points; opening hours matter for Plan Check.
     _customs(
         "Demo Customs Office Central",

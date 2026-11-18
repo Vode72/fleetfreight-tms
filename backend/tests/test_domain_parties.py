@@ -44,6 +44,7 @@ def test_allowed_values() -> None:
         "wash",
         "inspection",
         "parking",
+        "rail_terminal",
         "fuel",
         "customs_office",
     }
@@ -80,7 +81,7 @@ def test_model_and_migration_check_lists_match_domain(
         assert f"'{value.value}'" in checks[name]
 
 
-@pytest.mark.parametrize("value", ["FI", "DE", "EE"])
+@pytest.mark.parametrize("value", ["FI", "DE", "EE", "AX", "IT", "SE"])
 def test_valid_country(value: str) -> None:
     assert validate_country(value) == value
 

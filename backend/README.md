@@ -72,9 +72,9 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   `DEMO_PASSWORD=... ENVIRONMENT=development uv run python -m scripts.seed_demo_users`.
   Settings are listed in `.env.example`.
 - Demo master data (fictional; not in migrations; development only; idempotent, existing rows are
-  never overwritten): own company, 5 terminals, 12 ports (incl. two Lübeck quays under their port
-  area), 3 customs offices, customers with sites, carriers, drivers and qualifications (validity days are counted from the first seed run, so one qualification is
-  already expired and one is soon expiring). Run after `alembic upgrade head`:
+  never overwritten): own company, 5 terminals, 15 ports (incl. two Lübeck quays under their port
+  area), 3 rail terminals, 3 customs offices, customers with sites, carriers, drivers and qualifications (validity days are counted from the
+  first seed run, so one qualification is already expired and one is soon expiring). Run after `alembic upgrade head`:
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
