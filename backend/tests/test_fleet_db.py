@@ -655,6 +655,12 @@ def test_partition_defaults_and_values(test_engine: Engine, carrier: uuid.UUID) 
         )
 
 
+def test_max_rear_share_needs_a_partition(test_engine: Engine, carrier: uuid.UUID) -> None:
+    assert _violated(
+        partial(_trailer, test_engine, carrier, body_type="reefer", partition_max_rear_share="0.5")
+    ) == ("ck_load_units_partition_values")
+
+
 def test_only_fd_has_a_partition_and_every_fd_has_one(
     test_engine: Engine, carrier: uuid.UUID
 ) -> None:

@@ -367,7 +367,8 @@ def validate_reefer_units(
     the unique load_unit_id; the rest is checked here.
 
     - Reefer units belong to reefer bodies only.
-    - A thermo model code (FB, FD, FS) has exactly one (when the machines are listed).
+    - A thermo model code (FB, FD, FS) has exactly one: a thermo load unit always has its
+      machine, so 0 with a thermo code is an error.
     """
     if machine_count < 0:
         raise ValueError("machine count must not be negative")
@@ -440,8 +441,8 @@ class PartitionSpec:
     step_pallet_rows: int = 1
     min_pallets_front: int = 4
     min_pallets_rear: int = 4
-    # Largest share of the rear compartment of the usable length (e.g. Decimal("0.333")), when
-    # the machine limits the rear zone; None = no limit.
+    # Largest share of the pallet rows for the rear compartment (e.g. Decimal("0.333")), when the
+    # machine limits the rear zone; None = no limit.
     max_rear_share: Decimal | None = None
 
 
@@ -476,8 +477,9 @@ def partition_positions(
     are counted, so the rows are min(places // 2, floor((internal length - thickness) / row depth)).
     The partition moves in steps of `step_pallet_rows` rows (1 row = 2 EUR pallets), and each
     compartment keeps at least its minimum number of pallets. With `max_rear_share` the rear
-    compartment takes at most that share of the pallet rows. Without a partition there is no
-    position. `eur_pallet_places` is the load unit's EUR pallet places without a partition.
+    compartment takes at most that share of the pallet rows (rows, not metres). Without a
+    partition there is no position. `eur_pallet_places` is the load unit's EUR pallet places
+    without a partition.
     """
     validate_partition(spec)
     if not spec.partition:

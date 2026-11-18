@@ -504,7 +504,7 @@ class LoadUnit(Base):
             "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"
             " AND min_pallets_front >= 0 AND min_pallets_rear >= 0"
             " AND (partition_max_rear_share IS NULL"
-            " OR (partition_max_rear_share > 0 AND partition_max_rear_share <= 1))",
+            " OR (partition AND partition_max_rear_share > 0 AND partition_max_rear_share <= 1))",
             name="ck_load_units_partition_values",
         ),
         # A trailer has a coupling type; a fixed body has none (it is part of its truck).
