@@ -2,7 +2,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, inspect
+from sqlalchemy import Engine, inspect, text
 
 
 def _config(engine: Engine) -> Config:
@@ -58,6 +58,12 @@ def test_registers_migration_creates_and_removes_tables(test_engine: Engine) -> 
     tables = set(inspect(test_engine).get_table_names())
     assert not REGISTER_TABLES & tables
     assert {"users", "sessions"} <= tables  # earlier revisions untouched
+
+    # btree_gist is created by the upgrade and deliberately kept by the downgrade
+    with test_engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT 1 FROM pg_extension WHERE extname = 'btree_gist'")
+        ).scalar()
 
     command.upgrade(cfg, "head")  # leave the shared test database migrated
     assert set(inspect(test_engine).get_table_names()) >= REGISTER_TABLES

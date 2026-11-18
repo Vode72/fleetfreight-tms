@@ -7,7 +7,8 @@ Create Date: 2026-11-18
 Phase 2B-1 (data model v1, base registers). Allowed values are VARCHAR + CHECK (same approach as
 users.role); the lists must match the domain modules (tests/test_domain_*.py compare them).
 Opening hours are JSONB (weekly intervals, validated in domain.locations). Validity dates are
-DATE. The unique partial indexes uq_customers_one_own_company and uq_carriers_one_own allow at most one
+DATE. Driver qualifications are validity periods (D67): the exclusion constraint forbids
+overlapping periods of one driver and type. The unique partial indexes uq_customers_one_own_company and uq_carriers_one_own allow at most one
 own company and one own carrier.
 """
 
@@ -44,6 +45,9 @@ def _timestamps() -> list[sa.Column[Any]]:
 
 
 def upgrade() -> None:
+    # Needed by the exclusion constraint on driver_qualifications (= on uuid/varchar in gist).
+    # The downgrade leaves the extension in place: other objects may come to depend on it.
+    op.execute("CREATE EXTENSION IF NOT EXISTS btree_gist")
     op.create_table(
         "customers",
         _id(),
@@ -77,6 +81,8 @@ def upgrade() -> None:
         sa.Column("parent_location_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("address", sa.Text(), nullable=True),
+        sa.Column("postal_code", sa.String(length=20), nullable=True),
+        sa.Column("city", sa.String(length=100), nullable=True),
         sa.Column("country", sa.String(length=2), nullable=False),
         sa.Column("latitude", sa.Numeric(9, 6), nullable=True),
         sa.Column("longitude", sa.Numeric(9, 6), nullable=True),
@@ -110,6 +116,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "type <> 'customer_site' OR customer_id IS NOT NULL",
             name="ck_locations_customer_site_has_customer",
+        ),
+        sa.CheckConstraint(
+            "country <> 'FI' OR postal_code IS NULL OR postal_code ~ '^[0-9]{5}$'",
+            name="ck_locations_postal_code_fi",
         ),
         sa.CheckConstraint(
             "(latitude IS NULL) = (longitude IS NULL)", name="ck_locations_coordinates_pair"
@@ -201,6 +211,7 @@ def upgrade() -> None:
         _id(),
         sa.Column("driver_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("type", sa.String(length=30), nullable=False),
+        sa.Column("valid_from", sa.Date(), nullable=False),
         sa.Column("valid_until", sa.Date(), nullable=False),
         sa.Column("document_ref", sa.String(length=100), nullable=True),
         *_timestamps(),
@@ -211,16 +222,25 @@ def upgrade() -> None:
             name="fk_driver_qualifications_driver_id",
             ondelete="CASCADE",
         ),
-        sa.UniqueConstraint("driver_id", "type", name="uq_driver_qualifications_driver_id_type"),
+        sa.CheckConstraint("valid_from <= valid_until", name="ck_driver_qualifications_period"),
+        postgresql.ExcludeConstraint(
+            ("driver_id", "="),
+            ("type", "="),
+            (sa.text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_driver_qualifications_no_overlap",
+        ),
         sa.CheckConstraint(
             "type IN ('adr_basic', 'adr_class1', 'adr_class7', 'adr_tank', "
             "'driving_licence_c', 'driving_licence_ce', 'gdp', 'professional_competence', 'tachograph_card')",
             name="ck_driver_qualifications_type",
         ),
     )
+    op.create_index("ix_driver_qualifications_driver_id", "driver_qualifications", ["driver_id"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_driver_qualifications_driver_id", table_name="driver_qualifications")
     op.drop_table("driver_qualifications")
     op.drop_index("ix_drivers_home_location_id", table_name="drivers")
     op.drop_table("drivers")

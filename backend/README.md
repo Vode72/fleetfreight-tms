@@ -78,6 +78,15 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
+- Driver qualifications are validity periods (history is kept; overlapping periods of one driver
+  and type are rejected by the database). `GDP_TRAINING_DEFAULT_VALIDITY_MONTHS` (default 12)
+  sets the default length of a GDP training record, used to suggest `valid_until` (domain and
+  seed). It is the company's practice, not a regulation. The migration creates the `btree_gist`
+  extension (needed for the exclusion constraint); the downgrade leaves it in place.
+- Locations carry `postal_code` and `city` (optional). Finnish postal codes are checked as five
+  digits; other countries take free text. Seed data uses real codes of the general city-centre
+  area only and leaves the code empty where it is not certain.
+
 ## Tests and quality checks
 
 Tests use a separate database taken from `TEST_DATABASE_URL` (name must end with `_test`;

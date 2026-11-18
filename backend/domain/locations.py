@@ -28,6 +28,7 @@ class LocationType(StrEnum):
 
 
 WEEKDAYS: tuple[str, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_FI_POSTAL_RE = re.compile(r"[0-9]{5}")
 _TIME_RE = re.compile(r"([01]\d|2[0-3]):[0-5]\d|24:00")
 
 
@@ -36,6 +37,22 @@ def validate_timezone(value: str) -> str:
     if value not in available_timezones():
         raise ValueError(f"unknown IANA time zone: {value!r}")
     return value
+
+
+def validate_postal_code(country: str, value: str) -> str:
+    """Postal codes are checked per country; only Finland (five digits) has a rule so far.
+
+    Other countries take free text (trimmed, not empty, at most 20 characters). Note that Aland
+    (AX) uses the free-text rule: its codes look Finnish but the country differs.
+    """
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("postal code must not be empty")
+    if len(stripped) > 20:
+        raise ValueError("postal code must be at most 20 characters")
+    if country == "FI" and not _FI_POSTAL_RE.fullmatch(stripped):
+        raise ValueError("a Finnish postal code is five digits")
+    return stripped
 
 
 def validate_latitude(value: Decimal) -> Decimal:

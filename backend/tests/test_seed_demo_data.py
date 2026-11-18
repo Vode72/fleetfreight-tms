@@ -1,15 +1,20 @@
 import math
 from collections import defaultdict
-from datetime import date
-from typing import Any
+from datetime import date, timedelta
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import sessionmaker
 
 import scripts.seed_demo_data as seed
-from domain.locations import validate_opening_hours, validate_timezone
-from domain.qualifications import DriverQualificationType, validate_adr_qualifications
+from domain.locations import validate_opening_hours, validate_postal_code, validate_timezone
+from domain.qualifications import (
+    DriverQualificationType,
+    QualificationPeriod,
+    overlapping_periods,
+    validate_adr_qualifications,
+)
 from scripts.seed_demo_data import seed_demo_data
 from tests.conftest import make_settings
 
@@ -352,8 +357,8 @@ def test_qualification_scenarios(test_engine: Engine) -> None:
     assert _rows(
         test_engine,
         "SELECT d.name, q.type FROM driver_qualifications q JOIN drivers d ON d.id = q.driver_id "
-        "WHERE q.valid_until < DATE '2026-11-18'",
-    ) == [("Demo Driver Becker", "tachograph_card")]
+        "WHERE q.valid_until < DATE '2026-11-18' ORDER BY d.name",
+    ) == [("Demo Driver Aalto", "tachograph_card"), ("Demo Driver Becker", "tachograph_card")]
     assert _rows(
         test_engine,
         "SELECT name FROM drivers d WHERE NOT EXISTS (SELECT 1 FROM driver_qualifications q "
@@ -361,13 +366,89 @@ def test_qualification_scenarios(test_engine: Engine) -> None:
     ) == [("Demo Driver Salo",)]
 
 
+def _periods(engine: Engine) -> dict[object, list[QualificationPeriod]]:
+    per_driver: dict[object, list[QualificationPeriod]] = defaultdict(list)
+    for driver_id, qtype, valid_from, valid_until in _rows(
+        engine,
+        "SELECT driver_id, type, valid_from, valid_until FROM driver_qualifications",
+    ):
+        per_driver[driver_id].append(
+            QualificationPeriod(DriverQualificationType(str(qtype)), valid_from, valid_until)  # type: ignore[arg-type]
+        )
+    return per_driver
+
+
 def test_seed_adr_qualifications_obey_the_adr_rules(test_engine: Engine) -> None:
     _run(test_engine)
-    per_driver: dict[object, dict[DriverQualificationType, date]] = defaultdict(dict)
-    for driver_id, qtype, valid_until in _rows(
-        test_engine, "SELECT driver_id, type, valid_until FROM driver_qualifications"
-    ):
-        per_driver[driver_id][DriverQualificationType(str(qtype))] = valid_until  # type: ignore[assignment]
+    per_driver = _periods(test_engine)
     assert len(per_driver) == 8
-    for quals in per_driver.values():
-        validate_adr_qualifications(quals, TODAY)
+    for periods in per_driver.values():
+        validate_adr_qualifications(periods, TODAY)
+        assert overlapping_periods(periods) == []
+
+
+def test_seed_shows_qualification_history(test_engine: Engine) -> None:
+    _run(test_engine)
+    rows = _rows(
+        test_engine,
+        "SELECT q.valid_from, q.valid_until FROM driver_qualifications q "
+        "JOIN drivers d ON d.id = q.driver_id WHERE d.name = 'Demo Driver Aalto' "
+        "AND q.type = 'tachograph_card' ORDER BY q.valid_from",
+    )
+    assert len(rows) == 2
+    (_, old_end), (new_start, new_end) = ((cast(date, a), cast(date, b)) for a, b in rows)
+    assert old_end < TODAY < new_end  # expired period and its renewal
+    assert (new_start - old_end).days == 1  # consecutive
+    # ADR periods start five years before they end
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM driver_qualifications WHERE type = 'adr_basic' "
+            "AND valid_until - valid_from + 1 <> 365 * 5",
+        )
+        == 0
+    )
+
+
+def test_gdp_end_date_follows_the_setting(test_engine: Engine) -> None:
+    sql = "SELECT valid_from, valid_until FROM driver_qualifications WHERE type = 'gdp'"
+    _run(test_engine)  # setting default: 12 months
+    ((start, end),) = _rows(test_engine, sql)
+    assert end == date(start.year + 1, start.month, start.day) - timedelta(days=1)  # type: ignore[attr-defined]
+    with test_engine.begin() as conn:
+        conn.execute(
+            text("TRUNCATE driver_qualifications, drivers, carriers, locations, customers CASCADE")
+        )
+    with sessionmaker(bind=test_engine)() as session:
+        seed_demo_data(session, TODAY, gdp_validity_months=24)
+    ((start, end),) = _rows(test_engine, sql)
+    assert end == date(start.year + 2, start.month, start.day) - timedelta(days=1)  # type: ignore[attr-defined]
+
+
+def test_locality_of_places(test_engine: Engine) -> None:
+    _run(test_engine)
+    rows = {
+        str(n): (pc, c)
+        for n, pc, c in _rows(test_engine, "SELECT name, postal_code, city FROM locations")
+    }
+    assert rows["Demo Terminal Central"] == ("01510", "Vantaa")
+    assert rows["Demo Terminal Tampere"] == ("33100", "Tampere")
+    assert rows["Demo Paper Oy \u2013 Jyväskylä Site"] == ("40100", "Jyväskylä")
+    assert rows["Demo Port Vuosaari"] == ("00980", "Helsinki")
+    assert rows["Demo Port Långnäs"] == (None, "Lumparland")  # code not certain: left empty
+    assert all(city for _, city in rows.values())  # city always filled
+    # Finnish codes are five digits (validated); street addresses are invented
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM locations WHERE address !~ '^Demo Street [0-9]+$'",
+        )
+        == 0
+    )
+    for name, (postal, _city) in rows.items():
+        if postal is not None and name in {p.name for p in seed.PLACES if p.country == "FI"}:
+            validate_postal_code("FI", str(postal))
+
+
+def test_every_seed_place_has_a_locality() -> None:
+    assert {p.name for p in seed._PLACES_WITHOUT_LOCALITY} == set(seed._LOCALITY)

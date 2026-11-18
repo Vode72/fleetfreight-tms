@@ -1,10 +1,15 @@
-"""Driver qualifications (R6). Pure domain module.
+"""Driver qualifications with validity history (R6, D67). Pure domain module.
+
+A qualification is a *period*: type, valid_from and valid_until (both inclusive). A driver can
+hold several periods of the same type one after another (an expired one and its renewal), but
+never overlapping ones; the database enforces the same with an exclusion constraint.
 
 Vehicle and equipment eligibility (ADR approval, GDP temperature mapping, tail lift) comes in
 its own table in phase 2B-2, with its own foreign keys.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import StrEnum
 
@@ -21,9 +26,27 @@ class DriverQualificationType(StrEnum):
     GDP = "gdp"
 
 
-def is_valid_on(valid_until: date, day: date) -> bool:
-    """Valid through the whole of `valid_until` (the last day of validity is inclusive)."""
-    return day <= valid_until
+@dataclass(frozen=True)
+class QualificationPeriod:
+    type: DriverQualificationType
+    valid_from: date
+    valid_until: date
+
+    def __post_init__(self) -> None:
+        if self.valid_from > self.valid_until:
+            raise ValueError("valid_from must not be after valid_until")
+
+    def covers(self, day: date) -> bool:
+        """Both ends are inclusive: valid through the whole of valid_until."""
+        return self.valid_from <= day <= self.valid_until
+
+    def overlaps(self, other: QualificationPeriod) -> bool:
+        """Same type and a shared day (a period ending the day another starts overlaps)."""
+        return (
+            self.type is other.type
+            and self.valid_from <= other.valid_until
+            and other.valid_from <= self.valid_until
+        )
 
 
 def expires_within(valid_until: date, today: date, days: int) -> bool:
@@ -31,8 +54,76 @@ def expires_within(valid_until: date, today: date, days: int) -> bool:
     return today <= valid_until <= today + timedelta(days=days)
 
 
-# A driver's qualifications as {type: valid_until} (one record per type, as in the table).
-Qualifications = Mapping[DriverQualificationType, date]
+def add_months(day: date, months: int) -> date:
+    """`day` plus whole months; the day of month is clamped to the length of the target month."""
+    index = day.year * 12 + (day.month - 1) + months
+    year, month = divmod(index, 12)
+    month += 1
+    # Last day of the target month: first day of the next month minus one day.
+    next_first = date(year + (month == 12), month % 12 + 1, 1)
+    last_day = (next_first - timedelta(days=1)).day
+    return date(year, month, min(day.day, last_day))
+
+
+def suggest_valid_until(valid_from: date, months: int) -> date:
+    """Last valid day for a record that is valid for `months` months from `valid_from`.
+
+    A suggestion only (the planner decides). One month from 15 Jan ends on 14 Feb.
+    """
+    if months < 1:
+        raise ValueError("months must be at least 1")
+    return add_months(valid_from, months) - timedelta(days=1)
+
+
+def suggest_gdp_valid_until(valid_from: date, default_months: int) -> date:
+    """valid_until suggestion for a GDP training record.
+
+    `default_months` comes from the setting GDP_TRAINING_DEFAULT_VALIDITY_MONTHS (default 12).
+    The default is the company's own practice, not a regulatory period.
+    """
+    return suggest_valid_until(valid_from, default_months)
+
+
+def valid_on(qualifications: Iterable[QualificationPeriod], day: date) -> list[QualificationPeriod]:
+    """The periods that are valid on `day`."""
+    return [q for q in qualifications if q.covers(day)]
+
+
+def current(
+    qualifications: Iterable[QualificationPeriod], today: date
+) -> dict[DriverQualificationType, QualificationPeriod]:
+    """The valid period per type today; types with no valid period today are absent.
+
+    Periods of one type do not overlap, so at most one period per type is valid on a day.
+    """
+    return {q.type: q for q in valid_on(qualifications, today)}
+
+
+def holds_valid(
+    qualifications: Iterable[QualificationPeriod], qtype: DriverQualificationType, day: date
+) -> bool:
+    return any(q.type is qtype for q in valid_on(qualifications, day))
+
+
+def overlapping_periods(
+    qualifications: Sequence[QualificationPeriod],
+) -> list[tuple[QualificationPeriod, QualificationPeriod]]:
+    """Pairs of same-type periods that share a day (mirrors the database exclusion)."""
+    return [
+        (a, b)
+        for i, a in enumerate(qualifications)
+        for b in qualifications[i + 1 :]
+        if a.overlaps(b)
+    ]
+
+
+def holds_licence_c(qualifications: Iterable[QualificationPeriod], day: date) -> bool:
+    """Category CE covers category C (a CE licence entitles the holder to drive C vehicles)."""
+    periods = list(qualifications)
+    return holds_valid(periods, DriverQualificationType.DRIVING_LICENCE_C, day) or holds_valid(
+        periods, DriverQualificationType.DRIVING_LICENCE_CE, day
+    )
+
 
 ADR_SPECIAL_SCOPES: tuple[DriverQualificationType, ...] = (
     DriverQualificationType.ADR_TANK,
@@ -41,52 +132,55 @@ ADR_SPECIAL_SCOPES: tuple[DriverQualificationType, ...] = (
 )
 
 
-def holds_valid(quals: Qualifications, qtype: DriverQualificationType, day: date) -> bool:
-    valid_until = quals.get(qtype)
-    return valid_until is not None and is_valid_on(valid_until, day)
-
-
-def holds_licence_c(quals: Qualifications, day: date) -> bool:
-    """Category CE covers category C (a CE licence entitles the holder to drive C vehicles)."""
-    return holds_valid(quals, DriverQualificationType.DRIVING_LICENCE_C, day) or holds_valid(
-        quals, DriverQualificationType.DRIVING_LICENCE_CE, day
-    )
-
-
 def adr_special_scopes_without_valid_basic(
-    quals: Qualifications, day: date
+    qualifications: Iterable[QualificationPeriod], day: date
 ) -> list[DriverQualificationType]:
-    """Special scopes (tank, class 1, class 7) that are valid on `day` while adr_basic is not.
+    """Special scopes (tank, class 1, class 7) valid on `day` while adr_basic is not valid that day.
 
-    A special-scope training builds on the basic ADR certificate, so it counts only together
-    with a valid adr_basic.
+    A special scope builds on the basic ADR certificate, so it counts only on days when an
+    adr_basic period is valid as well.
     """
-    if holds_valid(quals, DriverQualificationType.ADR_BASIC, day):
+    periods = list(qualifications)
+    if holds_valid(periods, DriverQualificationType.ADR_BASIC, day):
         return []
-    return [t for t in ADR_SPECIAL_SCOPES if holds_valid(quals, t, day)]
+    return [t for t in ADR_SPECIAL_SCOPES if holds_valid(periods, t, day)]
 
 
-def adr_special_scopes_outlasting_basic(quals: Qualifications) -> list[DriverQualificationType]:
-    """Special scopes whose validity ends after the adr_basic validity (or without adr_basic).
+def adr_special_scopes_outlasting_basic(
+    qualifications: Iterable[QualificationPeriod],
+) -> list[QualificationPeriod]:
+    """Special-scope periods that end after the adr_basic period valid on their first day.
 
-    The special-scope validity cannot be longer than the basic certificate's.
+    The special scope cannot be valid longer than the basic certificate it rests on. A special
+    period starting when no adr_basic is valid is reported as well.
     """
-    basic = quals.get(DriverQualificationType.ADR_BASIC)
-    return [t for t in ADR_SPECIAL_SCOPES if t in quals and (basic is None or quals[t] > basic)]
+    periods = list(qualifications)
+    result: list[QualificationPeriod] = []
+    for special in (p for p in periods if p.type in ADR_SPECIAL_SCOPES):
+        basics = [
+            p
+            for p in valid_on(periods, special.valid_from)
+            if p.type is DriverQualificationType.ADR_BASIC
+        ]
+        if not basics or special.valid_until > basics[0].valid_until:
+            result.append(special)
+    return result
 
 
-def validate_adr_qualifications(quals: Qualifications, day: date) -> None:
-    """Raise ValueError when the ADR records of a driver break the two rules above.
+def validate_adr_qualifications(qualifications: Iterable[QualificationPeriod], day: date) -> None:
+    """Raise ValueError when the ADR periods of a driver break the two rules above.
 
     Reservation: the exact rules (validity periods, renewal, what a special scope requires) are to
     be checked against ADR section 8.2.2.8 before phase 5 (Plan Check); this is the modelled
     simplification until then.
     """
+    periods = list(qualifications)
     problems = [
-        f"{t.value} needs a valid adr_basic"
-        for t in adr_special_scopes_without_valid_basic(quals, day)
+        f"{t.value} needs an adr_basic valid on the same day"
+        for t in adr_special_scopes_without_valid_basic(periods, day)
     ] + [
-        f"{t.value} must not outlast adr_basic" for t in adr_special_scopes_outlasting_basic(quals)
+        f"{p.type.value} ({p.valid_from}..{p.valid_until}) must not outlast adr_basic"
+        for p in adr_special_scopes_outlasting_basic(periods)
     ]
     if problems:
         raise ValueError("; ".join(problems))

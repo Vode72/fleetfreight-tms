@@ -170,6 +170,17 @@ def test_parent_location(test_engine: Engine) -> None:
         conn.execute(text("DELETE FROM locations WHERE id = :i"), {"i": parent})
 
 
+def test_postal_code_and_city(test_engine: Engine) -> None:
+    _location(test_engine, "Demo FI", postal_code="33100", city="Tampere")
+    _location(test_engine, "Demo None")  # both optional
+    _location(test_engine, "Demo SE", country="SE", postal_code="760 40", city="Norrtalje")
+    _location(test_engine, "Demo AX", country="AX", postal_code="22100", city="Mariehamn")
+    _rejected(_location, test_engine, "Demo FI Bad 1", postal_code="3310")
+    _rejected(_location, test_engine, "Demo FI Bad 2", postal_code="331000")
+    _rejected(_location, test_engine, "Demo FI Bad 3", postal_code="33 100")
+    _rejected(_location, test_engine, "Demo FI Bad 4", postal_code="ABCDE")
+
+
 def test_location_name_is_unique(test_engine: Engine) -> None:
     _location(test_engine)
     _rejected(_location, test_engine)
@@ -307,7 +318,13 @@ def test_carrier_and_location_in_use_cannot_be_deleted(test_engine: Engine) -> N
 
 
 def _qualification(engine: Engine, driver_id: uuid.UUID, **kw: Any) -> uuid.UUID:
-    values = {"driver_id": driver_id, "type": "gdp", "valid_until": "2027-06-30", **kw}
+    values = {
+        "driver_id": driver_id,
+        "type": "gdp",
+        "valid_from": "2026-07-01",
+        "valid_until": "2027-06-30",
+        **kw,
+    }
     return _insert(engine, "driver_qualifications", **values)
 
 
@@ -320,10 +337,62 @@ def test_qualification_type_accepts_domain_values(test_engine: Engine, value: st
 def test_qualification_constraints(test_engine: Engine) -> None:
     driver = _driver(test_engine, _carrier(test_engine))
     _qualification(test_engine, driver)
-    _rejected(_qualification, test_engine, driver)  # one record per driver and type
     _rejected(_qualification, test_engine, driver, type="forklift")
     _rejected(_qualification, test_engine, driver, type="adr_tank", valid_until=None)
+    _rejected(_qualification, test_engine, driver, type="adr_tank", valid_from=None)
     _rejected(_qualification, test_engine, uuid.uuid4())  # driver FK
+
+
+def test_qualification_period_must_not_be_reversed(test_engine: Engine) -> None:
+    driver = _driver(test_engine, _carrier(test_engine))
+    _rejected(
+        _qualification, test_engine, driver, valid_from="2027-01-02", valid_until="2027-01-01"
+    )
+    _qualification(test_engine, driver, valid_from="2027-01-01", valid_until="2027-01-01")
+
+
+def test_overlapping_qualification_periods_are_rejected(test_engine: Engine) -> None:
+    driver = _driver(test_engine, _carrier(test_engine))
+    _qualification(test_engine, driver, valid_from="2026-01-01", valid_until="2026-12-31")
+    # same type: inside, partly overlapping, sharing the last day, identical
+    for start, end in (
+        ("2026-03-01", "2026-04-01"),
+        ("2026-12-01", "2027-06-01"),
+        ("2026-12-31", "2027-12-30"),
+        ("2025-06-01", "2026-01-01"),
+        ("2026-01-01", "2026-12-31"),
+    ):
+        _rejected(_qualification, test_engine, driver, valid_from=start, valid_until=end)
+
+
+def test_consecutive_qualification_periods_are_allowed(test_engine: Engine) -> None:
+    driver = _driver(test_engine, _carrier(test_engine))
+    _qualification(test_engine, driver, valid_from="2021-01-01", valid_until="2025-12-31")
+    _qualification(test_engine, driver, valid_from="2026-01-01", valid_until="2030-12-31")
+    _qualification(test_engine, driver, valid_from="2031-01-01", valid_until="2035-12-31")
+    with test_engine.connect() as conn:
+        count = conn.execute(text("SELECT count(*) FROM driver_qualifications")).scalar()
+    assert count == 3
+
+
+def test_overlap_rule_is_per_driver_and_type(test_engine: Engine) -> None:
+    carrier = _carrier(test_engine)
+    a = _driver(test_engine, carrier, "Demo Driver A")
+    b = _driver(test_engine, carrier, "Demo Driver B")
+    _qualification(test_engine, a)
+    _qualification(test_engine, b)  # same period and type, another driver
+    _qualification(test_engine, a, type="adr_basic")  # same period, another type
+
+
+def test_updating_a_period_into_an_overlap_is_rejected(test_engine: Engine) -> None:
+    driver = _driver(test_engine, _carrier(test_engine))
+    _qualification(test_engine, driver, valid_from="2026-01-01", valid_until="2026-12-31")
+    second = _qualification(test_engine, driver, valid_from="2027-01-01", valid_until="2027-12-31")
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
+        conn.execute(
+            text("UPDATE driver_qualifications SET valid_from = '2026-12-31' WHERE id = :i"),
+            {"i": second},
+        )
 
 
 def test_qualifications_are_deleted_with_the_driver(test_engine: Engine) -> None:

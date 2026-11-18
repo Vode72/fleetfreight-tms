@@ -8,6 +8,7 @@ from domain.locations import (
     validate_latitude,
     validate_longitude,
     validate_opening_hours,
+    validate_postal_code,
     validate_terminal_fields,
     validate_timezone,
 )
@@ -132,3 +133,31 @@ def test_terminal_fields_forbidden_on_other_types(location_type: LocationType) -
     for field, value in (("loading_docks", 2), ("cold_storage", False), ("reefer_plug_count", 1)):
         with pytest.raises(ValueError):
             validate_terminal_fields(location_type, **{**none, field: value})
+
+
+@pytest.mark.parametrize("value", ["00100", "33100", "01510", " 70100 "])
+def test_finnish_postal_code_valid(value: str) -> None:
+    assert validate_postal_code("FI", value) == value.strip()
+
+
+@pytest.mark.parametrize(
+    "value", ["", "  ", "3310", "331000", "33 100", "ABCDE", "3310A", "FI-33100"]
+)
+def test_finnish_postal_code_invalid(value: str) -> None:
+    with pytest.raises(ValueError):
+        validate_postal_code("FI", value)
+
+
+@pytest.mark.parametrize(
+    ("country", "value"),
+    [("SE", "760 40"), ("DE", "23552"), ("PL", "81-310"), ("NO", "0150"), ("AX", "22100")],
+)
+def test_other_countries_take_free_text(country: str, value: str) -> None:
+    assert validate_postal_code(country, value) == value
+
+
+def test_free_text_postal_code_is_still_bounded() -> None:
+    with pytest.raises(ValueError):
+        validate_postal_code("DE", " ")
+    with pytest.raises(ValueError):
+        validate_postal_code("DE", "1" * 21)

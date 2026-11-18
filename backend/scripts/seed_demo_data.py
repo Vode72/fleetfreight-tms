@@ -16,17 +16,20 @@ and Sat 06-14; customer sites vary. Ports have opening_hours NULL, which means "
 (Plan Check does not test port opening hours); NULL is also "unknown" for any other place.
 
 Idempotent: every row is identified by its natural key (customers, carriers, locations by name,
-drivers by carrier and name, qualifications by driver and type). Existing rows are left as they
-are (never overwritten, so manual edits survive, and rows created by an older version of this
-script are not updated); only missing rows are created. Qualification and licence dates are
-relative to the day of the first run (one qualification is already expired, one is expiring soon,
-and one driver has no professional competence, for Plan Check scenarios).
+drivers by carrier and name, qualification periods by driver, type and document reference).
+Existing rows are left as they are (never overwritten, so manual edits survive, and rows created
+by an older version of this script are not updated); only missing rows are created.
+Qualification dates are relative to the day of the first run. For Plan Check scenarios one
+qualification is already expired, one is expiring soon, one driver has no professional
+competence, and one driver shows the history (an expired period and its renewal). The GDP end
+date follows the setting GDP_TRAINING_DEFAULT_VALIDITY_MONTHS (a company practice, not a
+regulation).
 Refuses to run unless ENVIRONMENT=development.
 """
 
 import sys
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -39,11 +42,13 @@ from db.session import get_engine
 from domain.locations import (
     LocationType,
     validate_opening_hours,
+    validate_postal_code,
     validate_terminal_fields,
     validate_timezone,
 )
 from domain.parties import CarrierType, CustomerType, DriverEmployment, employment_matches_carrier
 from domain.qualifications import DriverQualificationType as Q
+from domain.qualifications import suggest_gdp_valid_until
 
 OWN_COMPANY = "Demo Freight Oy"
 _Hours = dict[str, list[list[str]]]
@@ -81,6 +86,8 @@ class _Place:
     hours: _Hours | None = None
     booking_required: bool = False
     parent: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
     side_loading: bool = False
     max_vehicle_length_m: str | None = None
     has_loading_dock: bool | None = None
@@ -154,7 +161,7 @@ def _customs(name: str, country: str, lat: str, lon: str, tz: str, hours: _Hours
 _LUBECK = "Demo Port Lübeck"
 # Terminal network (D31): all have loading docks (D32); cold storage and reefer plugs only in
 # Central, Tampere and Oulu (D33). Terminals sit at the general city centre.
-PLACES: tuple[_Place, ...] = (
+_PLACES_WITHOUT_LOCALITY: tuple[_Place, ...] = (
     _terminal("Central", "60.169900", "24.938400", 12, cold=True, plugs=6),
     _terminal("Turku", "60.451800", "22.266600", 6),
     _terminal("Tampere", "61.497800", "23.761000", 8, cold=True, plugs=4),
@@ -303,6 +310,53 @@ PLACES: tuple[_Place, ...] = (
     ),
 )
 
+# Postal code and city (D68). Real codes of the general city-centre area only; where a code is not
+# certain it stays None and only the city is given. Street addresses are invented ("Demo Street N").
+_LOCALITY: dict[str, tuple[str | None, str]] = {
+    "Demo Terminal Central": ("01510", "Vantaa"),
+    "Demo Terminal Turku": ("20100", "Turku"),
+    "Demo Terminal Tampere": ("33100", "Tampere"),
+    "Demo Terminal Kuopio": ("70100", "Kuopio"),
+    "Demo Terminal Oulu": ("90100", "Oulu"),
+    "Demo Port Kotka": ("48100", "Kotka"),
+    "Demo Port Vuosaari": ("00980", "Helsinki"),
+    "Demo Port Hanko": ("10900", "Hanko"),
+    "Demo Port Oulu": ("90100", "Oulu"),
+    "Demo Port Naantali": ("21100", "Naantali"),
+    "Demo Port Långnäs": (None, "Lumparland"),
+    "Demo Port Kapellskär": (None, "Kapellskär"),
+    "Demo Port Travemünde": ("23570", "Lübeck"),
+    "Demo Port Lübeck": (None, "Lübeck"),
+    "Demo Port Lübeck \u2013 Lehmannkai": (None, "Lübeck"),
+    "Demo Port Lübeck \u2013 Seelandkai": (None, "Lübeck"),
+    "Demo Port Rostock": ("18055", "Rostock"),
+    "Demo Port Gdynia": (None, "Gdynia"),
+    "Demo Port Tallinn": (None, "Tallinn"),
+    "Demo Port Antwerpen": ("2000", "Antwerpen"),
+    "Demo Rail Terminal Rostock": ("18055", "Rostock"),
+    "Demo Rail Terminal Travemünde": ("23570", "Lübeck"),
+    "Demo Rail Terminal Verona": ("37121", "Verona"),
+    "Demo Customs Office Central": ("01510", "Vantaa"),
+    "Demo Customs Office Svinesund": (None, "Svinesund"),
+    "Demo Customs Office Oslo": (None, "Oslo"),
+    "Demo Paper Mill Site": ("70100", "Kuopio"),
+    "Demo Paper Oy \u2013 Jyväskylä Site": ("40100", "Jyväskylä"),
+    "Demo Dairy Plant Site": ("33100", "Tampere"),
+    "Demo Pharma Warehouse Site": ("20100", "Turku"),
+    "Demo Papier Lager Site": ("20095", "Hamburg"),
+    "Demo Timber Yard Site": ("90100", "Oulu"),
+    "Demo Kemia Plant Site": ("33100", "Tampere"),
+    "Demo Norge Lager Site": (None, "Oslo"),
+    "Demo Kauppa Oy \u2013 Kuopio Shop Site": ("70100", "Kuopio"),
+    "Demo Kauppa Oy \u2013 Turku Shop Site": ("20100", "Turku"),
+    "Demo Konepaja Oy \u2013 Kuopio Workshop Site": ("70100", "Kuopio"),
+    "Demo Konepaja Oy \u2013 Oulu Workshop Site": ("90100", "Oulu"),
+}
+PLACES: tuple[_Place, ...] = tuple(
+    replace(p, postal_code=_LOCALITY[p.name][0], city=_LOCALITY[p.name][1])
+    for p in _PLACES_WITHOUT_LOCALITY
+)
+
 # name, type, country, business_id (invented), pallet_exchange_agreed
 CUSTOMERS: tuple[tuple[str, CustomerType, str, str | None, bool], ...] = (
     (OWN_COMPANY, CustomerType.OWN_COMPANY, "FI", "DEMO-FI-0001", False),
@@ -324,70 +378,96 @@ CARRIERS: tuple[tuple[str, CarrierType, str, str, int, int], ...] = (
     ("Demo Kuljetus Oy", CarrierType.SUBCONTRACTOR, "FI", "DEMO-FI-0302", 2, 1),
 )
 
-# carrier, name, home terminal (own drivers), employment, qualifications (type, days valid)
-_BASE = ((Q.DRIVING_LICENCE_CE, 1500), (Q.PROFESSIONAL_COMPETENCE, 1200), (Q.TACHOGRAPH_CARD, 900))
-DRIVERS: tuple[tuple[str, str, str | None, DriverEmployment, tuple[tuple[Q, int], ...]], ...] = (
-    (OWN_COMPANY, "Demo Driver Aalto", "Demo Terminal Central", DriverEmployment.OWN, _BASE),
+# A qualification period: (type, days from the first-run day to valid_until, years of validity).
+# GDP is the exception (see Koski below).
+# valid_from = valid_until - years * 365 days + 1 day, so a renewal can start the day after.
+_Spec = tuple[Q, int, int]
+_BASE: tuple[_Spec, ...] = (
+    (Q.DRIVING_LICENCE_CE, 1500, 10),
+    (Q.PROFESSIONAL_COMPETENCE, 1200, 5),
+    (Q.TACHOGRAPH_CARD, 900, 5),
+)
+_CE, _PC, _TACHO = _BASE
+
+# carrier, name, home terminal (own drivers), employment, qualification periods
+DRIVERS: tuple[tuple[str, str, str | None, DriverEmployment, tuple[_Spec, ...]], ...] = (
+    (
+        OWN_COMPANY,
+        "Demo Driver Aalto",
+        "Demo Terminal Central",
+        DriverEmployment.OWN,
+        # History demo: the tachograph card expired 40 days ago and was renewed the next day.
+        (_CE, _PC, (Q.TACHOGRAPH_CARD, -40, 5), (Q.TACHOGRAPH_CARD, 1785, 5)),
+    ),
     (
         OWN_COMPANY,
         "Demo Driver Berg",
         "Demo Terminal Central",
         DriverEmployment.OWN,
-        (*_BASE, (Q.ADR_BASIC, 700), (Q.ADR_TANK, 700)),
+        (*_BASE, (Q.ADR_BASIC, 700, 5), (Q.ADR_TANK, 700, 5)),
     ),
     (
         OWN_COMPANY,
         "Demo Driver Koski",
         "Demo Terminal Tampere",
         DriverEmployment.OWN,
-        (*_BASE, (Q.GDP, 365)),
+        # GDP: the first number is the offset of valid_from; the end date is suggested from the
+        # GDP_TRAINING_DEFAULT_VALIDITY_MONTHS setting (D69).
+        (*_BASE, (Q.GDP, -100, 0)),
     ),
     (
         OWN_COMPANY,
         "Demo Driver Laine",
         "Demo Terminal Kuopio",
         DriverEmployment.OWN,
-        (*_BASE, (Q.ADR_BASIC, 21), (Q.ADR_CLASS1, 21)),  # expiring soon
+        (*_BASE, (Q.ADR_BASIC, 21, 5), (Q.ADR_CLASS1, 21, 5)),  # expiring soon
     ),
     (
         OWN_COMPANY,
         "Demo Driver Niemi",
         "Demo Terminal Oulu",
         DriverEmployment.OWN,
-        (*_BASE, (Q.ADR_BASIC, 900), (Q.ADR_CLASS7, 900)),
+        (*_BASE, (Q.ADR_BASIC, 900, 5), (Q.ADR_CLASS7, 900, 5)),
     ),
     (
         "Demo Trans GmbH",
         "Demo Driver Becker",
         None,
         DriverEmployment.SUBCONTRACTOR_NAMED,
-        # tachograph card already expired (negative days: the first-run day minus 15)
-        (_BASE[0], _BASE[1], (Q.TACHOGRAPH_CARD, -15)),
+        (_CE, _PC, (Q.TACHOGRAPH_CARD, -15, 5)),  # tachograph card already expired, not renewed
     ),
     (
         "Demo Trans GmbH",
         "Demo Driver Vogel",
         None,
         DriverEmployment.SUBCONTRACTOR_NAMED,
-        (*_BASE, (Q.ADR_BASIC, 500)),
+        (*_BASE, (Q.ADR_BASIC, 500, 5)),
     ),
     (
         "Demo Kuljetus Oy",
         "Demo Driver Salo",
         None,
         DriverEmployment.SUBCONTRACTOR_NAMED,
-        (_BASE[0], _BASE[2]),  # no professional competence
+        (_CE, _TACHO),  # no professional competence
     ),
 )
 
 
-def _document_ref(qtype: Q, driver_name: str) -> str:
-    return f"DEMO-{qtype.value.upper()}-{driver_name.rsplit(' ', 1)[-1].upper()}"
+def _document_ref(qtype: Q, driver_name: str, nth: int) -> str:
+    """Natural key of a seeded period within a driver: type, surname and the period's number."""
+    return f"DEMO-{qtype.value.upper()}-{driver_name.rsplit(' ', 1)[-1].upper()}-{nth}"
 
 
-def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
-    """Create the missing demo rows. Returns the number of rows created per table."""
+def seed_demo_data(
+    session: Session, today: date | None = None, gdp_validity_months: int | None = None
+) -> Counter[str]:
+    """Create the missing demo rows. Returns the number of rows created per table.
+
+    `gdp_validity_months` defaults to the setting GDP_TRAINING_DEFAULT_VALIDITY_MONTHS.
+    """
     today = today or date.today()
+    if gdp_validity_months is None:
+        gdp_validity_months = get_settings().gdp_training_default_validity_months
     created: Counter[str] = Counter()
 
     # --- customers (exactly one own company: reuse an existing one under another name)
@@ -411,12 +491,14 @@ def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
 
     # --- locations
     locations: dict[str, Location] = {}
-    for place in PLACES:
+    for number, place in enumerate(PLACES, start=1):
         location = session.scalar(select(Location).where(Location.name == place.name))
         if location is None:
             temp_min = Decimal(place.temp_min) if place.temp_min is not None else None
             temp_max = Decimal(place.temp_max) if place.temp_max is not None else None
             validate_timezone(place.timezone)
+            if place.postal_code is not None:
+                validate_postal_code(place.country, place.postal_code)
             validate_terminal_fields(
                 place.type,
                 loading_docks=place.docks,
@@ -430,7 +512,9 @@ def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
                 type=place.type.value,
                 customer_id=customers[place.customer].id if place.customer else None,
                 parent_location_id=locations[place.parent].id if place.parent else None,
-                address="Demo Address 1 (fictional)",
+                address=f"Demo Street {number}",
+                postal_code=place.postal_code,
+                city=place.city,
                 country=place.country,
                 latitude=Decimal(place.latitude),
                 longitude=Decimal(place.longitude),
@@ -491,20 +575,31 @@ def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
             session.add(driver)
             session.flush()
             created["drivers"] += 1
-        for qtype, days in quals:
+        seen: Counter[Q] = Counter()
+        for qtype, days, years in quals:
+            seen[qtype] += 1
+            ref = _document_ref(qtype, name, seen[qtype])
             exists = session.scalar(
                 select(DriverQualification.id).where(
                     DriverQualification.driver_id == driver.id,
                     DriverQualification.type == qtype.value,
+                    DriverQualification.document_ref == ref,
                 )
             )
             if exists is None:
+                if qtype is Q.GDP:
+                    valid_from = today + timedelta(days=days)
+                    valid_until = suggest_gdp_valid_until(valid_from, gdp_validity_months)
+                else:
+                    valid_until = today + timedelta(days=days)
+                    valid_from = valid_until - timedelta(days=365 * years - 1)
                 session.add(
                     DriverQualification(
                         driver_id=driver.id,
                         type=qtype.value,
-                        valid_until=today + timedelta(days=days),
-                        document_ref=_document_ref(qtype, name),
+                        valid_from=valid_from,
+                        valid_until=valid_until,
+                        document_ref=ref,
                     )
                 )
                 created["driver_qualifications"] += 1

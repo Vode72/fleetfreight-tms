@@ -21,7 +21,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.session import Base
@@ -159,6 +159,10 @@ class Location(Base):
             name="ck_locations_customer_site_has_customer",
         ),
         CheckConstraint(
+            "country <> 'FI' OR postal_code IS NULL OR postal_code ~ '^[0-9]{5}$'",
+            name="ck_locations_postal_code_fi",
+        ),
+        CheckConstraint(
             "(latitude IS NULL) = (longitude IS NULL)", name="ck_locations_coordinates_pair"
         ),
         CheckConstraint(
@@ -211,6 +215,8 @@ class Location(Base):
     name: Mapped[str] = mapped_column(String(200))
     # Free text; demo data uses invented addresses only.
     address: Mapped[str | None] = mapped_column(Text)
+    postal_code: Mapped[str | None] = mapped_column(String(20))
+    city: Mapped[str | None] = mapped_column(String(100))
     country: Mapped[str] = mapped_column(String(2))
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
@@ -287,12 +293,21 @@ class Driver(Base):
 
 
 class DriverQualification(Base):
-    """Driver qualification. Vehicle eligibility gets its own table in 2B-2 (own foreign keys)."""
+    """Driver qualification period (D67). Vehicle eligibility: own table in 2B-2."""
 
     __tablename__ = "driver_qualifications"
     __table_args__ = (
-        # One current record per type; a renewal updates valid_until.
-        UniqueConstraint("driver_id", "type", name="uq_driver_qualifications_driver_id_type"),
+        CheckConstraint("valid_from <= valid_until", name="ck_driver_qualifications_period"),
+        # History (D67): periods of one driver and type never overlap (both ends inclusive).
+        # Needs the btree_gist extension for = on uuid and varchar inside a gist index.
+        ExcludeConstraint(
+            ("driver_id", "="),
+            ("type", "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_driver_qualifications_no_overlap",
+        ),
+        Index("ix_driver_qualifications_driver_id", "driver_id"),
         CheckConstraint(
             in_list("type", DriverQualificationType), name="ck_driver_qualifications_type"
         ),
@@ -304,6 +319,8 @@ class DriverQualification(Base):
         ForeignKey("drivers.id", ondelete="CASCADE", name="fk_driver_qualifications_driver_id"),
     )
     type: Mapped[str] = mapped_column(String(30))
+    # Validity period, both ends inclusive. A renewal is a new row, so the history is kept.
+    valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date] = mapped_column(Date)
     document_ref: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = _created_at()
