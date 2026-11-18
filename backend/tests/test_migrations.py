@@ -322,3 +322,83 @@ def test_evaporator_migration_stops_when_one_machine_serves_two_compartments(
         with test_engine.begin() as conn:
             conn.execute(text("TRUNCATE equipment_qualifications, carriers CASCADE"))
         command.upgrade(cfg, "head")
+
+
+def test_evaporator_migration_follows_the_model_code(test_engine: Engine) -> None:
+    """FB with only a rear machine gets its evaporator at the front; an FD with one machine gets
+    the missing evaporator; a compartment without a machine stays without an evaporator."""
+    from tests.test_fleet_db import _trailer
+    from tests.test_registers_db import _carrier, _insert
+
+    cfg = _at_fleet_tables(test_engine)
+    try:
+        carrier = _carrier(test_engine, "Demo Reefer Codes Oy")
+        fb = _trailer(test_engine, carrier, body_type="reefer", model_code="FB")
+        fd = _trailer(test_engine, carrier, body_type="reefer", model_code="FD", partition=True)
+        fb_rear = _insert(
+            test_engine,
+            "reefer_units",
+            load_unit_id=fb,
+            position="rear",
+            unit_name="Demo Mono",
+            power_source="electric",
+        )
+        _insert(
+            test_engine,
+            "reefer_units",
+            load_unit_id=fd,
+            position="front",
+            unit_name="Demo Duo",
+            power_source="diesel",
+        )
+        comp = {"temperature_min": "-25.0", "temperature_max": "8.0"}
+        _insert(
+            test_engine, "compartments", load_unit_id=fb, reefer_unit_id=fb_rear, number=1, **comp
+        )
+        _insert(test_engine, "compartments", load_unit_id=fd, number=1, **comp)  # no machine
+        command.upgrade(cfg, "e0f14a4663b6")
+        with test_engine.connect() as conn:
+            evaporators = {
+                (r.load_unit_id, r.position)
+                for r in conn.execute(text("SELECT load_unit_id, position FROM reefer_evaporators"))
+            }
+            assert evaporators == {(fb, "front"), (fd, "front"), (fd, "rear")}
+            comps = {
+                r.load_unit_id: r.position
+                for r in conn.execute(
+                    text(
+                        "SELECT c.load_unit_id, e.position FROM compartments c"
+                        " LEFT JOIN reefer_evaporators e ON e.id = c.evaporator_id"
+                    )
+                )
+            }
+            assert comps == {fb: "front", fd: None}
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("TRUNCATE equipment_qualifications, carriers CASCADE"))
+        command.upgrade(cfg, "head")
+
+
+def test_evaporator_migration_stops_on_an_fs_with_two_machines(test_engine: Engine) -> None:
+    from tests.test_fleet_db import _trailer
+    from tests.test_registers_db import _carrier, _insert
+
+    cfg = _at_fleet_tables(test_engine)
+    try:
+        carrier = _carrier(test_engine, "Demo Reefer Side Oy")
+        fs = _trailer(test_engine, carrier, body_type="reefer", model_code="FS", side_doors=True)
+        for position in ("front", "rear"):
+            _insert(
+                test_engine,
+                "reefer_units",
+                load_unit_id=fs,
+                position=position,
+                unit_name="Demo Side",
+                power_source="diesel",
+            )
+        with pytest.raises(RuntimeError, match="FB / FS"):
+            command.upgrade(cfg, "e0f14a4663b6")
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("TRUNCATE equipment_qualifications, carriers CASCADE"))
+        command.upgrade(cfg, "head")

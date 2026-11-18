@@ -20,7 +20,12 @@ Schema:
 Existing data:
 - Per load unit the front machine (or, without one, the rear one) is kept. Every old machine
   becomes an evaporator at its old position under the kept machine, and each compartment moves
-  from its old machine to that evaporator.
+  from its old machine to that evaporator. A compartment without a machine (NULL: "not recorded
+  or served by both" in the old model) stays without an evaporator.
+- The result follows the model code (D76): FB and FS get their one evaporator at the front (an
+  old rear-only machine moves to the front); an FD with one old machine gets the missing
+  evaporator. An FB or FS with two old machines stops the upgrade (it cannot be one zone without
+  guessing which compartment goes).
 - The removed machine's reefer service periods move to the kept machine. If they overlap the kept
   machine's periods, the exclusion constraint stops the upgrade (nothing is lost silently).
 - If one old machine served several compartments, the upgrade stops with an error (an
@@ -29,7 +34,8 @@ Existing data:
 
 The downgrade restores a rear machine for every rear evaporator (copying the kept machine's name
 and power source), points the compartments back to the machines and drops the new table and
-column. Service periods stay on the front machine.
+column. Service periods stay on the front machine. A load unit that had only a rear machine comes
+back with a front machine and a rear one (both with the kept values).
 """
 
 from collections.abc import Sequence
@@ -115,14 +121,45 @@ def upgrade() -> None:
     )
     if shared:
         raise RuntimeError(
-            "a reefer unit serves several compartments; an evaporator serves one (D76): "
-            "point the compartments to one machine each first"
+            f"{shared} reefer unit(s) serve several compartments; an evaporator serves one (D76):"
+            " point the compartments to one machine each first (SELECT reefer_unit_id FROM"
+            " compartments GROUP BY reefer_unit_id HAVING count(*) > 1)"
+        )
+    single_zone_twins = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT string_agg(l.registration, ', ') FROM load_units l WHERE l.model_code IN"
+                " ('FB', 'FS') AND (SELECT count(*) FROM reefer_units r"
+                " WHERE r.load_unit_id = l.id) > 1"
+            )
+        )
+        .scalar()
+    )
+    if single_zone_twins:
+        raise RuntimeError(
+            f"FB / FS load units with two reefer units ({single_zone_twins}): FB and FS have one"
+            " evaporator and one zone (D76); remove the extra machine first"
         )
     # Every old machine becomes an evaporator at its position under the kept machine.
+    # FB and FS: the one evaporator is at the front.
+    op.execute(
+        "UPDATE reefer_units r SET position = 'front' FROM load_units l"
+        " WHERE l.id = r.load_unit_id AND l.model_code IN ('FB', 'FS')"
+    )
     op.execute(
         "INSERT INTO reefer_evaporators (reefer_unit_id, load_unit_id, position)"
         f" SELECT k.id, r.load_unit_id, r.position FROM reefer_units r JOIN ({_KEEPERS}) k"
         " ON k.load_unit_id = r.load_unit_id"
+    )
+    # FD: front and rear; a missing one is added (no compartment yet).
+    op.execute(
+        "INSERT INTO reefer_evaporators (reefer_unit_id, load_unit_id, position)"
+        f" SELECT k.id, k.load_unit_id, p.position FROM ({_KEEPERS}) k"
+        " JOIN load_units l ON l.id = k.load_unit_id AND l.model_code = 'FD'"
+        " CROSS JOIN (VALUES ('front'), ('rear')) AS p(position)"
+        " WHERE NOT EXISTS (SELECT 1 FROM reefer_evaporators e"
+        " WHERE e.reefer_unit_id = k.id AND e.position = p.position)"
     )
     op.add_column(
         "compartments",
