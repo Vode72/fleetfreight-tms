@@ -53,9 +53,18 @@ from domain.equipment import (
     validate_zones,
 )
 
-MIGRATION = next(
-    (Path(__file__).parents[1] / "migrations/versions").glob("d3ad319be9a8_create_fleet_tables.py")
+# The fleet migrations: the tables (d3ad319be9a8) and the evaporators (e0f14a4663b6, D76).
+_VERSIONS = Path(__file__).parents[1] / "migrations/versions"
+MIGRATIONS = (
+    _VERSIONS / "d3ad319be9a8_create_fleet_tables.py",
+    _VERSIONS / "e0f14a4663b6_reefer_unit_with_evaporators.py",
 )
+
+
+def _migration_text() -> str:
+    text = "\n".join(m.read_text(encoding="utf-8") for m in MIGRATIONS)
+    return re.sub(r'"\s*"', "", text)
+
 
 # (model, constraint name, column, domain enum)
 ENUM_CHECKS = [
@@ -116,7 +125,7 @@ def test_model_and_migration_check_lists_match_domain(
     }
     expected = in_list(column, enum)
     assert checks[name] == expected
-    migration = re.sub(r'"\s*"', "", MIGRATION.read_text(encoding="utf-8"))
+    migration = _migration_text()
     assert f'"{expected}"' in migration
     for value in enum:
         assert f"'{value.value}'" in checks[name]
@@ -131,7 +140,7 @@ def test_load_unit_only_types_match_model_and_migration() -> None:
         if isinstance(c, CheckConstraint)
     }
     assert checks["ck_equipment_qualifications_load_unit_only_types"] == expected
-    migration = re.sub(r'"\s*"', "", MIGRATION.read_text(encoding="utf-8"))
+    migration = _migration_text()
     assert expected.split(" OR ")[0] in migration  # the type list is the same in the migration
     assert {
         EquipmentQualificationType.ATP,
