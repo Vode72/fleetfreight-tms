@@ -31,7 +31,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D4 | Moduulijako: kuormasuunnittelu omistaa Orderin, Order Routingin, Tripin, kulut, hinnoittelun ja dokumentit. Resurssisuunnittelu omistaa Jobin, kuljettajan päivän, aikalaskennan ja toteutettavuuden | Hyväksytty 14.11.2026 | luku 3 |
 | D5 | Yksi sääntötiedosto: `CLAUDE.md` on päälähde, ja `AGENTS.md` (Codex) viittaa siihen | Hyväksytty 14.11.2026 | luku 6 |
 | D6 | Frontend siirretään Create React Appista Viteen. Kieli pysyy JavaScriptinä, TypeScript ei ole päätetty | Korvattu → D11 | FF #11 |
-| D7 | FleetFlow'n koodikehitys jäädytetään FF-002E:tä lukuun ottamatta. GitHub Pages -demo säilyy, kunnes yhdistetty demo on julkaistu | Ehdotus | luku 5 |
+| D7 | FleetFlow'n ja Freight Plannerin koodikehitys jäädytetään 18.11.2026 (tarkennettu: FF-002E jäi tekemättä, sisältö siirtyi FleetFreightin päätöksiin). FleetFlow'n draft-PR #6 suljetaan. Repot jäävät GitHubiin portfolioon, ja README:hen lisätään linkki FleetFreight TMS:ään. GitHub Pages -demo säilyy, kunnes yhdistetty demo on julkaistu | Hyväksytty 18.11.2026 | Toni, chat |
 | D8 | Kaikki kummankin projektin toimialuekäsitteet tulevat mukaan (luku 2B). Mitään ei pudoteta, ja päällekkäiset toteutukset yhdistetään | Hyväksytty 14.11.2026 | Toni, chat |
 | D9 | Kaksi vaihdettavaa teemaa koko sovellukseen: **Business Light** (beige-harmaa vaalea teema, sininen aksentti) ja **Control Dark** (Freight Plannerin tumma, oranssi aksentti). Valinta tallentuu käyttäjälle (tarkennus: D49) | Hyväksytty 14.11.2026 | Toni, chat |
 | D10 | Tyylit toteutetaan CSS-muuttujina (design tokenit), ei inline-väreinä. Freight Plannerin "inline CSS kaikkialla" -sääntö ei siirry uuteen sovellukseen, koska teemanvaihto vaatii muuttujat | Hyväksytty 14.11.2026 | D9 |
@@ -43,8 +43,8 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D16 | Order on laskutettavissa toimituksen (IOD) jälkeen | Hyväksytty 14.11.2026 | Toni, chat |
 | D17 | Keikan alun siirtymät (vetäjä trailerille, tyhjä traileri lastaukseen) kuuluvat samaan Tripiin. Niillä on oma veloitus ajotyypin mukaan: **vetäjä ilman traileria (SOLO / empty truck)** ja **veto tyhjällä trailerilla (EMPTY_TRAILER)** omilla hinnoillaan. Vastaa Freight Plannerin palvelukoodeja 210/220 kuormattu, 211/221 tyhjä, 212/222 vetoyksikkö | Hyväksytty 14.11.2026 | Toni, chat |
 | D18 | **Vetäjänvaihto Nodessa:** missä tahansa Nodessa vetäjän 1 toiminta voidaan katkaista ja liittää vetäjä 2. Vetäjän 1 Job päättyy ja vetäjän 2 Job alkaa, Trip jatkuu (sama traileri). Ostokulut kohdistuvat legeittäin kunkin vetäjän kuljetusyhtiölle | Hyväksytty 14.11.2026 | Toni, chat |
-| D19 | Jaettavien kulujen oletusjakoperuste on LDM, ja palvelukoodikohtainen poikkeus on mahdollinen | Oletus (Toni ei vastannut 14.11.) | paperitestit R2 |
-| D20 | Alihankkijan keikalla kuljettaja voi olla tyhjä. Plan Check näyttää "ajoaikatarkistus alihankkijan vastuulla" | Oletus (Toni ei vastannut 14.11.) | paperitestit R4 |
+| D19 | Jaettavien kulujen oletusjakoperuste on LDM, ja palvelukoodikohtainen poikkeus on mahdollinen | Hyväksytty 18.11.2026 | Toni, chat (paperitestit R2) |
+| D20 | Alihankkijan keikalla kuljettaja voi olla tyhjä. Plan Check näyttää "ajoaikatarkistus alihankkijan vastuulla" | Hyväksytty 18.11.2026 | Toni, chat (paperitestit R4) |
 | D21 | Kaksimiehitys ei ole ensimmäisessä versiossa (yksi kuljettaja per Job) | Oletus (Toni ei vastannut 14.11.) | paperitestit R4 |
 | D22 | Osittainen käsittely: order jaetaan kahdeksi, ja molemmat osat viittaavat alkuperäiseen Order ID:hen | Hyväksytty 14.11.2026 | Toni, chat |
 | D23 | Ensimmäisessä versiossa ovat sekä saattamattomat että saattaen ajettavat lautat. Lauttamatkan aikainen lepo huomioidaan ajoaikalaskennassa (ehdot luetaan 561/2006:sta ennen toteutusta) | Hyväksytty 14.11.2026 | Toni, chat |
@@ -54,7 +54,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D27 | Saattamattoman trailerin satamakäsittely: cut-off-aika, vapautus (release), noutotunnus / PIN, säilytysaika ja satamamaksut sekä **sähköön kytkentä satamassa (kyllä / ei)** thermotrailereille | Hyväksytty 14.11.2026 | Toni, chat |
 | D28 | Raha tallennetaan PostgreSQL:ssä kokonaislukuina (`*_cents` ×100, `*_e4` ×10 000), laskenta `Decimal`. Freight Plannerin `money.py` ja sen testit siirtyvät muuttamatta | Hyväksytty 14.11.2026 | Toni, chat |
 | D29 | Uuden projektin nimi on **FleetFreight TMS** (repo `fleetfreight-tms`) | Hyväksytty 14.11.2026 | Toni, chat |
-| D30 | Live-seuranta demossa: simuloidut sijainnit legien suunnitelluista ajoista ja FEC-kuittauksista, välitetään FastAPI-WebSocketilla Leaflet-karttaan. Ei oikeaa GPS-dataa | Ehdotus | chat 14.11. |
+| D30 | Live-seuranta demossa: simuloidut sijainnit legien suunnitelluista ajoista ja FEC-kuittauksista, välitetään FastAPI-WebSocketilla Leaflet-karttaan. Ei oikeaa GPS-dataa | Hyväksytty 18.11.2026 | Toni, chat |
 | D31 | Demodatan kotimaan terminaaliverkosto, viisi terminaalia: **pääkaupunkiseutu (Demo Terminal Central), Turku, Tampere, Kuopio ja Oulu**. Väli noin 150–300 km, joten terminaalin alue on päiväajon päässä edestakaisin. Jyväskylän seutu hoidetaan Tampereelta tai Kuopiosta. Nimet keksittyjä (Demo Terminal + kaupunki), koordinaatit kaupungin yleiseen keskipisteeseen | Hyväksytty 14.11.2026 | Toni, chat |
 | D32 | **Kaikissa terminaaleissa on lastauslaiturit**, joten perästä purku onnistuu kaikkialla (perälautaorderien terminaaliflow D25 toimii jokaisessa terminaalissa) | Hyväksytty 14.11.2026 | Toni, chat |
 | D33 | **Lämpötilasäädelty käsittely kolmessa terminaalissa: Central, Tampere ja Oulu** (kylmätila ja kylmäkoneiden sähköpistokkeet). Thermo-orderin Cross Dock sallitaan vain näissä, muissa terminaaleissa vain Remain LU | Hyväksytty 14.11.2026 | Toni, chat |
@@ -94,6 +94,9 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D67 | **Pätevyyksien historia säilyy:** jokaisesta voimassaolojaksosta oma rivi (voimassa alkaen ja asti). Uusiminen luo uuden rivin, vanha jää historiaan. "Voimassa nyt" ja "voimassa ajopäivänä" haetaan jaksoista. Koskee kuljettajien pätevyyksiä ja kaluston kelpoisuuksia | Hyväksytty 18.11.2026 | Toni, chat |
 | D68 | **Postinumero ja kaupunki omiksi kentiksi paikoille:** demossa oikea postinumero ja kaupunki, katuosoite keksitty (esim. "Demo Street 1, 33100 Tampere"). Postinumero on julkista aluetietoa eikä yksilöi ketään, kun katuosoite on keksitty; tarkentaa sääntöä 5 (ei oikeita osoitteita) tältä osin. Käyttö: asiakashinnasto (vaihe 3), CMR (vaihe 6), tarkempi reititysehdotus (D64) | Hyväksytty 18.11.2026 | Toni, chat |
 | D69 | **GDP-koulutuksen oletusvoimassaolo on asetus** (oletus 12 kk). Voimassaolo voidaan aina kirjata käsin todistuksen mukaan. Käyttöliittymässä ja dokumentaatiossa merkitään, että kyse on yrityksen käytännöstä eikä säädöksestä | Hyväksytty 18.11.2026 | Toni, chat |
+| D70 | **Pätevyydet ja kelpoisuudet erillisissä tauluissa:** kuljettajan pätevyydet (`driver_qualifications`: ADR-ajolupa ja laajuudet, ajokortti, ammattipätevyys, kuljettajakortti, GDP) ja kaluston kelpoisuudet (oma taulu vaiheessa 2B-2: esim. ADR-hyväksyntä, ATP, GDP-kartoitus, perälauta). Molemmissa voimassaolot jaksoina (D67) | Hyväksytty 18.11.2026 | Toni, chat |
+| D71 | **Node on fyysinen pysähdys, joka voi kuulua usealle tripille (tarkentaa D13 ja D55):** Node ei omista trippiä. Tripin Node–Leg-ketju muodostuu sen legeistä (`leg_trips`). Yhdistelmässä tripit jakavat samat Nodet ja legit, joten pysähdys, ajat ja kuittaukset kirjataan kerran. Yhden tripin ajossa ei muutosta | Hyväksytty 18.11.2026 | Toni, chat |
+| D72 | **Rekisteririvit arkistoidaan, ei poisteta:** asiakkailla, paikoilla, kuljetusliikkeillä, kuljettajilla ja kalustolla tila aktiivinen / arkistoitu (`archived_at`). Arkistoitu ei näy valintalistoissa, mutta historia, vanhat tripit ja raportit säilyvät. Fyysinen poisto estetään (RESTRICT), jos riviin viitataan; admin voi poistaa vain rivin, jolla ei ole viittauksia. Toteutetaan uudella revisiolla ennen ensimmäistä rekisteri-API:a (koskee myös `driver_qualifications`: CASCADE → RESTRICT) | Hyväksytty 18.11.2026 | Toni, chat |
 
 ### FleetFlow'sta siirtyvät hyväksytyt periaatteet (PR #6, 14.11.2026)
 
@@ -260,7 +263,7 @@ Tila: **Hyväksytty 17.11.2026, täydennetty 18.11.2026 (D62–D69, ylempi paikk
 | load_units | **kuormatila**: tyyppi (traileri, kiinteä kori; vaihtokori myöhemmin), kiinteällä korilla kuorma-auto, rekisteri tai tunnus (keksitty), korityyppi (pressu, mega, sivuaukeava, thermo, …), sisämitat ja oviaukko, ulkopituus, LDM, lavapaikat, omamassa ja suurin kokonaismassa, akselit, erityisominaisuudet (XL, kelakouru, TIR-vaijeri, ylhäältä lastaus, perälauta), junakelpoisuus (D63), ATP-luokka ja voimassaolo, omistusmuoto ja vuokrakausi, katsastus ja huolto | D36, D39, D47, D60 |
 | compartments | kuormatila (`load_units`), lohkon numero, lämpötila-alue | D47 |
 | reefer_units | kuormatila, kylmäkone, polttoaine / sähkö | D47 |
-| qualifications | **kuljettajan** pätevyys (ADR ja laajuus, ajokortti, ammattipätevyys, kuljettajakortti, GDP) tai **kaluston** kelpoisuus (ADR, GDP-lämpötilakartoitus, perälauta); erilliset viiteavaimet ja tarkistus, voimassaolo | R6 |
+| driver_qualifications, equipment_qualifications | **kuljettajan** pätevyys (ADR ja laajuus, ajokortti C / CE, ammattipätevyys, kuljettajakortti, GDP) ja **kaluston** kelpoisuus (ADR, GDP-lämpötilakartoitus, perälauta, junakelpoisuus) omissa tauluissaan (D70); voimassaolo jaksoina (D67) | R6, D67, D70 |
 | line_operators, line_routes, line_departures | **lautta- ja junaoperaattori** (Demo), reitti suuntineen ja välisatamineen tai -terminaaleineen (kulkumuoto FERRY / RAIL), vuoro: alus (rahti / ro-pax), lähtö, saapuminen, check-in, cut-off, kesto | D23, D27, D62, D63 |
 | routing_preferences | kohdemaa (myöhemmin alue), ehdotettu satama tai terminaali, linja, jatko (maantie / juna), prioriteetti | D64 |
 
@@ -279,7 +282,7 @@ Tila: **Hyväksytty 17.11.2026, täydennetty 18.11.2026 (D62–D69, ylempi paikk
 |---|---|---|
 | jobs | vetäjä tai kuorma-auto (tyhjä sallittu alihankkijan työssä), kuljettaja (tyhjä alihankkijan työssä), kuljetusliike, tila (Job-ketju + Peruttu); ei omaa `trip_id`:tä | D18, D20, D50 |
 | trips | **kuormatila** (`load_units`; tyhjä Luonnos-tilassa ja vetäjän siirtotripillä), tila (Luonnos → … + Peruttu) | D14, D39, D50, D52–D54 |
-| nodes | trip, järjestys, sijainti, tyyppi, toiminnot (irti / kiinni, vetäjänvaihto, sähköön kytkentä, sinetöinti), live / drop, aikaikkuna, **saapuminen ja lähtö: suunniteltu, ennuste ja toteutunut**, suunniteltu käsittelyaika, ajanvarausnumero | D13, D18, D27 |
+| nodes | fyysinen pysähdys (ei omaa trippiä; tripin ketju legien kautta, D71), järjestys vetoyksikön ajossa, sijainti, tyyppi, toiminnot (irti / kiinni, vetäjänvaihto, sähköön kytkentä, sinetöinti), live / drop, aikaikkuna, **saapuminen ja lähtö: suunniteltu, ennuste ja toteutunut**, suunniteltu käsittelyaika, ajanvarausnumero | D13, D18, D27 |
 | legs | lähtö- ja tulo-Node, job (valinnainen), ajotyyppi (SOLO, EMPTY_TRAILER, LOADED_TRAILER, kuorma-auton kuormattu ajo; tarkistetaan kyydissä olevista ordereista), kulkumuoto (ROAD / FERRY / RAIL; RAIL: D63), tarkoitus (esim. RETURN_TO_BASE), km, ajoaika (FERRY: 0), **reitin maat ja km per maa, tiukin tunnelikategoria**; tripit liitostaulun `leg_trips` kautta (yhdistelmässä sama legi usealla tripillä), dolly (valinnainen), yhdistelmän pituus ja kokonaismassa (johdettu tarkistusta varten) | D13, D17, D39, D55, D61 |
 | order_nodes | order, Node, toiminto LOAD / UNLOAD / REMAIN (REMAIN vain ohjetta vaativissa terminaaleissa), järjestys saman Noden sisällä, lastauskohta kuormatilassa, lohko (thermo) | D14, D33, D41 |
 | line_bookings | legi (FERRY / RAIL), vuoro, varausnumero, saattaen / saattamaton, tila (varattu → gate-in → laivassa → purettu → vapautettu → noudettu; myöhästynyt, uudelleenvarattu), yksikön pituus, korkeus, paino ja rekisterit, hytti tai makuupaikka (saattaen), cut-off, release, noutotunnus, ilmainen säilytysaika, sähköön kytkentä, DG-ilmoitus lähetetty; maksut `costs`-riveinä | D23, D27, D46 |
@@ -435,7 +438,7 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 - [x] D4, D5, D10, D12 ja D28 hyväksytty 14.11.2026
 - [x] Nimi: FleetFreight TMS (D29)
 - [x] Repo `fleetfreight-tms` luotu
-- [ ] FleetFlow: FF-002E (#10) ja PR #6:n korjaus (Job-rajaus avoimeksi, ChatGPT-linkki pois), sitten koodi jäädytetään (D7)
+- [x] FleetFlow ja Freight Planner jäädytetty 18.11.2026 (D7): FleetFlow'n PR #6 suljettu, README-linkit FleetFreight TMS:ään
 - [ ] Freight Planner: KONTEKSTI-tiedostoon merkitään, mitä on oikeasti toteutettu (esim. perälaudan flow ja pitkien tavaroiden esto ovat vain dokumentoituja)
 
 ### Vaihe 1: runko
