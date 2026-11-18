@@ -9,7 +9,8 @@ from enum import StrEnum
 
 class CustomerType(StrEnum):
     CUSTOMER = "customer"
-    # The operating company itself. Exactly one row; payer of internal orders (D54).
+    # The operating company itself; payer of internal orders (D54). At most one row (database);
+    # exactly one is ensured by the seed and later the service layer.
     OWN_COMPANY = "own_company"
 
 

@@ -472,7 +472,7 @@ Nämä vaativat liikenteenohjaajan päätöksen tai kokemuksen, eikä niitä voi
 
 1. **Tripin raja (R1):** Hyväksytkö säännön "Trip = yhden trailerin kuormattu kierros; tyhjenee ja lastataan uudelleen → uusi Trip"? Vai haluatko, että esim. tuonti + heti perään vienti samalla trailerilla on yksi Trip (S4a)?
 2. **Legin raja (R1):** Riittääkö gateway (terminaali) legin rajaksi, vai haluatko sataman omaksi legikseen esim. siksi, että satamaosuus laskutetaan joskus erikseen?
-3. **Tyhjän palautuksen kulu (R2):** Kuuluuko se Tripin ordereille (LDM:n mukaan) vai trailer poolin yleiskuluihin? Miten se on tehty työpaikoillasi?
+3. **Tyhjän palautuksen kulu (R2):** Kuuluuko se Tripin ordereille (LDM:n mukaan) vai trailer poolin yleiskuluihin? Mikä on yleinen alan käytäntö?
 4. **Jakoperuste (R2):** Onko LDM oikea oletus myös lautalle, vai käytetäänkö käytännössä rahdituspainoa (LDM/paino-muunnosta)? Jos käytetään, mikä muuntokerroin demoon? (Sopimuskohtainen arvo, en arvaa sitä.)
 5. **Laskutuksen ehto (R3):** Laskutetaanko order IOD:n jälkeen vai vasta POD:n saavuttua? Onko se asiakaskohtaista?
 6. **Alihankkijan kuljettaja (R4):** Riittääkö demossa "kuljettaja ei tiedossa, tarkistus alihankkijan vastuulla"? Vai halutaanko alihankkijalta ilmoitettu kuljettaja ja tunnit?

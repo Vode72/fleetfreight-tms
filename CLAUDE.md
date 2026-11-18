@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D69).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D74).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -27,7 +27,7 @@ cp .env.example .env                 # vain kehitysarvot, ei salasanoja repoon
 docker compose up --build            # override-tiedosto tuo kehitysasetukset automaattisesti
 curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
 docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät; vain kehityskäynnistyksellä (override), DEMO_PASSWORD .env:stä
-docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, asiakkaat, kuljettajat); vain kehityskäynnistyksellä, idempotentti
+docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, junaterminaalit, tullitoimipaikat, asiakkaat, kuljetusliikkeet, kuljettajat, pätevyydet); vain kehityskäynnistyksellä, idempotentti
 cd frontend && npm ci && npm run dev
 ```
 
@@ -71,12 +71,13 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
    commit-viestejä, PR:iä ja issueita. Toimialan käytäntöjä kuvataan yleisinä alan käytäntöinä.
    Jos et ole varma, onko termi yleinen alan termi vai yrityksen sisäinen, kysy ennen käyttöä.
 5. **Demodata:** kaikki yritys- ja henkilönimet ovat keksittyjä ja sisältävät sanan "Demo", sähköpostit `*.example.com`.
-   Ei oikeita yrityksiä, rekisterinumeroita, osoitteita eikä yhteystietoja.
+   Ei oikeita yrityksiä, rekisterinumeroita, osoitteita eikä yhteystietoja (postinumero ja kaupunki saavat olla oikeita
+   ja katuosoite keksitty, D68; julkiset paikannimet kuten satamien ja rajanylitysten nimet sallittu).
 6. **Domain-logiikka on puhtaita Python-moduuleja** ilman riippuvuutta FastAPI:hin tai tietokantaan, jotta ne voidaan testata erikseen.
 7. **Tyylit CSS-muuttujina (D9, D10).** Kaksi teemaa: *Business Light* ja *Control Dark*. Komponenteissa ei kovakoodattuja värejä.
 8. **Järjestelmä laskee, tarkistaa ja ehdottaa; liikenteenohjaaja päättää.** Mikään automaatti ei muuta hyväksyttyä suunnitelmaa itse.
 9. **Toteutuneita tapahtumia ei poisteta** uudelleensuunnittelussa. Korjaukset vastakirjauksina.
-10. Älä merkitse ehdotusta hyväksytyksi. Päätösrekisterin tilat: Hyväksytty / Ehdotus / Oletus / Avoin.
+10. Älä merkitse ehdotusta hyväksytyksi. Päätösrekisterin tilat: Hyväksytty / Ehdotus / Oletus / Avoin / Korvattu ("Korvattu → Dxx").
 
 ---
 
@@ -85,12 +86,22 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 - **Node–Leg (D13):** keikka on Node-ketju, ja legi on aina kahden peräkkäisen Noden välissä. Node voi olla esimerkiksi
   vetäjän lähtö, trailerin nouto, terminaali, lastaus, purku, satama lähtö tai saapuminen, korjaamo, katsastus tai pesu.
   Kilometrit ja ajoaika lasketaan vain legeistä.
-- **Trip = trailerin kuormattu kierros (D14),** johon kuuluvat myös alun siirtymät (D17).
+- **Trip seuraa kuormatilaa (D14, D55, D60):** kuormatila (`load_units`) on traileri tai kuorma-auton kiinteä kori.
+  Trip on kuormatilan kuormattu kierros, johon kuuluvat myös alun siirtymät (D17).
+- **Kaikki ajot muodostavat tripin (D54):** jokainen trippi koostuu orderista, Nodeista ja legeistä. Order-tyypit: tavara,
+  tyhjä kuormatila, huolto, pesu, katsastus, siirto. Maksaja asiakas tai oma yritys (sisäinen order).
+- **Yhdistelmät (D55, D61):** legi on vetoyksikön fyysinen siirtymä, ja sama legi voi kuulua usealle tripille (`leg_trips`),
+  joten km ja ajoaika lasketaan kerran. Node on fyysinen pysähdys, jonka tripit voivat jakaa (D71). Dolly kytketään legille; HCT-yhdistelmän pituus ja massa tarkistetaan.
 - **Vetäjänvaihto Nodessa (D18):** vetäjän 1 Job päättyy ja vetäjän 2 Job alkaa, Trip jatkuu.
 - **Job** = yksi vetäjä ja kuljettaja. Job ja Trip ovat N:M legien kautta. Kuljettaja voi olla tyhjä alihankkijan työssä (D20).
 - **Kuormatyypit (D37):** FTL, PTL ja LTL, joilla on omat reititys-, kapasiteetti-, hinnoittelu- ja Plan Check -säännöt (`docs/suunnitelma.md` luku 3B).
-- **Ajotyypit:** SOLO, EMPTY_TRAILER ja LOADED_TRAILER, joilla on omat hinnat (D17). Kulkumuoto ROAD tai FERRY.
-- **Kolme tilaketjua (R3):** Order, Trip ja Job. Laskutus kohdistuu orderiin toimituksen (IOD) jälkeen (D16).
+- **Ajotyypit:** SOLO, EMPTY_TRAILER, LOADED_TRAILER ja kuorma-auton kuormattu ajo (D17, D39), omilla hinnoillaan.
+  Kulkumuoto ROAD, FERRY tai RAIL (D63; juna kuten saattamaton lautta, ilman Jobia).
+- **Kolme tilaketjua (R3, D50, D53):** Order, Trip (Luonnos → Suunniteltu → …) ja Job, kaikissa päätetila Peruttu.
+  Laskutus kohdistuu orderiin toimituksen (IOD) jälkeen (D16).
+- **Voimassaolot jaksoina (D67):** jokaisesta voimassaolojaksosta oma rivi; uusiminen luo uuden rivin, historia säilyy. Kuljettajien pätevyydet ja kaluston kelpoisuudet ovat omissa tauluissaan (D70).
+- **Rekisteririvit arkistoidaan, ei poisteta (D72):** `archived_at`; poisto estetään (RESTRICT), jos riviin viitataan. Oma kuljetusliike viittaa oman yrityksen asiakasriviin (D73).
+- **Reititysehdotus (D64):** asetustaulukko kohdemaan mukaan; järjestelmä ehdottaa, liikenteenohjaaja päättää.
 - **Ajo- ja työaika lasketaan kuljettajalle** yli Jobien ja päivien: EU 561/2006 (myös lauttalepo, D23) ja 2002/15/EY.
   Säädösten raja-arvot tarkistetaan säädöstekstistä ennen toteutusta, eikä niitä kirjoiteta muistista.
 
@@ -99,6 +110,7 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 ## Kieli
 
 - Koodi, nimet, kommentit ja commit-viestit englanniksi
+- UI-termistö on alan arkikieltä ja sama kuin dokumentaatiossa (D74), esim. Tripit, Orderit, Tripsuunnittelu, Board
 - Dokumentaatio (`docs/`) suomeksi, README englanniksi
 - **Käyttöliittymä on kaksikielinen, englanti ja suomi (D34).** Kaikki käyttäjälle näkyvät tekstit käännösavaimina
   käännöstiedostoissa (`en` ja `fi`), ei kovakoodattuja tekstejä komponenteissa. Uusi teksti lisätään aina molemmille kielille.

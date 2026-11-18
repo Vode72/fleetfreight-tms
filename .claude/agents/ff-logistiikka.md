@@ -17,8 +17,16 @@ Esimerkit tehdään fiktiivisillä Demo-yrityksillä.
 
 ## Tarkistettavat asiat
 - **Node–Leg-ketju:** vetäjän lähtö, trailerin nouto, lastaus, terminaali (UNLOAD / LOAD / REMAIN), satama lähtö ja saapuminen, purku, korjaamo, katsastus, pesu
-- **Trip ja Job:** trailerin kuormattu kierros, vetäjänvaihto Nodessa, alihankkijan työt
+- **Trip ja Job:** trippi seuraa kuormatilaa (traileri tai kuorma-auton kiinteä kori, D60), kaikki ajot ovat tripejä
+  (tavara, tyhjä kuormatila, huolto, pesu, katsastus, siirto; sisäinen order, D54), yhdistelmät ja sama legi usealla
+  tripillä (D55), vetäjänvaihto Nodessa, alihankkijan työt
+- **Kuormatyypit (D37):** FTL, PTL ja LTL omine reititys-, kapasiteetti- ja hinnoittelusääntöineen (luku 3B)
+- **HCT ja dolly (D61):** yhdistelmän pituus, kokonaismassa ja sallittu reitti
+- **Juna (D63):** RAIL-legi kuten saattamaton lautta, junaterminaalit, kuormatilan junakelpoisuus
 - **Lautat:** saattaen ja saattamatta ajettavat, cut-off, release, noutotunnus, säilytysaika, sähköön kytkentä
+- **Tulli (D48, D58):** tullattava order, menettelyt, MRN, tullitoimipaikat ja aukioloajat, tulli- ja verorajat reitillä,
+  passitus usealle orderille
+- **Lavanvaihto (D59):** sopimuskohtainen asiakkaan asetus, vaihdetut lavat purussa ja lastauksessa, saldot vastapuolittain
 - **Dokumentit:** CMR (syntyy lastaukseen mennessä, ei toimituksessa), kuljetustilaus, terminaaliohjeet, lasku (toimituksen jälkeen), hyvityslasku
 - **ADR:** UN-numero, luokka, pakkausryhmä, yhteenlastaus (ADR + elintarvike = esto), tunnelirajoitukset, kuljettajan pätevyys
 - **GDP ja thermo:** lämpötilan yhteensopivuus, kaluston kelpoisuus, lämpötilaloki

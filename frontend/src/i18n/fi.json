@@ -26,10 +26,10 @@
       "administration": "Hallinta"
     },
     "items": {
-      "orders": "Tilaukset",
-      "trips": "Keikat",
+      "orders": "Orderit",
+      "trips": "Tripit",
       "customers": "Asiakkaat",
-      "board": "Taulu",
+      "board": "Board",
       "jobWorkspace": "Työnäkymä",
       "fleetTimeline": "Kalustoaikajana",
       "routeRisk": "Reitti ja riskit",
