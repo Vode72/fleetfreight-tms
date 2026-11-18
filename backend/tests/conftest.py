@@ -142,8 +142,8 @@ def add_user(test_engine: Engine) -> Callable[..., User]:
 
 
 REGISTER_TABLES = (
-    "equipment_qualifications, reefer_units, compartments, load_units, dollies, trucks,"
-    " driver_qualifications, drivers, carriers, locations, customers"
+    "equipment_qualifications, compartments, reefer_evaporators, reefer_units, load_units,"
+    " dollies, trucks, driver_qualifications, drivers, carriers, locations, customers"
 )
 
 

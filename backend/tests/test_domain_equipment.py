@@ -12,6 +12,7 @@ from sqlalchemy import CheckConstraint
 from db.models import (
     EquipmentQualification,
     LoadUnit,
+    ReeferEvaporator,
     ReeferUnit,
     Truck,
     in_list,
@@ -22,12 +23,12 @@ from domain.equipment import (
     CouplingType,
     EquipmentQualificationType,
     EquipmentSubject,
+    EvaporatorPosition,
     LoadUnitType,
     ModelCode,
     Ownership,
     PartitionSpec,
     PowerSource,
-    ReeferPosition,
     TruckType,
     is_thermo,
     lease_valid_on,
@@ -38,6 +39,7 @@ from domain.equipment import (
     validate_compartment_set,
     validate_equipment_qualification,
     validate_equipment_subject,
+    validate_evaporators,
     validate_fixed_body_host,
     validate_lease,
     validate_load_unit,
@@ -63,7 +65,7 @@ ENUM_CHECKS = [
     (LoadUnit, "ck_load_units_ownership", "ownership", Ownership),
     (LoadUnit, "ck_load_units_coupling_type", "coupling_type", CouplingType),
     (LoadUnit, "ck_load_units_model_code", "model_code", ModelCode),
-    (ReeferUnit, "ck_reefer_units_position", "position", ReeferPosition),
+    (ReeferEvaporator, "ck_reefer_evaporators_position", "position", EvaporatorPosition),
     (ReeferUnit, "ck_reefer_units_power_source", "power_source", PowerSource),
     (
         EquipmentQualification,
@@ -100,7 +102,7 @@ def test_allowed_values() -> None:
         "reefer_service",
     }
     assert {v.value for v in ModelCode} == {"FB", "FD", "FS", "CS", "MEGA", "COIL"}
-    assert {v.value for v in ReeferPosition} == {"front", "rear"}
+    assert {v.value for v in EvaporatorPosition} == {"front", "rear"}
 
 
 @pytest.mark.parametrize(("model", "name", "column", "enum"), ENUM_CHECKS)
@@ -512,33 +514,40 @@ def test_side_loading_uses_the_side_doors_feature() -> None:
 # --- D76: reefer units, zones and the partition
 
 
-def test_reefer_units_up_to_two_in_different_positions() -> None:
-    F, R = ReeferPosition.FRONT, ReeferPosition.REAR
-    validate_reefer_units(BodyType.REEFER, [])
-    validate_reefer_units(BodyType.REEFER, [F])
-    validate_reefer_units(BodyType.REEFER, [F, R])
-    with pytest.raises(ValueError, match="at most 2"):
-        validate_reefer_units(BodyType.REEFER, [F, R, F])
-    with pytest.raises(ValueError, match="once"):
-        validate_reefer_units(BodyType.REEFER, [F, F])
+def test_one_reefer_unit_on_a_reefer_body() -> None:
+    """D76: one machine at the front; the zones come from its evaporators."""
+    validate_reefer_units(BodyType.REEFER, 0)
+    validate_reefer_units(BodyType.REEFER, 1)
+    validate_reefer_units(BodyType.BOX, 0)
+    with pytest.raises(ValueError, match="at most one"):
+        validate_reefer_units(BodyType.REEFER, 2)
     with pytest.raises(ValueError, match="only a reefer"):
-        validate_reefer_units(BodyType.BOX, [F])
-    validate_reefer_units(BodyType.BOX, [])
+        validate_reefer_units(BodyType.BOX, 1)
+    with pytest.raises(ValueError, match="negative"):
+        validate_reefer_units(BodyType.REEFER, -1)
+    for code in (ModelCode.FB, ModelCode.FD, ModelCode.FS):
+        validate_reefer_units(BodyType.REEFER, 1, code)
+        with pytest.raises(ValueError, match="exactly one reefer unit"):
+            validate_reefer_units(BodyType.REEFER, 0, code)
 
 
-def test_reefer_unit_count_follows_the_model_code() -> None:
-    F, R = ReeferPosition.FRONT, ReeferPosition.REAR
-    validate_reefer_units(BodyType.REEFER, [F], ModelCode.FB)
-    validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FD)
-    validate_reefer_units(BodyType.REEFER, [F], ModelCode.FS)
-    with pytest.raises(ValueError, match="FS"):
-        validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FS)
-    with pytest.raises(ValueError, match="FB"):
-        validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FB)
-    with pytest.raises(ValueError, match="FB"):
-        validate_reefer_units(BodyType.REEFER, [], ModelCode.FB)
-    with pytest.raises(ValueError, match="FD"):
-        validate_reefer_units(BodyType.REEFER, [F], ModelCode.FD)
+def test_evaporators_follow_the_model_code() -> None:
+    """D76: FB and FS one evaporator at the front, FD two (front and rear)."""
+    F, R = EvaporatorPosition.FRONT, EvaporatorPosition.REAR
+    validate_evaporators([F], ModelCode.FB)
+    validate_evaporators([F], ModelCode.FS)
+    validate_evaporators([F, R], ModelCode.FD)
+    validate_evaporators([R, F], ModelCode.FD)
+    validate_evaporators([F, R])  # no code: free
+    for code in (ModelCode.FB, ModelCode.FS):
+        for bad in ([F, R], [R], []):
+            with pytest.raises(ValueError, match="one evaporator"):
+                validate_evaporators(bad, code)
+    for bad in ([F], [R], []):
+        with pytest.raises(ValueError, match="two evaporators"):
+            validate_evaporators(bad, ModelCode.FD)
+    with pytest.raises(ValueError, match="once"):
+        validate_evaporators([F, F])
 
 
 def test_zones_without_a_model_code() -> None:
@@ -575,6 +584,24 @@ def test_only_fd_has_a_partition() -> None:
             validate_partition_allowed(code, True)
     with pytest.raises(ValueError, match="every FD"):
         validate_partition_allowed(ModelCode.FD, False)
+
+
+def test_max_rear_share_limits_the_rear_compartment() -> None:
+    """Some machines limit the rear zone, e.g. to a third of the space (D76)."""
+    spec = PartitionSpec(Decimal("13.60"), partition=True, max_rear_share=Decimal("0.333"))
+    positions = partition_positions(spec, 34)
+    # 16 rows; the rear may take at most 5 rows (5 <= 0.333 * 16 = 5.33)
+    assert [(p.front_pallets, p.rear_pallets) for p in positions] == [
+        (22, 10),
+        (24, 8),
+        (26, 6),
+        (28, 4),
+    ]
+    full = PartitionSpec(Decimal("13.60"), partition=True, max_rear_share=Decimal("1"))
+    assert len(partition_positions(full, 34)) == 13
+    for bad in (Decimal("0"), Decimal("1.01")):
+        with pytest.raises(ValueError, match="max_rear_share"):
+            validate_partition(PartitionSpec(Decimal("13.60"), max_rear_share=bad))
 
 
 def test_fd_of_13_6_m_holds_four_pallets_each_side() -> None:

@@ -1,4 +1,5 @@
-"""create trucks, dollies, load_units, compartments, reefer_units and equipment_qualifications
+"""create trucks, dollies, load_units, reefer_units, reefer_evaporators, compartments and
+equipment_qualifications
 
 Revision ID: d3ad319be9a8
 Revises: f0c09cb23c9d
@@ -26,12 +27,17 @@ Celsius (NUMERIC, never float); validity dates are DATE, both ends inclusive.
 - D75: load_units.model_code (FB, FD, FS, CS, MEGA, COIL; the thermo codes go with reefer bodies,
   FS has side doors) and the separate feature column side_doors. Only FD has a partition (and
   every FD has one); FB and FS have one reefer unit and one zone, FD two of each (domain checks).
-- D76: up to two reefer units per load unit, one per position (unique (load_unit_id, position));
-  compartments may name the unit serving them (composite foreign key, so the unit belongs to
-  the same load unit) and say whether they are controlled independently; load_units carry the
-  partition values; equipment_qualifications has a fourth subject, the reefer unit (type
-  reefer_service, reefer units take only that type). Because compartments reference reefer_units,
-  reefer_units is created before compartments (a deviation from the table order of chapter 3).
+- D76: one reefer unit (the machine, at the front) per load unit (unique load_unit_id) with its
+  power source; the machine has evaporators (indoor units, reefer_evaporators): FB and FS one,
+  FD two (front and rear, unique per machine; the counts are domain checks). A compartment may
+  name the evaporator serving it (composite foreign keys keep machine, evaporator and
+  compartment on the same load unit; one evaporator serves at most one compartment) and says
+  whether it is controlled independently. load_units carry the partition values, including an
+  optional maximum share of the rear compartment (some machines limit the rear zone).
+  equipment_qualifications has a fourth subject, the reefer unit (type reefer_service, reefer
+  units take only that type). Because compartments reference evaporators and evaporators
+  reference reefer_units, both are created before compartments (a deviation from the table order
+  of chapter 3).
 - Needs the btree_gist extension, created in c52d8e3f1a47.
 """
 
@@ -182,6 +188,7 @@ def upgrade() -> None:
         sa.Column("partition_step_pallet_rows", sa.Integer(), server_default="1", nullable=False),
         sa.Column("min_pallets_front", sa.Integer(), server_default="4", nullable=False),
         sa.Column("min_pallets_rear", sa.Integer(), server_default="4", nullable=False),
+        sa.Column("partition_max_rear_share", sa.Numeric(4, 3), nullable=True),
         _flag("rail_craneable"),
         sa.Column("ownership", sa.String(length=20), server_default="own", nullable=False),
         sa.Column("lease_valid_from", sa.Date(), nullable=True),
@@ -223,7 +230,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"
-            " AND min_pallets_front >= 0 AND min_pallets_rear >= 0",
+            " AND min_pallets_front >= 0 AND min_pallets_rear >= 0"
+            " AND (partition_max_rear_share IS NULL"
+            " OR (partition_max_rear_share > 0 AND partition_max_rear_share <= 1))",
             name="ck_load_units_partition_values",
         ),
         sa.CheckConstraint(
@@ -288,17 +297,13 @@ def upgrade() -> None:
         "reefer_units",
         _id(),
         _uuid("load_unit_id"),
-        sa.Column("position", sa.String(length=10), nullable=False),
         sa.Column("unit_name", sa.String(length=100), nullable=False),
         sa.Column("power_source", sa.String(length=10), nullable=False),
         *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         _fk("load_unit_id", "load_units", "fk_reefer_units_load_unit_id"),
-        sa.UniqueConstraint(
-            "load_unit_id", "position", name="uq_reefer_units_load_unit_id_position"
-        ),
+        sa.UniqueConstraint("load_unit_id", name="uq_reefer_units_load_unit_id"),
         sa.UniqueConstraint("id", "load_unit_id", name="uq_reefer_units_id_load_unit_id"),
-        sa.CheckConstraint("position IN ('front', 'rear')", name="ck_reefer_units_position"),
         sa.CheckConstraint(
             "power_source IN ('diesel', 'electric', 'hybrid')", name="ck_reefer_units_power_source"
         ),
@@ -306,10 +311,32 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        "reefer_evaporators",
+        _id(),
+        _uuid("reefer_unit_id"),
+        _uuid("load_unit_id"),
+        sa.Column("position", sa.String(length=10), nullable=False),
+        *_timestamps(),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["reefer_unit_id", "load_unit_id"],
+            ["reefer_units.id", "reefer_units.load_unit_id"],
+            name="fk_reefer_evaporators_reefer_unit_id",
+            ondelete="RESTRICT",
+        ),
+        sa.UniqueConstraint(
+            "reefer_unit_id", "position", name="uq_reefer_evaporators_reefer_unit_id_position"
+        ),
+        sa.UniqueConstraint("id", "load_unit_id", name="uq_reefer_evaporators_id_load_unit_id"),
+        sa.CheckConstraint("position IN ('front', 'rear')", name="ck_reefer_evaporators_position"),
+    )
+    op.create_index("ix_reefer_evaporators_load_unit_id", "reefer_evaporators", ["load_unit_id"])
+
+    op.create_table(
         "compartments",
         _id(),
         _uuid("load_unit_id"),
-        _uuid("reefer_unit_id", nullable=True),
+        _uuid("evaporator_id", nullable=True),
         sa.Column("number", sa.Integer(), nullable=False),
         sa.Column("temperature_min", sa.Numeric(4, 1), nullable=False),
         sa.Column("temperature_max", sa.Numeric(4, 1), nullable=False),
@@ -319,19 +346,19 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         _fk("load_unit_id", "load_units", "fk_compartments_load_unit_id"),
         sa.ForeignKeyConstraint(
-            ["reefer_unit_id", "load_unit_id"],
-            ["reefer_units.id", "reefer_units.load_unit_id"],
-            name="fk_compartments_reefer_unit_id",
+            ["evaporator_id", "load_unit_id"],
+            ["reefer_evaporators.id", "reefer_evaporators.load_unit_id"],
+            name="fk_compartments_evaporator_id",
             ondelete="RESTRICT",
         ),
         sa.UniqueConstraint("load_unit_id", "number", name="uq_compartments_load_unit_id_number"),
+        sa.UniqueConstraint("evaporator_id", name="uq_compartments_evaporator_id"),
         sa.CheckConstraint("number >= 1", name="ck_compartments_number"),
         sa.CheckConstraint(
             "pallet_places IS NULL OR pallet_places >= 0", name="ck_compartments_pallet_places"
         ),
         sa.CheckConstraint("temperature_min <= temperature_max", name="ck_compartments_temperature"),
     )
-    op.create_index("ix_compartments_reefer_unit_id", "compartments", ["reefer_unit_id"])
 
     op.create_table(
         "equipment_qualifications",
@@ -398,6 +425,7 @@ def downgrade() -> None:
     # Reverse order of creation. The btree_gist extension stays (created by an earlier revision).
     op.drop_table("equipment_qualifications")
     op.drop_table("compartments")
+    op.drop_table("reefer_evaporators")
     op.drop_table("reefer_units")
     op.drop_table("load_units")
     op.drop_table("dollies")

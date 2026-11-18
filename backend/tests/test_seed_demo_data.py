@@ -52,8 +52,9 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "trucks",
         "dollies",
         "load_units",
-        "compartments",
         "reefer_units",
+        "reefer_evaporators",
+        "compartments",
         "equipment_qualifications",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
@@ -620,9 +621,10 @@ def test_fleet_content(test_engine: Engine) -> None:
 def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engine) -> None:
     from domain.equipment import (
         BodyType,
+        EvaporatorPosition,
         ModelCode,
-        ReeferPosition,
         validate_compartment_set,
+        validate_evaporators,
         validate_reefer_units,
         validate_zones,
     )
@@ -655,36 +657,42 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
             validate_compartment_set(BodyType.REEFER, [c.number for c in comps])
             validate_zones(len(comps), [c.independently_controlled for c in comps], ModelCode(code))
             assert comps, registration
+            machines = conn.execute(
+                text("SELECT count(*) FROM reefer_units WHERE load_unit_id = :i"), {"i": unit_id}
+            ).scalar()
+            validate_reefer_units(BodyType.REEFER, machines or 0, ModelCode(code))
             positions = [
-                ReeferPosition(r[0])
+                EvaporatorPosition(r[0])
                 for r in conn.execute(
-                    text("SELECT position FROM reefer_units WHERE load_unit_id = :i"),
+                    text("SELECT position FROM reefer_evaporators WHERE load_unit_id = :i"),
                     {"i": unit_id},
                 )
             ]
-            validate_reefer_units(BodyType.REEFER, positions, ModelCode(code))
-        # FD: front and rear; FB: one; FS: one
+            validate_evaporators(positions, ModelCode(code))
+        # one machine each; evaporators: FD front and rear, FB and FS one
         counts = {
-            r.registration: r.n
+            r.registration: (r.machines, r.evaporators)
             for r in conn.execute(
                 text(
-                    "SELECT l.registration, count(*) AS n FROM reefer_units r"
-                    " JOIN load_units l ON l.id = r.load_unit_id GROUP BY l.registration"
+                    "SELECT l.registration, count(DISTINCT r.id) AS machines,"
+                    " count(e.id) AS evaporators FROM reefer_units r"
+                    " JOIN load_units l ON l.id = r.load_unit_id"
+                    " JOIN reefer_evaporators e ON e.reefer_unit_id = r.id GROUP BY l.registration"
                 )
             )
         }
         assert counts == {
-            "DEMO-TRL-007": 2,
-            "DEMO-TRL-012": 2,
-            "DEMO-TRL-013": 1,
-            "DEMO-BOD-002": 1,
+            "DEMO-TRL-007": (1, 2),
+            "DEMO-TRL-012": (1, 2),
+            "DEMO-TRL-013": (1, 1),
+            "DEMO-BOD-002": (1, 1),
         }
-        # the two-zone FD: freezer and chilled, both independently controlled, one machine each
+        # the two-zone FD: freezer and chilled, both independently controlled, one evaporator each
         rows = conn.execute(
             text(
                 "SELECT c.number, c.temperature_min, c.temperature_max, c.independently_controlled,"
-                " r.position FROM compartments c JOIN load_units l ON l.id = c.load_unit_id"
-                " JOIN reefer_units r ON r.id = c.reefer_unit_id"
+                " e.position FROM compartments c JOIN load_units l ON l.id = c.load_unit_id"
+                " JOIN reefer_evaporators e ON e.id = c.evaporator_id"
                 " WHERE l.registration = 'DEMO-TRL-007' ORDER BY c.number"
             )
         ).all()
@@ -693,12 +701,12 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
             (2, True, "rear"),
         ]
         assert rows[0].temperature_max < 0 < rows[1].temperature_min
-        # the other FD: two zones too (D76), partition in the middle, one machine each
+        # the other FD: two zones too (D76), one evaporator each
         other = conn.execute(
             text(
-                "SELECT c.number, c.pallet_places, r.position FROM compartments c"
+                "SELECT c.number, c.pallet_places, e.position FROM compartments c"
                 " JOIN load_units l ON l.id = c.load_unit_id"
-                " JOIN reefer_units r ON r.id = c.reefer_unit_id"
+                " JOIN reefer_evaporators e ON e.id = c.evaporator_id"
                 " WHERE l.registration = 'DEMO-TRL-012' ORDER BY c.number"
             )
         ).all()
@@ -707,7 +715,7 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
             (2, None, "rear"),
         ]
         # no compartments or reefer units on any other body type
-        for table in ("compartments", "reefer_units"):
+        for table in ("compartments", "reefer_units", "reefer_evaporators"):
             assert (
                 conn.execute(
                     text(
@@ -794,17 +802,17 @@ def test_reefer_service_periods(test_engine: Engine) -> None:
     with test_engine.connect() as conn:
         rows = conn.execute(
             text(
-                "SELECT l.registration, r.position, q.valid_until FROM equipment_qualifications q"
+                "SELECT l.registration, q.valid_until FROM equipment_qualifications q"
                 " JOIN reefer_units r ON r.id = q.reefer_unit_id"
                 " JOIN load_units l ON l.id = r.load_unit_id WHERE q.type = 'reefer_service'"
             )
         ).all()
         machines = conn.execute(text("SELECT count(*) FROM reefer_units")).scalar()
-    assert len(rows) == machines == 6  # one service period for every machine
+    assert len(rows) == machines == 4  # one service period for every machine
     assert all(r.valid_until >= TODAY for r in rows)
-    assert [
-        (r.registration, r.position) for r in rows if expires_within(r.valid_until, TODAY, 30)
-    ] == [("DEMO-TRL-007", "rear")]
+    assert [r.registration for r in rows if expires_within(r.valid_until, TODAY, 30)] == [
+        "DEMO-TRL-007"
+    ]
 
 
 def test_lease_periods_are_valid_on_the_seed_day(test_engine: Engine) -> None:
@@ -965,15 +973,22 @@ def test_coupling_dimensions_and_trailer_lengths(test_engine: Engine) -> None:
             assert Decimal("13.60") < r.external_length_m < Decimal("14.00")
 
 
-def test_thermo_trailer_rear_unit_is_a_hybrid_for_port_electricity(test_engine: Engine) -> None:
-    """D27: the rear unit of the FD trailer can run on electricity in a port."""
+def test_fd_has_one_hybrid_machine_and_two_evaporators(test_engine: Engine) -> None:
+    """D76: one machine at the front and two evaporators (front and rear of the partition);
+    D27: TRL-007's machine is a hybrid that can run on electricity in a port."""
     _run(test_engine)
     with test_engine.connect() as conn:
-        units = conn.execute(
+        machines = conn.execute(
             text(
-                "SELECT r.position, r.power_source FROM reefer_units r"
+                "SELECT r.power_source FROM reefer_units r"
                 " JOIN load_units l ON l.id = r.load_unit_id WHERE l.registration = 'DEMO-TRL-007'"
-                " ORDER BY r.position"
+            )
+        ).all()
+        evaporators = conn.execute(
+            text(
+                "SELECT e.position FROM reefer_evaporators e"
+                " JOIN load_units l ON l.id = e.load_unit_id WHERE l.registration = 'DEMO-TRL-007'"
+                " ORDER BY e.position"
             )
         ).all()
         comps = conn.execute(
@@ -986,7 +1001,8 @@ def test_thermo_trailer_rear_unit_is_a_hybrid_for_port_electricity(test_engine: 
         total = conn.execute(
             text("SELECT pallet_places FROM load_units WHERE registration = 'DEMO-TRL-007'")
         ).scalar()
-    assert [tuple(u) for u in units] == [("front", "diesel"), ("rear", "hybrid")]
+    assert [m.power_source for m in machines] == ["hybrid"]
+    assert [e.position for e in evaporators] == ["front", "rear"]
     # no fixed places: the partition position is chosen for the load (D76)
     assert [tuple(c) for c in comps] == [(1, None), (2, None)]
     assert total == 32
