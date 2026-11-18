@@ -41,8 +41,9 @@ class BodyType(StrEnum):
 class ModelCode(StrEnum):
     """Model code of a load unit (D75): a hybrid classification, kept apart from the features.
 
-    The thermo codes FB (Thermo Box, one reefer unit), FD (Thermo Double, two reefer units) and FS
-    (Thermo Side, side doors) are invented demo codes; CS (curtainsider), MEGA and COIL are common
+    The thermo codes are invented demo codes (D76): FB (Thermo Box) and FS (Thermo Side, side
+    doors) have one reefer unit and one temperature zone; FD (Thermo Double) has two reefer units
+    and two zones separated by a partition; CS (curtainsider), MEGA and COIL are common
     trade terms. A code does NOT determine the features: a MEGA trailer with a coil well is
     MEGA + `coil_well`, not a MEGA_COIL model. Compatibility is decided from the real features
     (columns), never from the code. NULL is allowed for body types with no code (box,
@@ -58,6 +59,8 @@ class ModelCode(StrEnum):
 
 
 THERMO_MODEL_CODES: frozenset[ModelCode] = frozenset({ModelCode.FB, ModelCode.FD, ModelCode.FS})
+# One reefer unit and one temperature zone (D76).
+SINGLE_ZONE_MODEL_CODES: frozenset[ModelCode] = frozenset({ModelCode.FB, ModelCode.FS})
 
 
 class ReeferPosition(StrEnum):
@@ -357,8 +360,8 @@ def validate_reefer_units(
 
     - Reefer units belong to reefer bodies only.
     - At most 2, in different positions.
-    - Model code FB has exactly one reefer unit and FD exactly two (when the units are listed);
-      FS has one or two.
+    - Model codes FB and FS have exactly one reefer unit and FD exactly two (when the units are
+      listed).
     """
     if positions and not is_thermo(body_type):
         raise ValueError("only a reefer body has a reefer unit")
@@ -366,8 +369,8 @@ def validate_reefer_units(
         raise ValueError(f"at most {MAX_REEFER_UNITS} reefer units per load unit")
     if len(set(positions)) != len(positions):
         raise ValueError("each reefer unit position (front, rear) can be used once")
-    if model_code is ModelCode.FB and len(positions) != 1:
-        raise ValueError("FB (Thermo Box) has exactly one reefer unit")
+    if model_code in SINGLE_ZONE_MODEL_CODES and len(positions) != 1:
+        raise ValueError(f"{model_code} has exactly one reefer unit")
     if model_code is ModelCode.FD and len(positions) != 2:
         raise ValueError("FD (Thermo Double) has exactly two reefer units")
 
@@ -376,18 +379,33 @@ def validate_reefer_unit_allowed(body_type: BodyType) -> None:
     validate_reefer_units(body_type, [ReeferPosition.FRONT])
 
 
-def validate_zones(compartment_count: int, independently_controlled: Sequence[bool]) -> None:
-    """Temperature zones (compartments) are not tied to the number of reefer units (D76).
+def validate_zones(
+    compartment_count: int,
+    independently_controlled: Sequence[bool],
+    model_code: ModelCode | None = None,
+) -> None:
+    """Temperature zones (compartments) of a load unit (D76).
 
-    Two reefer units do not mean two zones: an FD trailer with one compartment is valid (both
-    machines serve the one zone). `independently_controlled` (one flag per compartment) says the
-    compartment's set point is controlled on its own; it only makes sense when there are at least
-    two compartments to be independent of.
+    The model code fixes the zones: FB and FS have exactly one zone, FD exactly two (front and
+    rear of the partition; with the partition raised the FD is loaded as one space, which is a
+    state of the trip, not of the register). Without a thermo code the count is free.
+    `independently_controlled` (one flag per compartment) says the compartment's set point is
+    controlled on its own; it only makes sense when there are at least two compartments.
     """
     if len(independently_controlled) > compartment_count:
         raise ValueError("more control flags than compartments")
     if any(independently_controlled) and compartment_count < 2:
         raise ValueError("independently_controlled needs at least two compartments")
+    if model_code in SINGLE_ZONE_MODEL_CODES and compartment_count != 1:
+        raise ValueError(f"{model_code} has exactly one temperature zone")
+    if model_code is ModelCode.FD and compartment_count != 2:
+        raise ValueError("FD (Thermo Double) has exactly two temperature zones")
+
+
+def validate_partition_allowed(model_code: ModelCode | None, partition: bool) -> None:
+    """Only FD has a partition, and FD always has one (D76); the database has the same CHECK."""
+    if partition != (model_code is ModelCode.FD):
+        raise ValueError("a partition belongs to FD (Thermo Double) only, and every FD has one")
 
 
 @dataclass(frozen=True)

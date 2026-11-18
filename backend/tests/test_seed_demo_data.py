@@ -653,7 +653,7 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
                 {"i": unit_id},
             ).all()
             validate_compartment_set(BodyType.REEFER, [c.number for c in comps])
-            validate_zones(len(comps), [c.independently_controlled for c in comps])
+            validate_zones(len(comps), [c.independently_controlled for c in comps], ModelCode(code))
             assert comps, registration
             positions = [
                 ReeferPosition(r[0])
@@ -693,14 +693,19 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
             (2, True, "rear"),
         ]
         assert rows[0].temperature_max < 0 < rows[1].temperature_min
-        # the other FD: two machines, ONE zone (D76), not independently controlled
-        single = conn.execute(
+        # the other FD: two zones too (D76), partition in the middle, one machine each
+        other = conn.execute(
             text(
-                "SELECT c.independently_controlled, c.reefer_unit_id FROM compartments c"
-                " JOIN load_units l ON l.id = c.load_unit_id WHERE l.registration = 'DEMO-TRL-012'"
+                "SELECT c.number, c.pallet_places, r.position FROM compartments c"
+                " JOIN load_units l ON l.id = c.load_unit_id"
+                " JOIN reefer_units r ON r.id = c.reefer_unit_id"
+                " WHERE l.registration = 'DEMO-TRL-012' ORDER BY c.number"
             )
         ).all()
-        assert [(s.independently_controlled, s.reefer_unit_id) for s in single] == [(False, None)]
+        assert [(o.number, o.pallet_places, o.position) for o in other] == [
+            (1, 16, "front"),
+            (2, 16, "rear"),
+        ]
         # no compartments or reefer units on any other body type
         for table in ("compartments", "reefer_units"):
             assert (
@@ -744,13 +749,16 @@ def test_model_codes_of_the_demo_fleet(test_engine: Engine) -> None:
     assert {r.registration for r in rows if r.side_doors} == {"DEMO-TRL-013"}
 
 
-def test_partition_of_the_two_zone_thermo_is_an_allowed_position(test_engine: Engine) -> None:
+@pytest.mark.parametrize("registration", ["DEMO-TRL-007", "DEMO-TRL-012"])
+def test_partition_of_each_fd_is_an_allowed_position(
+    test_engine: Engine, registration: str
+) -> None:
     from domain.equipment import PartitionSpec, partition_positions
 
     _run(test_engine)
     with test_engine.connect() as conn:
         unit = conn.execute(
-            text("SELECT * FROM load_units WHERE registration = 'DEMO-TRL-007'")
+            text("SELECT * FROM load_units WHERE registration = :r"), {"r": registration}
         ).one()
         places = [
             r[0]
@@ -762,9 +770,10 @@ def test_partition_of_the_two_zone_thermo_is_an_allowed_position(test_engine: En
             )
         ]
         with_partition = conn.execute(
-            text("SELECT registration FROM load_units WHERE partition")
+            text("SELECT registration FROM load_units WHERE partition ORDER BY registration")
         ).all()
-    assert [r.registration for r in with_partition] == ["DEMO-TRL-007"]
+    # only FD has a partition, and every FD has one (D76)
+    assert [r.registration for r in with_partition] == ["DEMO-TRL-007", "DEMO-TRL-012"]
     spec = PartitionSpec(
         unit.internal_length_m,
         partition=unit.partition,

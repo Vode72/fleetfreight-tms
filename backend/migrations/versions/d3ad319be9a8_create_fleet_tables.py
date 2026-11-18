@@ -24,7 +24,8 @@ Celsius (NUMERIC, never float); validity dates are DATE, both ends inclusive.
   width, D25 (a semi-trailer has no tail lift), a fixed body is not rail-craneable (D63).
   compartments: optional pallet places.
 - D75: load_units.model_code (FB, FD, FS, CS, MEGA, COIL; the thermo codes go with reefer bodies,
-  FS has side doors) and the separate feature column side_doors.
+  FS has side doors) and the separate feature column side_doors. Only FD has a partition (and
+  every FD has one); FB and FS have one reefer unit and one zone, FD two of each (domain checks).
 - D76: up to two reefer units per load unit, one per position (unique (load_unit_id, position));
   compartments may name the unit serving them (composite foreign key, so the unit belongs to
   the same load unit) and say whether they are controlled independently; load_units carry the
@@ -215,6 +216,10 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "model_code IS DISTINCT FROM 'FS' OR side_doors", name="ck_load_units_fs_side_doors"
+        ),
+        # D76: only FD has a partition, and every FD has one.
+        sa.CheckConstraint(
+            "partition = coalesce(model_code = 'FD', false)", name="ck_load_units_partition_fd"
         ),
         sa.CheckConstraint(
             "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"

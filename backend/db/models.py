@@ -495,6 +495,10 @@ class LoadUnit(Base):
         CheckConstraint(
             "model_code IS DISTINCT FROM 'FS' OR side_doors", name="ck_load_units_fs_side_doors"
         ),
+        # D76: only FD has a partition, and every FD has one.
+        CheckConstraint(
+            "partition = coalesce(model_code = 'FD', false)", name="ck_load_units_partition_fd"
+        ),
         # D76: partition values (only used when partition is true).
         CheckConstraint(
             "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"

@@ -569,6 +569,7 @@ def test_model_code_accepts_domain_values(
         model_code=value,
         body_type="reefer" if thermo else "curtainsider",
         side_doors=value == "FS",
+        partition=value == "FD",
     )
     _rejected(_trailer, test_engine, carrier, model_code="XX")
 
@@ -592,7 +593,9 @@ def test_the_code_does_not_define_features_except_fs_side_doors(
     # MEGA with a coil well: features are separate columns, not a MEGA_COIL model
     _trailer(test_engine, carrier, body_type="mega", model_code="MEGA", coil_well=True)
     _trailer(test_engine, carrier, body_type="mega", model_code="MEGA", coil_well=False)
-    _trailer(test_engine, carrier, body_type="reefer", model_code="FD", side_doors=False)
+    _trailer(
+        test_engine, carrier, body_type="reefer", model_code="FD", side_doors=False, partition=True
+    )
     _trailer(test_engine, carrier, body_type="reefer", model_code="FB", side_doors=True)
     assert (
         _violated(lambda: _trailer(test_engine, carrier, body_type="reefer", model_code="FS"))
@@ -610,15 +613,31 @@ def test_partition_defaults_and_values(test_engine: Engine, carrier: uuid.UUID) 
             )
         ).one()
     assert tuple(row) == (False, 50, 1, 4, 4, False)
-    _trailer(test_engine, carrier, partition=True, min_pallets_front=0, min_pallets_rear=0)
+    fd = {"body_type": "reefer", "model_code": "FD", "partition": True}
+    _trailer(test_engine, carrier, **fd, min_pallets_front=0, min_pallets_rear=0)
     for bad in (
         {"partition_thickness_mm": 0},
         {"partition_step_pallet_rows": 0},
         {"min_pallets_front": -1},
         {"min_pallets_rear": -1},
     ):
-        assert _violated(partial(_trailer, test_engine, carrier, **bad)) == (
+        assert _violated(partial(_trailer, test_engine, carrier, **fd, **bad)) == (
             "ck_load_units_partition_values"
+        )
+
+
+def test_only_fd_has_a_partition_and_every_fd_has_one(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    """D76: the database refuses a partition outside FD and an FD without one."""
+    for kw in (
+        {"partition": True},  # no model code
+        {"body_type": "reefer", "model_code": "FB", "partition": True},
+        {"body_type": "reefer", "model_code": "FS", "side_doors": True, "partition": True},
+        {"body_type": "reefer", "model_code": "FD", "partition": False},
+    ):
+        assert _violated(partial(_trailer, test_engine, carrier, **kw)) == (
+            "ck_load_units_partition_fd"
         )
 
 

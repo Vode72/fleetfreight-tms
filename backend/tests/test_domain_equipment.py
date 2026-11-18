@@ -43,6 +43,7 @@ from domain.equipment import (
     validate_load_unit,
     validate_model_code,
     validate_partition,
+    validate_partition_allowed,
     validate_reefer_unit_allowed,
     validate_reefer_units,
     validate_truck,
@@ -523,7 +524,8 @@ def test_reefer_unit_count_follows_the_model_code() -> None:
     validate_reefer_units(BodyType.REEFER, [F], ModelCode.FB)
     validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FD)
     validate_reefer_units(BodyType.REEFER, [F], ModelCode.FS)
-    validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FS)
+    with pytest.raises(ValueError, match="FS"):
+        validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FS)
     with pytest.raises(ValueError, match="FB"):
         validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FB)
     with pytest.raises(ValueError, match="FB"):
@@ -532,11 +534,8 @@ def test_reefer_unit_count_follows_the_model_code() -> None:
         validate_reefer_units(BodyType.REEFER, [F], ModelCode.FD)
 
 
-def test_two_machines_do_not_mean_two_zones() -> None:
-    """D76: an FD trailer (two reefer units) with one compartment is valid."""
-    F, R = ReeferPosition.FRONT, ReeferPosition.REAR
-    validate_reefer_units(BodyType.REEFER, [F, R], ModelCode.FD)
-    validate_zones(1, [False])  # one zone, two machines
+def test_zones_without_a_model_code() -> None:
+    validate_zones(1, [False])
     validate_zones(2, [True, True])  # two independent zones
     validate_zones(2, [False, False])  # two zones, not independently controlled
     validate_zones(2, [True, False])
@@ -545,6 +544,38 @@ def test_two_machines_do_not_mean_two_zones() -> None:
         validate_zones(1, [True])
     with pytest.raises(ValueError, match="more control flags"):
         validate_zones(1, [False, False])
+
+
+def test_zones_follow_the_model_code() -> None:
+    """D76: FB and FS have one zone, FD two (front and rear of the partition)."""
+    validate_zones(1, [False], ModelCode.FB)
+    validate_zones(1, [False], ModelCode.FS)
+    validate_zones(2, [True, True], ModelCode.FD)
+    for code in (ModelCode.FB, ModelCode.FS):
+        with pytest.raises(ValueError, match="one temperature zone"):
+            validate_zones(2, [True, True], code)
+    with pytest.raises(ValueError, match="two temperature zones"):
+        validate_zones(1, [False], ModelCode.FD)
+    with pytest.raises(ValueError, match="two temperature zones"):
+        validate_zones(0, [], ModelCode.FD)
+
+
+def test_only_fd_has_a_partition() -> None:
+    validate_partition_allowed(ModelCode.FD, True)
+    for code in (None, ModelCode.FB, ModelCode.FS, ModelCode.CS, ModelCode.MEGA, ModelCode.COIL):
+        validate_partition_allowed(code, False)
+        with pytest.raises(ValueError, match="FD"):
+            validate_partition_allowed(code, True)
+    with pytest.raises(ValueError, match="every FD"):
+        validate_partition_allowed(ModelCode.FD, False)
+
+
+def test_fd_of_13_6_m_holds_four_pallets_each_side() -> None:
+    """Toni 18.11: 13.6 m, 50 mm partition, at least 4 EUR pallets front and rear."""
+    positions = partition_positions(PartitionSpec(Decimal("13.60"), partition=True), 34)
+    # 13.55 m usable -> 16 rows of 800 mm -> 32 places with the partition down
+    assert {p.front_pallets + p.rear_pallets for p in positions} == {32}
+    assert positions[0].front_pallets == 4 and positions[-1].rear_pallets == 4
 
 
 def _spec(**kw: object) -> PartitionSpec:

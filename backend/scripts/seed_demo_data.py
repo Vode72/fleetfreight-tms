@@ -85,6 +85,7 @@ from domain.equipment import (
     validate_load_unit,
     validate_model_code,
     validate_partition,
+    validate_partition_allowed,
     validate_reefer_units,
     validate_truck,
     validate_vehicle,
@@ -781,12 +782,12 @@ LOAD_UNITS: tuple[_LoadUnitSpec, ...] = (
         max_gross_weight_kg=18000,
         axles=2,
     ),
-    # Thermo Double with two reefer units but ONE temperature zone (D76: two machines do not mean
-    # two zones).
+    # Thermo Double, two diesel units, the partition in the middle (16 + 16 places).
     _semi(
         "DEMO-TRL-012",
         BodyType.REEFER,
         model_code=ModelCode.FD,
+        partition=True,
         internal_length_m="13.10",
         internal_width_m="2.46",
         internal_height_m="2.50",
@@ -858,8 +859,11 @@ COMPARTMENTS: dict[str, tuple[_Comp, ...]] = {
         (1, "-25.0", "-18.0", 12, True, ReeferPosition.FRONT),
         (2, "2.0", "8.0", 20, True, ReeferPosition.REAR),
     ),
-    # FD with two machines but one zone (both machines serve it)
-    "DEMO-TRL-012": ((1, "-25.0", "8.0", None, False, None),),
+    # FD, both zones with the full range, partition in the middle (16 + 16 places)
+    "DEMO-TRL-012": (
+        (1, "-25.0", "8.0", 16, True, ReeferPosition.FRONT),
+        (2, "-25.0", "8.0", 16, True, ReeferPosition.REAR),
+    ),
     "DEMO-TRL-013": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
     "DEMO-BOD-002": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
 }
@@ -1015,6 +1019,7 @@ def _seed_fleet(
         )
         validate_model_code(u.model_code, u.body_type, u.side_doors)
         validate_partition(PartitionSpec(Decimal(u.internal_length_m), partition=u.partition))
+        validate_partition_allowed(u.model_code, u.partition)
         if host is not None:
             validate_fixed_body_host(
                 truck_type=TruckType(host.type),
@@ -1095,7 +1100,7 @@ def _seed_fleet(
         comp_unit = unit_specs[registration]
         validate_compartment_set(comp_unit.body_type, [row[0] for row in rows])
         validate_compartment_pallet_places(comp_unit.pallet_places, [row[3] for row in rows])
-        validate_zones(len(rows), [row[4] for row in rows])
+        validate_zones(len(rows), [row[4] for row in rows], comp_unit.model_code)
         for number, t_min, t_max, places, independent, serving in rows:
             validate_compartment(number, Decimal(t_min), Decimal(t_max))
             unit = load_units[registration]
