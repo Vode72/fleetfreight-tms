@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D77).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D78).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -93,7 +93,7 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 - **Yhdistelmät (D55, D61):** legi on vetoyksikön fyysinen siirtymä, ja sama legi voi kuulua usealle tripille (`leg_trips`),
   joten km ja ajoaika lasketaan kerran. Node on fyysinen pysähdys, jonka tripit voivat jakaa (D71). Dolly kytketään legille; HCT-yhdistelmän pituus ja massa tarkistetaan.
 - **Vetäjänvaihto Nodessa (D18):** vetäjän 1 Job päättyy ja vetäjän 2 Job alkaa, Trip jatkuu.
-- **Job** = yksi vetäjä ja kuljettaja. Job ja Trip ovat N:M legien kautta. Kuljettaja voi olla tyhjä alihankkijan työssä (D20).
+- **Job** = vetoauto (D78): vetoauton vaihto muodostaa uuden Jobin, kuljettajan vaihto ei; kuljettajat Jobin sisällä aikajaksoina. Job ja Trip ovat N:M legien kautta. Kuljettaja voi olla tyhjä alihankkijan työssä (D20).
 - **Kuormatyypit (D37):** FTL, PTL ja LTL, joilla on omat reititys-, kapasiteetti-, hinnoittelu- ja Plan Check -säännöt (`docs/suunnitelma.md` luku 3B).
 - **Ajotyypit:** SOLO, EMPTY_TRAILER, LOADED_TRAILER ja kuorma-auton kuormattu ajo (D17, D39), omilla hinnoillaan.
   Kulkumuoto ROAD, FERRY tai RAIL (D63; juna kuten saattamaton lautta, ilman Jobia).

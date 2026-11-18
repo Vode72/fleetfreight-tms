@@ -154,6 +154,7 @@ def test_valid_structures(truck: TruckType, counts: dict[str, int | bool]) -> No
             {"full_trailers": 1, "dollies": 1, "semi_trailers": 1, "drawbar_hitch": True},
             "at most",
         ),
+        (RIGID_T, {"semi_trailers": 2, "dollies": 2, "drawbar_hitch": True}, "one dolly"),
         (RIGID_T, {"semi_trailers": 1, "dollies": 1}, "drawbar hitch"),
         (RIGID_T, {"full_trailers": 1}, "drawbar hitch"),
         (RIGID_T, {"dollies": -1}, "negative"),

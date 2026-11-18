@@ -115,6 +115,9 @@ def validate_combination_structure(
         raise ValueError(
             f"a rigid truck needs semi-trailers = dollies, got {semi_trailers} and {dollies}"
         )
+    elif dollies > 1:
+        # A dolly couples to the truck's drawbar hitch, not behind a semi-trailer.
+        raise ValueError("a rigid truck pulls at most one dolly with one semi-trailer")
     if (dollies or drawbar_trailers) and not drawbar_hitch:
         raise ValueError("a rigid truck needs a drawbar hitch to pull a dolly or trailer")
 
