@@ -18,8 +18,14 @@ Python, FastAPI, Pydantic, SQLAlchemy, Alembic, PostgreSQL, pytest.
    Demodata ei kuulu migraatioihin.
 3. **Raha:** INTEGER kannassa (`*_cents`, `*_e4`), `Decimal` laskennassa (ROUND_HALF_UP), euroina API:ssa.
    Muunnokset vain `money`-moduulissa. Ei `float`ia eikä `round()`:ia.
-4. **Tietomalli:** noudata Node–Leg-mallia (D13), Tripin rajaa (D14), vetäjänvaihtoa (D18) ja kolmea tilaketjua (R3).
+4. **Tietomalli:** noudata Node–Leg-mallia (D13), Tripin rajaa (D14, tarkennettu D54: kaikki ajot ovat tripejä
+   order-tyyppeineen), vetäjänvaihtoa (D18), yhdistelmiä (D55: sama legi usealla tripillä `leg_trips`-taulun kautta),
+   kuormatilarekisteriä (D60: trippi seuraa `load_units`-riviä) ja kolmea tilaketjua (R3, D50 Peruttu, D53 Trip Luonnos).
    Tilasiirtymät vain tilakoneen kautta. Kielletty siirtymä palauttaa 409:n.
+   - Taulut luodaan `docs/suunnitelma.md`:n luvun 3 järjestyksessä; viittaus osoittaa aina aiemmin luotuun tauluun.
+   - Sallitut arvot `VARCHAR` + `CHECK`, arvot domain-moduulin enumista, ja synkronointitesti pitää enumin ja kannan samana.
+   - Voimassaolot jaksoina (D67): `DATE`, molemmat päät mukaan lukien, jokainen jakso omana rivinään, ei päällekkäisyyksiä.
+   - Demodata (`scripts/seed_demo_data.py`) on idempotentti ja ajetaan vain kehityksessä, ei migraatioissa.
 5. **Ajat:** kaikki aikaleimat aikavyöhyketietoisina (`timestamptz`, UTC kannassa). Paikallinen aika vain esitykseen.
 6. **Virheet:** 400/422 validointi, 404 puuttuva, 409 ristiriita (päällekkäinen voimassaolo, kielletty tilasiirtymä, lukittu kohde).
    Älä niele poikkeuksia hiljaa.

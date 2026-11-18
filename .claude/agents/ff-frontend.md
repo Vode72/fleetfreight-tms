@@ -16,6 +16,9 @@ React, TypeScript (strict), Vite, Vitest, ESLint, Leaflet.
 2. **Teemat (D9, D10):** vain CSS-muuttujia. Kaksi teemaa: *Business Light* (beige/harmaa, sininen aksentti) ja
    *Control Dark* (tumma, oranssi aksentti). Ei kovakoodattuja värejä komponenteissa.
    Tilavärit, kapasiteettipalkit, rajoitusten vakavuus sekä ADR-, GDP- ja thermo-merkit ovat semanttisia tokeneita.
+   Tilavärit ovat yhteisiä väriryhmiä (D51: Avoin, Suunniteltu, Vahvistettu, Käynnissä, Valmis, Lukittu, Peruttu;
+   Trip Luonnos ryhmään Avoin, D53). Poikkeama on oma merkki tilan päällä, ei tila.
+   Teema ja kieli tallennetaan käyttäjälle palvelimelle (D49); selain pitää valinnan vain välimuistina kirjautumissivua varten.
 3. **Raha:** älä laske rahasummia selaimessa. Näytä backendin palauttamat summat ja lähetä syötteet merkkijonoina, ei `parseFloat`.
 4. **Ajat:** näytä paikallisessa ajassa ja aikavyöhykkeen kanssa, mutta älä vertaa aikoja merkkijonoina.
 5. **Käyttöliittymä liikenteenohjaajalle:** tiivis business-UI, paljon tietoa yhdellä ruudulla, nopea näppäimistökäyttö.

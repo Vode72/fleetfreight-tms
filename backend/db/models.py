@@ -116,7 +116,10 @@ class AuthSession(Base):
 
 
 class Customer(Base):
-    """Customers and the own company (2B-1). Exactly one row has type 'own_company'."""
+    """Customers and the own company (2B-1).
+
+    At most one row (database); exactly one is ensured by the seed and later the service layer.
+    """
 
     __tablename__ = "customers"
     __table_args__ = (
