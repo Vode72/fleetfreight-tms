@@ -25,6 +25,15 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.session import Base
+from domain.equipment import (
+    LOAD_UNIT_ONLY_QUALIFICATIONS,
+    BodyType,
+    EquipmentQualificationType,
+    LoadUnitType,
+    Ownership,
+    PowerSource,
+    TruckType,
+)
 from domain.locations import LocationType
 from domain.parties import CarrierType, CustomerType, DriverEmployment
 from domain.qualifications import DriverQualificationType
@@ -50,6 +59,16 @@ def _created_at() -> Mapped[datetime]:
 
 def _updated_at() -> Mapped[datetime]:
     return mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+def _archived_at() -> Mapped[datetime | None]:
+    """D72: NULL = active; rows are archived, not deleted."""
+    return mapped_column(DateTime(timezone=True))
+
+
+def _fk(column: str, name: str) -> ForeignKey:
+    """Register foreign keys never cascade (D72): deleting a referenced row is refused."""
+    return ForeignKey(column, ondelete="RESTRICT", name=name)
 
 
 _COUNTRY_CHECK = "country ~ '^[A-Z]{2}$'"
@@ -144,6 +163,7 @@ class Customer(Base):
     country: Mapped[str] = mapped_column(String(2))
     # D59: pallet exchange agreed per customer, off by default.
     pallet_exchange_agreed: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -209,11 +229,11 @@ class Location(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     type: Mapped[str] = mapped_column(String(20))
     customer_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("customers.id", name="fk_locations_customer_id")
+        UUID(as_uuid=True), _fk("customers.id", "fk_locations_customer_id")
     )
     # Optional area this place belongs to, e.g. a port terminal under its port area.
     parent_location_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("locations.id", name="fk_locations_parent_location_id")
+        UUID(as_uuid=True), _fk("locations.id", "fk_locations_parent_location_id")
     )
     name: Mapped[str] = mapped_column(String(200))
     # Free text; demo data uses invented addresses only.
@@ -238,17 +258,34 @@ class Location(Base):
     reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
     # Customer sites only: does the site have a loading dock? NULL = unknown.
     has_loading_dock: Mapped[bool | None] = mapped_column(Boolean)
+    archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
 
 class Carrier(Base):
+    """A carrier: the own one or a subcontractor.
+
+    D73: the own carrier (type 'own') links to the own company's customer row and has no name,
+    business ID or country of its own; they are read from that row (one source of truth, see
+    domain.parties.carrier_display_name). A subcontractor has them here and no link.
+    """
+
     __tablename__ = "carriers"
     __table_args__ = (
         UniqueConstraint("name", name="uq_carriers_name"),
         CheckConstraint(in_list("type", CarrierType), name="ck_carriers_type"),
         CheckConstraint(_COUNTRY_CHECK, name="ck_carriers_country"),
         CheckConstraint("btrim(name) <> ''", name="ck_carriers_name_not_blank"),
+        # D73: type 'own' <=> linked to a customer row. That the row is the own company is checked
+        # in domain.parties.validate_carrier_customer_link (spans two tables).
+        CheckConstraint("(type = 'own') = (customer_id IS NOT NULL)", name="ck_carriers_own_link"),
+        CheckConstraint(
+            "(type = 'own' AND name IS NULL AND business_id IS NULL AND country IS NULL)"
+            " OR (type <> 'own' AND name IS NOT NULL AND country IS NOT NULL)",
+            name="ck_carriers_identity_source",
+        ),
+        Index("ix_carriers_customer_id", "customer_id"),
         # At most one own carrier, like the own company in customers.
         Index(
             "uq_carriers_one_own",
@@ -259,13 +296,18 @@ class Carrier(Base):
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    name: Mapped[str] = mapped_column(String(200))
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("customers.id", "fk_carriers_customer_id")
+    )
+    # name, country and business_id: subcontractors only (own carrier: from the customer row).
+    name: Mapped[str | None] = mapped_column(String(200))
     type: Mapped[str] = mapped_column(String(20))
-    country: Mapped[str] = mapped_column(String(2))
+    country: Mapped[str | None] = mapped_column(String(2))
     business_id: Mapped[str | None] = mapped_column(String(40))
     # Dates (not timestamps): a licence is valid through the whole last day.
     transport_licence_valid_until: Mapped[date | None] = mapped_column(Date)
     liability_insurance_valid_until: Mapped[date | None] = mapped_column(Date)
+    archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -283,14 +325,15 @@ class Driver(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     carrier_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("carriers.id", name="fk_drivers_carrier_id")
+        UUID(as_uuid=True), _fk("carriers.id", "fk_drivers_carrier_id")
     )
     name: Mapped[str] = mapped_column(String(200))
     # Where the driver returns to and takes weekly rest (R6).
     home_location_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("locations.id", name="fk_drivers_home_location_id")
+        UUID(as_uuid=True), _fk("locations.id", "fk_drivers_home_location_id")
     )
     employment: Mapped[str] = mapped_column(String(20))
+    archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -318,11 +361,263 @@ class DriverQualification(Base):
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     driver_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("drivers.id", ondelete="CASCADE", name="fk_driver_qualifications_driver_id"),
+        UUID(as_uuid=True), _fk("drivers.id", "fk_driver_qualifications_driver_id")
     )
     type: Mapped[str] = mapped_column(String(30))
     # Validity period, both ends inclusive. A renewal is a new row, so the history is kept.
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date] = mapped_column(Date)
+    document_ref: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+# --- Fleet (2B-2). Every foreign key is RESTRICT (D72); registrations are invented in demo data.
+
+_VEHICLE_CHECKS = (
+    "length_m > 0 AND kerb_weight_kg > 0 AND max_gross_weight_kg >= kerb_weight_kg AND axles >= 1"
+)
+LOAD_UNIT_ONLY_TYPES_SQL = ", ".join(f"'{t.value}'" for t in sorted(LOAD_UNIT_ONLY_QUALIFICATIONS))
+
+
+class Truck(Base):
+    """Tractor unit or rigid truck (D39). A rigid truck's body is a `load_units` row (D60)."""
+
+    __tablename__ = "trucks"
+    __table_args__ = (
+        UniqueConstraint("registration", name="uq_trucks_registration"),
+        CheckConstraint(in_list("type", TruckType), name="ck_trucks_type"),
+        CheckConstraint("btrim(registration) <> ''", name="ck_trucks_registration_not_blank"),
+        CheckConstraint(_VEHICLE_CHECKS, name="ck_trucks_dimensions"),
+        Index("ix_trucks_carrier_id", "carrier_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    carrier_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("carriers.id", "fk_trucks_carrier_id")
+    )
+    registration: Mapped[str] = mapped_column(String(30))
+    type: Mapped[str] = mapped_column(String(20))
+    length_m: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    kerb_weight_kg: Mapped[int] = mapped_column(Integer)
+    max_gross_weight_kg: Mapped[int] = mapped_column(Integer)
+    axles: Mapped[int] = mapped_column(Integer)
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class Dolly(Base):
+    """Converter dolly (D61): equipment without a load unit, coupled to a leg."""
+
+    __tablename__ = "dollies"
+    __table_args__ = (
+        UniqueConstraint("registration", name="uq_dollies_registration"),
+        CheckConstraint("btrim(registration) <> ''", name="ck_dollies_registration_not_blank"),
+        CheckConstraint(_VEHICLE_CHECKS, name="ck_dollies_dimensions"),
+        Index("ix_dollies_carrier_id", "carrier_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    carrier_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("carriers.id", "fk_dollies_carrier_id")
+    )
+    registration: Mapped[str] = mapped_column(String(30))
+    length_m: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    kerb_weight_kg: Mapped[int] = mapped_column(Integer)
+    max_gross_weight_kg: Mapped[int] = mapped_column(Integer)
+    axles: Mapped[int] = mapped_column(Integer)
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LoadUnit(Base):
+    """Load unit (D60): a trailer or the fixed body of a rigid truck. Trips follow load units.
+
+    A fixed body takes length, weights and axles from its truck (stored only there); a trailer
+    has them here. ATP class and inspections are periods in equipment_qualifications (D67).
+    """
+
+    __tablename__ = "load_units"
+    __table_args__ = (
+        UniqueConstraint("registration", name="uq_load_units_registration"),
+        # One fixed body per truck (NULL for trailers does not collide).
+        UniqueConstraint("truck_id", name="uq_load_units_truck_id"),
+        CheckConstraint(in_list("type", LoadUnitType), name="ck_load_units_type"),
+        CheckConstraint(in_list("body_type", BodyType), name="ck_load_units_body_type"),
+        CheckConstraint(in_list("ownership", Ownership), name="ck_load_units_ownership"),
+        CheckConstraint("btrim(registration) <> ''", name="ck_load_units_registration_not_blank"),
+        CheckConstraint(
+            "(type = 'fixed_body') = (truck_id IS NOT NULL)", name="ck_load_units_truck_link"
+        ),
+        # Trailer: the vehicle-level fields are required; fixed body: they live on the truck.
+        CheckConstraint(
+            "(type = 'trailer' AND external_length_m IS NOT NULL AND kerb_weight_kg IS NOT NULL"
+            " AND max_gross_weight_kg IS NOT NULL AND axles IS NOT NULL)"
+            " OR (type = 'fixed_body' AND external_length_m IS NULL AND kerb_weight_kg IS NULL"
+            " AND max_gross_weight_kg IS NULL AND axles IS NULL)",
+            name="ck_load_units_vehicle_fields",
+        ),
+        CheckConstraint(
+            "external_length_m IS NULL OR (external_length_m > 0 AND kerb_weight_kg > 0"
+            " AND max_gross_weight_kg >= kerb_weight_kg AND axles >= 1)",
+            name="ck_load_units_vehicle_values",
+        ),
+        CheckConstraint(
+            "internal_length_m > 0 AND internal_width_m > 0 AND internal_height_m > 0"
+            " AND (door_height_m IS NULL OR door_height_m > 0)"
+            " AND (ldm IS NULL OR ldm > 0) AND (pallet_places IS NULL OR pallet_places >= 0)",
+            name="ck_load_units_cargo_space",
+        ),
+        CheckConstraint(
+            "lease_valid_from IS NULL OR lease_valid_until IS NULL"
+            " OR lease_valid_from <= lease_valid_until",
+            name="ck_load_units_lease_period",
+        ),
+        # Leased / rented: the lease start is required (the end may be open); otherwise no dates.
+        CheckConstraint(
+            "(ownership IN ('leased', 'rented') AND lease_valid_from IS NOT NULL)"
+            " OR (ownership NOT IN ('leased', 'rented') AND lease_valid_from IS NULL"
+            " AND lease_valid_until IS NULL)",
+            name="ck_load_units_lease_by_ownership",
+        ),
+        Index("ix_load_units_carrier_id", "carrier_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    type: Mapped[str] = mapped_column(String(20))
+    truck_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("trucks.id", "fk_load_units_truck_id")
+    )
+    # Owner or holder.
+    carrier_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("carriers.id", "fk_load_units_carrier_id")
+    )
+    # Registration plate, or an invented identifier for a body that has no plate of its own.
+    registration: Mapped[str] = mapped_column(String(30))
+    body_type: Mapped[str] = mapped_column(String(20))
+    internal_length_m: Mapped[Decimal] = mapped_column(Numeric(5, 2))
+    internal_width_m: Mapped[Decimal] = mapped_column(Numeric(4, 2))
+    internal_height_m: Mapped[Decimal] = mapped_column(Numeric(4, 2))
+    door_height_m: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    external_length_m: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    ldm: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    pallet_places: Mapped[int | None] = mapped_column(Integer)
+    kerb_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    max_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    axles: Mapped[int | None] = mapped_column(Integer)
+    # D36 special features (simple choices on the load unit).
+    xl_certified: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    coil_well: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    tir_cable: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    top_loading: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    tail_lift: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # D63: physically suitable for rail (craneable); Plan Check tests it.
+    rail_craneable: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    ownership: Mapped[str] = mapped_column(String(10), server_default=Ownership.OWN.value)
+    # Dates, both ends inclusive. NULL end of a lease = open-ended.
+    lease_valid_from: Mapped[date | None] = mapped_column(Date)
+    lease_valid_until: Mapped[date | None] = mapped_column(Date)
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class Compartment(Base):
+    """Temperature compartment of a reefer load unit (D47)."""
+
+    __tablename__ = "compartments"
+    __table_args__ = (
+        UniqueConstraint("load_unit_id", "number", name="uq_compartments_load_unit_id_number"),
+        CheckConstraint("number >= 1", name="ck_compartments_number"),
+        CheckConstraint("temperature_min <= temperature_max", name="ck_compartments_temperature"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # The unique constraint above also serves lookups by load_unit_id.
+    load_unit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("load_units.id", "fk_compartments_load_unit_id")
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    # Degrees Celsius, the range the compartment can hold.
+    temperature_min: Mapped[Decimal] = mapped_column(Numeric(4, 1))
+    temperature_max: Mapped[Decimal] = mapped_column(Numeric(4, 1))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class ReeferUnit(Base):
+    """Refrigeration unit of a reefer load unit (D47); at most one per load unit."""
+
+    __tablename__ = "reefer_units"
+    __table_args__ = (
+        UniqueConstraint("load_unit_id", name="uq_reefer_units_load_unit_id"),
+        CheckConstraint(in_list("power_source", PowerSource), name="ck_reefer_units_power_source"),
+        CheckConstraint("btrim(unit_name) <> ''", name="ck_reefer_units_unit_name_not_blank"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    load_unit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("load_units.id", "fk_reefer_units_load_unit_id")
+    )
+    # Invented make and model in demo data.
+    unit_name: Mapped[str] = mapped_column(String(100))
+    power_source: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class EquipmentQualification(Base):
+    """Equipment eligibility period (D70, D67): ATP, inspection, tail lift, GDP mapping, ADR."""
+
+    __tablename__ = "equipment_qualifications"
+    __table_args__ = (
+        CheckConstraint(
+            in_list("type", EquipmentQualificationType), name="ck_equipment_qualifications_type"
+        ),
+        CheckConstraint("valid_from <= valid_until", name="ck_equipment_qualifications_period"),
+        # Exactly one subject.
+        CheckConstraint(
+            "num_nonnulls(truck_id, dolly_id, load_unit_id) = 1",
+            name="ck_equipment_qualifications_one_subject",
+        ),
+        CheckConstraint(
+            f"type NOT IN ({LOAD_UNIT_ONLY_TYPES_SQL}) OR load_unit_id IS NOT NULL",
+            name="ck_equipment_qualifications_load_unit_only_types",
+        ),
+        CheckConstraint(
+            "class_code IS NULL OR btrim(class_code) <> ''",
+            name="ck_equipment_qualifications_class_code_not_blank",
+        ),
+        # History (D67): periods of one subject and type never overlap (both ends inclusive).
+        # The subject is spread over three columns; the CHECK above makes exactly one non-null, so
+        # coalesce() yields a single key. (Needs btree_gist, created in c52d8e3f1a47.)
+        ExcludeConstraint(
+            (text("coalesce(truck_id, dolly_id, load_unit_id)"), "="),
+            ("type", "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_equipment_qualifications_no_overlap",
+        ),
+        Index("ix_equipment_qualifications_truck_id", "truck_id"),
+        Index("ix_equipment_qualifications_dolly_id", "dolly_id"),
+        Index("ix_equipment_qualifications_load_unit_id", "load_unit_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    truck_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("trucks.id", "fk_equipment_qualifications_truck_id")
+    )
+    dolly_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("dollies.id", "fk_equipment_qualifications_dolly_id")
+    )
+    load_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("load_units.id", "fk_equipment_qualifications_load_unit_id")
+    )
+    type: Mapped[str] = mapped_column(String(30))
+    # Optional classification, e.g. the ATP class of a thermo body.
+    class_code: Mapped[str | None] = mapped_column(String(10))
     valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date] = mapped_column(Date)
     document_ref: Mapped[str | None] = mapped_column(String(100))

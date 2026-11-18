@@ -74,7 +74,12 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
 - Demo master data (fictional; not in migrations; development only; idempotent, existing rows are
   never overwritten): own company, 5 terminals, 15 ports (incl. two Lübeck quays under their port
   area), 3 rail terminals, 3 customs offices, customers with sites, carriers, drivers and qualifications (validity days are counted from the
-  first seed run, so one qualification is already expired and one is soon expiring). Run after `alembic upgrade head`:
+  first seed run, so one qualification is already expired and one is soon expiring), and the fleet:
+  own carrier with 5 tractors, 2 rigid trucks with a fixed body (box with tail lift, thermo) and a dolly,
+  subcontractors with 1-2 tractors each, 10 trailers (curtainsider, mega, side-opening, XL with coil well,
+  TIR cable, top loading, two-compartment thermo with reefer unit, one leased, one rented, one partner's;
+  some rail-craneable), and equipment periods (ATP incl. one expiring and one renewed, one expired
+  inspection, GDP mapping, tail lift inspection). Registrations look like `DEMO-TRK-001`. Run after `alembic upgrade head`:
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
@@ -83,6 +88,23 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   sets the default length of a GDP training record, used to suggest `valid_until` (domain and
   seed). It is the company's practice, not a regulation. The migration creates the `btree_gist`
   extension (needed for the exclusion constraint); the downgrade leaves it in place.
+- Register rows are archived, not deleted (D72): `archived_at` (timestamptz, NULL = active) on customers,
+  locations, carriers, drivers, trucks, dollies and load units. Every register foreign key is
+  `ON DELETE RESTRICT`, so a referenced row cannot be deleted (also `driver_qualifications`, which cascaded
+  before).
+- The own carrier (`carriers.type = 'own'`) links to the own company's customer row through
+  `carriers.customer_id` and has no `name`, `business_id` or `country` of its own (D73): read them from the
+  customer row (`domain.parties.carrier_display_name`). Subcontractors carry their own and have no link.
+  That the linked customer is the own company is checked in `domain.parties.validate_carrier_customer_link`
+  (it spans two tables, so no CHECK). The migration links an existing own carrier and clears the copied fields.
+- Fleet (2B-2): `trucks` (tractor / rigid_truck), `dollies`, `load_units` (trailer / fixed_body, D60),
+  `compartments`, `reefer_units` and `equipment_qualifications` (D70). A fixed body references its rigid truck
+  (one body per truck) and has no length, weights or axles of its own (the truck holds them). ATP class,
+  inspections, tail lift inspections, GDP mapping and ADR vehicle approval are validity periods in
+  `equipment_qualifications` (D67): exactly one subject (truck, dolly or load unit), overlapping periods of one
+  subject and type rejected by an exclusion constraint. `domain.combinations` computes length, kerb weight and
+  axles of a vehicle combination from given values; it holds no legal limits (those come from
+  `road_restrictions` later, D61).
 - Locations carry `postal_code` and `city` (optional). Finnish postal codes are checked as five
   digits; other countries take free text. Seed data uses real codes of the general city-centre
   area only and leaves the code empty where it is not certain.

@@ -27,7 +27,7 @@ cp .env.example .env                 # vain kehitysarvot, ei salasanoja repoon
 docker compose up --build            # override-tiedosto tuo kehitysasetukset automaattisesti
 curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
 docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät; vain kehityskäynnistyksellä (override), DEMO_PASSWORD .env:stä
-docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, junaterminaalit, tullitoimipaikat, asiakkaat, kuljetusliikkeet, kuljettajat, pätevyydet); vain kehityskäynnistyksellä, idempotentti
+docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, junaterminaalit, tullitoimipaikat, asiakkaat, kuljetusliikkeet, kuljettajat, pätevyydet, kalusto); vain kehityskäynnistyksellä, idempotentti
 cd frontend && npm ci && npm run dev
 ```
 

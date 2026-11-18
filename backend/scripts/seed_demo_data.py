@@ -1,11 +1,15 @@
-"""Create fictional demo master data (2B-1). Not part of any migration.
+"""Create fictional demo master data (2B-1, 2B-2). Not part of any migration.
 
 Usage (from the backend directory):
     ENVIRONMENT=development uv run python -m scripts.seed_demo_data
 
 Contents: the own company, the terminal network (D31-D33), ports, rail terminals, customs
-offices, demo customers with sites, carriers, drivers and driver qualifications. All names
-contain "Demo"; addresses and identifiers are invented. Coordinates: terminals at the general
+offices, demo customers with sites, carriers, drivers and driver qualifications, and the fleet
+(2B-2): tractors and rigid trucks, a dolly, trailers and fixed bodies with temperature
+compartments and reefer units, and equipment qualification periods. All names contain "Demo";
+addresses and identifiers are invented; registrations look like DEMO-TRK-001 (never real plates).
+The own carrier is linked to the own company's customer row and has no name of its own (D73).
+Coordinates: terminals at the general
 city centre (D31), ports at a general point of the port area, customer sites and customs offices
 at invented points (customer sites in Finland lie 10-40 km from the nearest terminal, except the
 Jyvaskyla site, which is served from Tampere or Kuopio). No two places share coordinates except
@@ -15,8 +19,10 @@ Opening hours (local time): Central and Tampere terminals 24/7, other terminals 
 and Sat 06-14; customer sites vary. Ports have opening_hours NULL, which means "not checked"
 (Plan Check does not test port opening hours); NULL is also "unknown" for any other place.
 
-Idempotent: every row is identified by its natural key (customers, carriers, locations by name,
-drivers by carrier and name, qualification periods by driver, type and document reference).
+Idempotent: every row is identified by its natural key (customers, subcontractor carriers,
+locations by name, the own carrier by its type, drivers by carrier and name, qualification periods
+by driver, type and document reference, trucks, dollies and load units by registration,
+compartments by load unit and number, equipment periods by subject, type and document reference).
 Existing rows are left as they are (never overwritten, so manual edits survive, and rows created
 by an older version of this script are not updated); only missing rows are created.
 Qualification dates are relative to the day of the first run. For Plan Check scenarios one
@@ -24,6 +30,13 @@ qualification is already expired, one is expiring soon, one driver has no profes
 competence, and one driver shows the history (an expired period and its renewal). The GDP end
 date follows the setting GDP_TRAINING_DEFAULT_VALIDITY_MONTHS (a company practice, not a
 regulation).
+Fleet scenarios: the own carrier has 5 tractors, 2 rigid trucks with a fixed body (one box with a
+tail lift, one thermo) and a dolly, so a tractor + semi-trailer + dolly + semi-trailer (HCT, D61)
+and a rigid truck + dolly + semi-trailer can be formed; 10 trailers (curtainsider, mega,
+side-opening, XL with coil well, TIR cable, top loading, a two-compartment thermo with a reefer
+unit, one leased, one rented, one a partner's), some rail-craneable (D63). Equipment periods: ATP
+for both thermo load units (one expiring soon, the trailer's renewed so history shows), one
+expired inspection, a GDP temperature mapping and a tail lift inspection.
 Refuses to run unless ENVIRONMENT=development.
 """
 
@@ -37,8 +50,35 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
-from db.models import Carrier, Customer, Driver, DriverQualification, Location
+from db.models import (
+    Carrier,
+    Compartment,
+    Customer,
+    Dolly,
+    Driver,
+    DriverQualification,
+    EquipmentQualification,
+    LoadUnit,
+    Location,
+    ReeferUnit,
+    Truck,
+)
 from db.session import get_engine
+from domain.equipment import (
+    BodyType,
+    EquipmentQualificationType,
+    LoadUnitType,
+    Ownership,
+    PowerSource,
+    TruckType,
+    validate_compartment,
+    validate_compartment_set,
+    validate_equipment_subject,
+    validate_fixed_body_host,
+    validate_load_unit,
+    validate_reefer_unit_allowed,
+    validate_vehicle,
+)
 from domain.locations import (
     LocationType,
     validate_opening_hours,
@@ -46,7 +86,13 @@ from domain.locations import (
     validate_terminal_fields,
     validate_timezone,
 )
-from domain.parties import CarrierType, CustomerType, DriverEmployment, employment_matches_carrier
+from domain.parties import (
+    CarrierType,
+    CustomerType,
+    DriverEmployment,
+    employment_matches_carrier,
+    validate_carrier_customer_link,
+)
 from domain.qualifications import DriverQualificationType as Q
 from domain.qualifications import suggest_gdp_valid_until
 
@@ -371,7 +417,9 @@ CUSTOMERS: tuple[tuple[str, CustomerType, str, str | None, bool], ...] = (
     ("Demo Norge AS", CustomerType.CUSTOMER, "NO", "DEMO-NO-0401", False),
 )
 
-# name, type, country, business_id, licence years valid, insurance years valid
+# name, type, country, business_id, licence years valid, insurance years valid.
+# The own carrier row is created without name, country and business ID (D73: read from the own
+# company's customer row); the name here only identifies it in this script.
 CARRIERS: tuple[tuple[str, CarrierType, str, str, int, int], ...] = (
     (OWN_COMPANY, CarrierType.OWN, "FI", "DEMO-FI-0001", 3, 1),
     ("Demo Trans GmbH", CarrierType.SUBCONTRACTOR, "DE", "DEMO-DE-0301", 2, 1),
@@ -451,6 +499,416 @@ DRIVERS: tuple[tuple[str, str, str | None, DriverEmployment, tuple[_Spec, ...]],
         (_CE, _TACHO),  # no professional competence
     ),
 )
+
+
+@dataclass(frozen=True)
+class _TruckSpec:
+    registration: str
+    carrier: str
+    type: TruckType
+    length_m: str
+    kerb_weight_kg: int
+    max_gross_weight_kg: int
+    axles: int
+
+
+def _tractor(registration: str, carrier: str) -> _TruckSpec:
+    """A three-axle tractor unit."""
+    return _TruckSpec(registration, carrier, TruckType.TRACTOR, "6.20", 7800, 26000, 3)
+
+
+def _rigid(registration: str, length_m: str, kerb_weight_kg: int) -> _TruckSpec:
+    """A three-axle rigid truck of the own carrier (its fixed body is a load unit)."""
+    return _TruckSpec(
+        registration, OWN_COMPANY, TruckType.RIGID_TRUCK, length_m, kerb_weight_kg, 26000, 3
+    )
+
+
+TRUCKS: tuple[_TruckSpec, ...] = (
+    # Own carrier: five tractors (one two-axle) and two rigid trucks whose bodies are load units.
+    _tractor("DEMO-TRK-001", OWN_COMPANY),
+    _tractor("DEMO-TRK-002", OWN_COMPANY),
+    _tractor("DEMO-TRK-003", OWN_COMPANY),
+    _TruckSpec("DEMO-TRK-004", OWN_COMPANY, TruckType.TRACTOR, "6.00", 7200, 18000, 2),
+    _tractor("DEMO-TRK-005", OWN_COMPANY),
+    _rigid("DEMO-TRK-006", "9.80", 9800),
+    _rigid("DEMO-TRK-007", "9.50", 10400),
+    # Subcontractors: one or two tractors each.
+    _tractor("DEMO-TRK-008", "Demo Trans GmbH"),
+    _tractor("DEMO-TRK-009", "Demo Trans GmbH"),
+    _tractor("DEMO-TRK-010", "Demo Kuljetus Oy"),
+)
+
+# registration, carrier, length_m, kerb_weight_kg, max_gross_weight_kg, axles
+DOLLIES: tuple[tuple[str, str, str, int, int, int], ...] = (
+    ("DEMO-DOL-001", OWN_COMPANY, "4.20", 2000, 18000, 2),
+)
+
+
+@dataclass(frozen=True)
+class _LoadUnitSpec:
+    registration: str
+    carrier: str
+    body_type: BodyType
+    internal_length_m: str
+    internal_width_m: str
+    internal_height_m: str
+    door_height_m: str | None
+    ldm: str
+    pallet_places: int
+    type: LoadUnitType = LoadUnitType.TRAILER
+    truck: str | None = None  # registration of the truck (fixed body)
+    external_length_m: str | None = "13.60"
+    kerb_weight_kg: int | None = 6800
+    max_gross_weight_kg: int | None = 39000
+    axles: int | None = 3
+    xl_certified: bool = False
+    coil_well: bool = False
+    tir_cable: bool = False
+    top_loading: bool = False
+    tail_lift: bool = False
+    rail_craneable: bool = False
+    ownership: Ownership = Ownership.OWN
+    lease_from_days: int | None = None  # offsets from the first-run day
+    lease_until_days: int | None = None
+
+
+def _semi(
+    registration: str, body: BodyType, carrier: str = OWN_COMPANY, **kw: object
+) -> _LoadUnitSpec:
+    """A standard 13.6 m semi-trailer; keyword arguments override single fields."""
+    fields: dict[str, object] = {
+        "internal_length_m": "13.40",
+        "internal_width_m": "2.48",
+        "internal_height_m": "2.75",
+        "door_height_m": "2.65",
+        "ldm": "13.40",
+        "pallet_places": 33,
+    }
+    fields.update(kw)
+    return _LoadUnitSpec(registration, carrier, body, **fields)  # type: ignore[arg-type]
+
+
+LOAD_UNITS: tuple[_LoadUnitSpec, ...] = (
+    _semi("DEMO-TRL-001", BodyType.CURTAINSIDER),
+    _semi(
+        "DEMO-TRL-002",
+        BodyType.MEGA,
+        internal_height_m="3.00",
+        door_height_m="2.90",
+        rail_craneable=True,
+    ),
+    _semi("DEMO-TRL-003", BodyType.SIDE_OPENING, rail_craneable=True),
+    # XL certified (EN 12642 XL) with a coil well (D36).
+    _semi(
+        "DEMO-TRL-004",
+        BodyType.CURTAINSIDER,
+        xl_certified=True,
+        coil_well=True,
+        pallet_places=30,
+        kerb_weight_kg=7100,
+        rail_craneable=True,
+    ),
+    _semi("DEMO-TRL-005", BodyType.CURTAINSIDER, tir_cable=True),
+    _semi("DEMO-TRL-006", BodyType.CURTAINSIDER, top_loading=True, kerb_weight_kg=7000),
+    # Two-compartment thermo (freezer and chilled), reefer unit and compartments seeded below.
+    _semi(
+        "DEMO-TRL-007",
+        BodyType.REEFER,
+        internal_length_m="13.10",
+        internal_width_m="2.46",
+        internal_height_m="2.50",
+        door_height_m="2.45",
+        ldm="13.10",
+        pallet_places=32,
+        kerb_weight_kg=8600,
+        rail_craneable=True,
+    ),
+    _semi(
+        "DEMO-TRL-008",
+        BodyType.CURTAINSIDER,
+        ownership=Ownership.LEASED,
+        lease_from_days=-400,
+        lease_until_days=330,
+    ),
+    _semi(
+        "DEMO-TRL-009",
+        BodyType.MEGA,
+        internal_height_m="3.00",
+        door_height_m="2.90",
+        ownership=Ownership.RENTED,
+        lease_from_days=-20,
+        lease_until_days=40,
+    ),
+    _semi(
+        "DEMO-TRL-010",
+        BodyType.CURTAINSIDER,
+        carrier="Demo Trans GmbH",
+        ownership=Ownership.PARTNER,
+    ),
+    # Fixed bodies: length, weights and axles are on the truck (single source).
+    _LoadUnitSpec(
+        "DEMO-BOD-001",
+        OWN_COMPANY,
+        BodyType.BOX,
+        "6.20",
+        "2.45",
+        "2.40",
+        "2.30",
+        "6.20",
+        14,
+        type=LoadUnitType.FIXED_BODY,
+        truck="DEMO-TRK-006",
+        external_length_m=None,
+        kerb_weight_kg=None,
+        max_gross_weight_kg=None,
+        axles=None,
+        tail_lift=True,
+    ),
+    _LoadUnitSpec(
+        "DEMO-BOD-002",
+        OWN_COMPANY,
+        BodyType.REEFER,
+        "6.00",
+        "2.40",
+        "2.20",
+        "2.10",
+        "6.00",
+        12,
+        type=LoadUnitType.FIXED_BODY,
+        truck="DEMO-TRK-007",
+        external_length_m=None,
+        kerb_weight_kg=None,
+        max_gross_weight_kg=None,
+        axles=None,
+    ),
+)
+
+# registration -> (number, temperature_min, temperature_max): the range each compartment can hold.
+COMPARTMENTS: dict[str, tuple[tuple[int, str, str], ...]] = {
+    "DEMO-TRL-007": ((1, "-25.0", "-18.0"), (2, "2.0", "8.0")),  # freezer and chilled
+    "DEMO-BOD-002": ((1, "-25.0", "8.0"),),  # one multi-temperature compartment
+}
+# registration -> (unit name, power source); invented make and model.
+REEFER_UNITS: dict[str, tuple[str, PowerSource]] = {
+    "DEMO-TRL-007": ("Demo Chill Duo 300", PowerSource.DIESEL),
+    "DEMO-BOD-002": ("Demo Chill Mono 100", PowerSource.ELECTRIC),
+}
+
+_ET = EquipmentQualificationType
+# subject kind, registration, type, class code, days from the first-run day to valid_from and
+# valid_until. Inspections are generated below for every truck, dolly and trailer.
+_EquipSpec = tuple[str, str, EquipmentQualificationType, str | None, int, int]
+_THREE_YEARS = 3 * 365
+EQUIPMENT_QUALIFICATIONS: tuple[_EquipSpec, ...] = (
+    # ATP of the thermo trailer: first period ended 61 days ago and was renewed the next day.
+    ("load_unit", "DEMO-TRL-007", _ET.ATP, "FRC", -61 - _THREE_YEARS + 1, -61),
+    ("load_unit", "DEMO-TRL-007", _ET.ATP, "FRC", -60, -60 + _THREE_YEARS - 1),
+    # ATP of the thermo body: expires in 25 days.
+    ("load_unit", "DEMO-BOD-002", _ET.ATP, "FRC", 25 - _THREE_YEARS + 1, 25),
+    ("load_unit", "DEMO-TRL-007", _ET.GDP_TEMPERATURE_MAPPING, None, -64, 300),
+    ("load_unit", "DEMO-BOD-001", _ET.TAIL_LIFT_INSPECTION, None, -214, 150),
+)
+EXPIRED_INSPECTION = "DEMO-TRL-006"  # inspection ended 12 days ago and is not renewed
+
+
+def _inspection_specs() -> tuple[_EquipSpec, ...]:
+    """One-year inspections with staggered end dates; one of them already expired."""
+    specs: list[_EquipSpec] = []
+    registrations = (
+        [("truck", t.registration) for t in TRUCKS]
+        + [("dolly", d[0]) for d in DOLLIES]
+        + [("load_unit", u.registration) for u in LOAD_UNITS if u.type is LoadUnitType.TRAILER]
+    )
+    for index, (kind, registration) in enumerate(registrations):
+        until = -12 if registration == EXPIRED_INSPECTION else 90 + (index * 41) % 270
+        specs.append((kind, registration, _ET.INSPECTION, None, until - 364, until))
+    return tuple(specs)
+
+
+def _seed_fleet(
+    session: Session, carriers: dict[str, Carrier], today: date, created: Counter[str]
+) -> None:
+    trucks: dict[str, Truck] = {}
+    for spec in TRUCKS:
+        length = Decimal(spec.length_m)
+        validate_vehicle(
+            length_m=length,
+            kerb_weight_kg=spec.kerb_weight_kg,
+            max_gross_weight_kg=spec.max_gross_weight_kg,
+            axles=spec.axles,
+        )
+        truck = session.scalar(select(Truck).where(Truck.registration == spec.registration))
+        if truck is None:
+            truck = Truck(
+                carrier_id=carriers[spec.carrier].id,
+                registration=spec.registration,
+                type=spec.type.value,
+                length_m=length,
+                kerb_weight_kg=spec.kerb_weight_kg,
+                max_gross_weight_kg=spec.max_gross_weight_kg,
+                axles=spec.axles,
+            )
+            session.add(truck)
+            created["trucks"] += 1
+        trucks[spec.registration] = truck
+    session.flush()
+
+    dollies: dict[str, Dolly] = {}
+    for registration, carrier, length_m, kerb, gross, axles in DOLLIES:
+        validate_vehicle(
+            length_m=Decimal(length_m), kerb_weight_kg=kerb, max_gross_weight_kg=gross, axles=axles
+        )
+        dolly = session.scalar(select(Dolly).where(Dolly.registration == registration))
+        if dolly is None:
+            dolly = Dolly(
+                carrier_id=carriers[carrier].id,
+                registration=registration,
+                length_m=Decimal(length_m),
+                kerb_weight_kg=kerb,
+                max_gross_weight_kg=gross,
+                axles=axles,
+            )
+            session.add(dolly)
+            created["dollies"] += 1
+        dollies[registration] = dolly
+    session.flush()
+
+    load_units: dict[str, LoadUnit] = {}
+    for u in LOAD_UNITS:
+        host = trucks[u.truck] if u.truck else None
+        ext = Decimal(u.external_length_m) if u.external_length_m else None
+        lease_from = (
+            today + timedelta(days=u.lease_from_days) if u.lease_from_days is not None else None
+        )
+        lease_until = (
+            today + timedelta(days=u.lease_until_days) if u.lease_until_days is not None else None
+        )
+        validate_load_unit(
+            unit_type=u.type,
+            truck_id=host.id if host else None,
+            external_length_m=ext,
+            kerb_weight_kg=u.kerb_weight_kg,
+            max_gross_weight_kg=u.max_gross_weight_kg,
+            axles=u.axles,
+            ownership=u.ownership,
+            lease_valid_from=lease_from,
+            lease_valid_until=lease_until,
+        )
+        if host is not None:
+            validate_fixed_body_host(
+                truck_type=TruckType(host.type),
+                truck_carrier_id=host.carrier_id,
+                load_unit_carrier_id=carriers[u.carrier].id,
+            )
+        unit = session.scalar(select(LoadUnit).where(LoadUnit.registration == u.registration))
+        if unit is None:
+            unit = LoadUnit(
+                type=u.type.value,
+                truck_id=host.id if host else None,
+                carrier_id=carriers[u.carrier].id,
+                registration=u.registration,
+                body_type=u.body_type.value,
+                internal_length_m=Decimal(u.internal_length_m),
+                internal_width_m=Decimal(u.internal_width_m),
+                internal_height_m=Decimal(u.internal_height_m),
+                door_height_m=Decimal(u.door_height_m) if u.door_height_m else None,
+                external_length_m=ext,
+                ldm=Decimal(u.ldm),
+                pallet_places=u.pallet_places,
+                kerb_weight_kg=u.kerb_weight_kg,
+                max_gross_weight_kg=u.max_gross_weight_kg,
+                axles=u.axles,
+                xl_certified=u.xl_certified,
+                coil_well=u.coil_well,
+                tir_cable=u.tir_cable,
+                top_loading=u.top_loading,
+                tail_lift=u.tail_lift,
+                rail_craneable=u.rail_craneable,
+                ownership=u.ownership.value,
+                lease_valid_from=lease_from,
+                lease_valid_until=lease_until,
+            )
+            session.add(unit)
+            created["load_units"] += 1
+        load_units[u.registration] = unit
+    session.flush()
+
+    body_types = {u.registration: u.body_type for u in LOAD_UNITS}
+    for registration, rows in COMPARTMENTS.items():
+        validate_compartment_set(body_types[registration], [n for n, _, _ in rows])
+        for number, t_min, t_max in rows:
+            validate_compartment(number, Decimal(t_min), Decimal(t_max))
+            unit = load_units[registration]
+            if (
+                session.scalar(
+                    select(Compartment.id).where(
+                        Compartment.load_unit_id == unit.id, Compartment.number == number
+                    )
+                )
+                is None
+            ):
+                session.add(
+                    Compartment(
+                        load_unit_id=unit.id,
+                        number=number,
+                        temperature_min=Decimal(t_min),
+                        temperature_max=Decimal(t_max),
+                    )
+                )
+                created["compartments"] += 1
+    for registration, (unit_name, power) in REEFER_UNITS.items():
+        validate_reefer_unit_allowed(body_types[registration])
+        unit = load_units[registration]
+        if session.scalar(select(ReeferUnit.id).where(ReeferUnit.load_unit_id == unit.id)) is None:
+            session.add(
+                ReeferUnit(load_unit_id=unit.id, unit_name=unit_name, power_source=power.value)
+            )
+            created["reefer_units"] += 1
+    session.flush()
+
+    subjects: dict[str, dict[str, Truck | Dolly | LoadUnit]] = {
+        "truck": dict(trucks),
+        "dolly": dict(dollies),
+        "load_unit": dict(load_units),
+    }
+    seen: Counter[tuple[str, EquipmentQualificationType]] = Counter()
+    for kind, registration, qtype, class_code, from_days, until_days in (
+        *EQUIPMENT_QUALIFICATIONS,
+        *_inspection_specs(),
+    ):
+        subject = subjects[kind][registration]
+        ids = {f"{kind}_id": subject.id}
+        validate_equipment_subject(
+            truck_id=ids.get("truck_id"),
+            dolly_id=ids.get("dolly_id"),
+            load_unit_id=ids.get("load_unit_id"),
+            qtype=qtype,
+        )
+        seen[(registration, qtype)] += 1
+        ref = f"DEMO-{qtype.value.upper()}-{registration[5:]}-{seen[(registration, qtype)]}"
+        subject_column = getattr(EquipmentQualification, f"{kind}_id")
+        if (
+            session.scalar(
+                select(EquipmentQualification.id).where(
+                    subject_column == subject.id,
+                    EquipmentQualification.type == qtype.value,
+                    EquipmentQualification.document_ref == ref,
+                )
+            )
+            is None
+        ):
+            session.add(
+                EquipmentQualification(
+                    **ids,
+                    type=qtype.value,
+                    class_code=class_code,
+                    valid_from=today + timedelta(days=from_days),
+                    valid_until=today + timedelta(days=until_days),
+                    document_ref=ref,
+                )
+            )
+            created["equipment_qualifications"] += 1
 
 
 def _document_ref(qtype: Q, driver_name: str, nth: int) -> str:
@@ -537,18 +995,26 @@ def seed_demo_data(
         locations[place.name] = location
     session.flush()
 
-    # --- carriers
+    # --- carriers (the own carrier links to the own company's customer row, D73)
     carriers: dict[str, Carrier] = {}
     for name, carrier_type, country, business_id, licence_years, insurance_years in CARRIERS:
-        carrier_row = session.scalar(select(Carrier).where(Carrier.name == name))
-        if carrier_row is None and carrier_type is CarrierType.OWN:
+        is_own = carrier_type is CarrierType.OWN
+        carrier_row = None
+        if is_own:
             carrier_row = session.scalar(select(Carrier).where(Carrier.type == carrier_type.value))
+        else:
+            carrier_row = session.scalar(select(Carrier).where(Carrier.name == name))
         if carrier_row is None:
+            own_customer = customers[OWN_COMPANY] if is_own else None
+            validate_carrier_customer_link(
+                carrier_type, CustomerType(own_customer.type) if own_customer else None
+            )
             carrier_row = Carrier(
-                name=name,
+                customer_id=own_customer.id if own_customer else None,
+                name=None if is_own else name,
                 type=carrier_type.value,
-                country=country,
-                business_id=business_id,
+                country=None if is_own else country,
+                business_id=None if is_own else business_id,
                 transport_licence_valid_until=today + timedelta(days=365 * licence_years),
                 liability_insurance_valid_until=today + timedelta(days=365 * insurance_years),
             )
@@ -603,6 +1069,9 @@ def seed_demo_data(
                     )
                 )
                 created["driver_qualifications"] += 1
+    session.flush()
+
+    _seed_fleet(session, carriers, today, created)
     session.commit()
     return created
 
@@ -613,7 +1082,19 @@ def main() -> int:
         return 2
     with sessionmaker(bind=get_engine())() as session:
         created = seed_demo_data(session)
-    for table in ("customers", "locations", "carriers", "drivers", "driver_qualifications"):
+    for table in (
+        "customers",
+        "locations",
+        "carriers",
+        "drivers",
+        "driver_qualifications",
+        "trucks",
+        "dollies",
+        "load_units",
+        "compartments",
+        "reefer_units",
+        "equipment_qualifications",
+    ):
         print(f"{table}: {created[table]} created")
     return 0
 

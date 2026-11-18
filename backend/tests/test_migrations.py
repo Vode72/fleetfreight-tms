@@ -81,3 +81,65 @@ def test_model_metadata_matches_migrated_schema(test_engine: Engine) -> None:
     with test_engine.connect() as conn:
         diff = compare_metadata(MigrationContext.configure(conn), Base.metadata)
     assert diff == []
+
+
+FLEET_TABLES = {
+    "trucks",
+    "dollies",
+    "load_units",
+    "compartments",
+    "reefer_units",
+    "equipment_qualifications",
+}
+
+
+def test_fleet_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "head")
+    insp = inspect(test_engine)
+    assert set(insp.get_table_names()) >= FLEET_TABLES
+    # every foreign key column of the fleet tables is covered by an index (or a unique constraint)
+    for table in FLEET_TABLES:
+        covered = {i["column_names"][0] for i in insp.get_indexes(table)} | {
+            u["column_names"][0] for u in insp.get_unique_constraints(table)
+        }
+        for fk in insp.get_foreign_keys(table):
+            assert fk["constrained_columns"][0] in covered, (table, fk["name"])
+
+    command.downgrade(cfg, "f0c09cb23c9d")  # revision B only
+    tables = set(inspect(test_engine).get_table_names())
+    assert not FLEET_TABLES & tables
+    assert tables >= REGISTER_TABLES  # revision A and 2B-1 untouched
+    carrier_columns = {c["name"] for c in inspect(test_engine).get_columns("carriers")}
+    assert {"customer_id", "archived_at"} <= carrier_columns
+
+    command.downgrade(cfg, "c52d8e3f1a47")  # revision A as well
+    carrier_columns = {c["name"] for c in inspect(test_engine).get_columns("carriers")}
+    assert not {"customer_id", "archived_at"} & carrier_columns
+
+    command.upgrade(cfg, "head")  # leave the shared test database migrated
+    assert set(inspect(test_engine).get_table_names()) >= FLEET_TABLES
+
+
+def test_fleet_downgrade_is_possible_with_data(test_engine: Engine) -> None:
+    """Dropping the fleet tables in reverse order works with rows in every table."""
+    from tests.test_fleet_db import _body, _equipment, _reefer, _trailer, _truck
+    from tests.test_registers_db import _carrier
+
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "head")
+    with test_engine.begin() as conn:
+        conn.execute(text("TRUNCATE equipment_qualifications, trucks, carriers CASCADE"))
+    carrier = _carrier(test_engine, "Demo Migration Oy")
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _body(test_engine, carrier, truck)
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    _reefer(test_engine, unit)
+    _equipment(test_engine, type="atp", load_unit_id=unit)
+    try:
+        command.downgrade(cfg, "f0c09cb23c9d")
+        assert not FLEET_TABLES & set(inspect(test_engine).get_table_names())
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("TRUNCATE carriers CASCADE"))
+        command.upgrade(cfg, "head")

@@ -41,3 +41,30 @@ def employment_matches_carrier(employment: DriverEmployment, carrier_type: Carri
     """
     expected = CarrierType.OWN if employment is DriverEmployment.OWN else CarrierType.SUBCONTRACTOR
     return carrier_type is expected
+
+
+def validate_carrier_customer_link(
+    carrier_type: CarrierType, customer_type: CustomerType | None
+) -> None:
+    """D73: the own carrier points to the own company's customer row, a subcontractor to none.
+
+    `customer_type` is the type of the referenced customer row, or None when there is no link.
+    The database checks the link's presence (CHECK on carriers) but not the referenced row's
+    type, because that spans two tables; services and the seed must call this.
+    """
+    if carrier_type is CarrierType.OWN:
+        if customer_type is not CustomerType.OWN_COMPANY:
+            raise ValueError("the own carrier must reference the own company's customer row")
+    elif customer_type is not None:
+        raise ValueError("a subcontractor must not reference a customer row")
+
+
+def carrier_display_name(carrier_name: str | None, customer_name: str | None) -> str:
+    """The own carrier has no name or business ID of its own (D73): read them from the customer.
+
+    A subcontractor carries its own name. Exactly one of the two sources is expected.
+    """
+    name = carrier_name if carrier_name is not None else customer_name
+    if name is None:
+        raise ValueError("carrier has neither a name nor a linked customer")
+    return name
