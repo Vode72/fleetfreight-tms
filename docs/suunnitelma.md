@@ -233,7 +233,7 @@ Tila: **Hyväksytty 17.11.2026** (Toni, chat; ff-logistiikka tarkistanut). Kokoa
 | Taulu | Pääkentät | Päätökset |
 |---|---|---|
 | customers | nimi, tyyppi (asiakas / oma yritys), Y- tai ALV-tunnus (keksitty), maa, lavanvaihto sovittu (oletus ei, D59) (asiakashinnaston viite lisätään vaiheessa 3) | 2B |
-| locations | tyyppi (asiakkaan toimipaikka, terminaali, satama, varikko, korjaamo, pesu, katsastus, pysäköinti, tankkaus, tullitoimipaikka), asiakas (valinnainen), osoite, maa, koordinaatit, **IANA-aikavyöhyke**, aukioloajat, ajanvaraus pakollinen, suurin sallittu ajoneuvo, sivulastaus mahdollinen; terminaalilla laiturit, kylmätila, lämpötila-alue ja pistokkeiden määrä | D31–D33 |
+| locations | tyyppi (asiakkaan toimipaikka, terminaali, satama, varikko, korjaamo, pesu, katsastus, pysäköinti, tankkaus, tullitoimipaikka), ylempi paikka (valinnainen, esim. satama-alueen terminaalit Lehmannkai ja Seelandkai Lübeckissä; lisätty 18.11.2026, Toni), asiakas (pakollinen asiakkaan toimipaikalla), osoite, maa, koordinaatit, **IANA-aikavyöhyke**, aukioloajat, ajanvaraus pakollinen, suurin sallittu ajoneuvo, sivulastaus mahdollinen; terminaalilla laiturit, kylmätila, lämpötila-alue ja pistokkeiden määrä | D31–D33 |
 | customs_areas | maa tai alue, EU:n tullialue, arvonlisäveroalue, yhteinen passitus; voimassaolo (versioitu) | D48 |
 | adr_rules | ADR-painos, kuljetuskategorioiden rajat ja kertoimet, yhteenkuormauskiellot lipukkeittain; voimassaolo (versioitu, sisältö tarkistetaan lähteistä luvun 3C mukaan) | D45, D46 |
 | pallet_types | lavatyyppi, mitat, LDM | D40, D41 |

@@ -71,6 +71,11 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
 - Demo users (not in migrations; development only):
   `DEMO_PASSWORD=... ENVIRONMENT=development uv run python -m scripts.seed_demo_users`.
   Settings are listed in `.env.example`.
+- Demo master data (fictional; not in migrations; development only; idempotent, existing rows are
+  never overwritten): own company, 5 terminals, 12 ports (incl. two Lübeck quays under their port area), customers with sites, carriers, drivers
+  and qualifications. Run after `alembic upgrade head`:
+  `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
+  (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
 ## Tests and quality checks
 
