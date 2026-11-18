@@ -60,6 +60,7 @@ from db.models import (
     EquipmentQualification,
     LoadUnit,
     Location,
+    ReeferEvaporator,
     ReeferUnit,
     Truck,
 )
@@ -69,18 +70,19 @@ from domain.equipment import (
     CouplingType,
     EquipmentQualificationType,
     EquipmentSubject,
+    EvaporatorPosition,
     LoadUnitType,
     ModelCode,
     Ownership,
     PartitionSpec,
     PowerSource,
-    ReeferPosition,
     TruckType,
     validate_compartment,
     validate_compartment_pallet_places,
     validate_compartment_set,
     validate_equipment_qualification,
     validate_equipment_subject,
+    validate_evaporators,
     validate_fixed_body_host,
     validate_load_unit,
     validate_model_code,
@@ -849,36 +851,38 @@ LOAD_UNITS: tuple[_LoadUnitSpec, ...] = (
 )
 
 # registration -> compartments: (number, temperature_min, temperature_max, pallet_places,
-# independently_controlled, position of the serving reefer unit or None). The temperatures are the
+# independently_controlled, position of the serving evaporator or None). The temperatures are the
 # range each compartment can hold.
-_Comp = tuple[int, str, str, int | None, bool, ReeferPosition | None]
+_Comp = tuple[int, str, str, int | None, bool, EvaporatorPosition | None]
 COMPARTMENTS: dict[str, tuple[_Comp, ...]] = {
     # FD: two zones, one machine each. No pallet places: the partition moves one EUR row at a
     # time (4 + 28 ... 28 + 4) and its position is chosen for the load (D76).
     "DEMO-TRL-007": (
-        (1, "-25.0", "-18.0", None, True, ReeferPosition.FRONT),
-        (2, "2.0", "8.0", None, True, ReeferPosition.REAR),
+        (1, "-25.0", "-18.0", None, True, EvaporatorPosition.FRONT),
+        (2, "2.0", "8.0", None, True, EvaporatorPosition.REAR),
     ),
     "DEMO-TRL-012": (
-        (1, "-25.0", "8.0", None, True, ReeferPosition.FRONT),
-        (2, "-25.0", "8.0", None, True, ReeferPosition.REAR),
+        (1, "-25.0", "8.0", None, True, EvaporatorPosition.FRONT),
+        (2, "-25.0", "8.0", None, True, EvaporatorPosition.REAR),
     ),
-    "DEMO-TRL-013": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
-    "DEMO-BOD-002": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
+    "DEMO-TRL-013": ((1, "-25.0", "8.0", None, False, EvaporatorPosition.FRONT),),
+    "DEMO-BOD-002": ((1, "-25.0", "8.0", None, False, EvaporatorPosition.FRONT),),
 }
-# registration -> reefer units: (position, unit name, power source); invented make and model.
-# TRL-007's rear unit is a hybrid: it can run on electricity in a port (D27).
-REEFER_UNITS: dict[str, tuple[tuple[ReeferPosition, str, PowerSource], ...]] = {
-    "DEMO-TRL-007": (
-        (ReeferPosition.FRONT, "Demo Chill Duo 300 F", PowerSource.DIESEL),
-        (ReeferPosition.REAR, "Demo Chill Duo 300 R", PowerSource.HYBRID),
-    ),
-    "DEMO-TRL-012": (
-        (ReeferPosition.FRONT, "Demo Chill Duo 200 F", PowerSource.DIESEL),
-        (ReeferPosition.REAR, "Demo Chill Duo 200 R", PowerSource.DIESEL),
-    ),
-    "DEMO-TRL-013": ((ReeferPosition.FRONT, "Demo Chill Side 150", PowerSource.DIESEL),),
-    "DEMO-BOD-002": ((ReeferPosition.FRONT, "Demo Chill Mono 100", PowerSource.ELECTRIC),),
+# registration -> the reefer unit (machine, at the front): (unit name, power source); invented
+# make and model. TRL-007's machine is a hybrid: it can run on electricity in a port (D27).
+REEFER_UNITS: dict[str, tuple[str, PowerSource]] = {
+    "DEMO-TRL-007": ("Demo Chill Duo 300", PowerSource.HYBRID),
+    "DEMO-TRL-012": ("Demo Chill Duo 200", PowerSource.DIESEL),
+    "DEMO-TRL-013": ("Demo Chill Side 150", PowerSource.DIESEL),
+    "DEMO-BOD-002": ("Demo Chill Mono 100", PowerSource.ELECTRIC),
+}
+# registration -> evaporators (indoor units) of the machine (D76): FD front and rear, FB and FS
+# one at the front.
+EVAPORATORS: dict[str, tuple[EvaporatorPosition, ...]] = {
+    "DEMO-TRL-007": (EvaporatorPosition.FRONT, EvaporatorPosition.REAR),
+    "DEMO-TRL-012": (EvaporatorPosition.FRONT, EvaporatorPosition.REAR),
+    "DEMO-TRL-013": (EvaporatorPosition.FRONT,),
+    "DEMO-BOD-002": (EvaporatorPosition.FRONT,),
 }
 
 _ET = EquipmentQualificationType
@@ -894,13 +898,12 @@ EQUIPMENT_QUALIFICATIONS: tuple[_EquipSpec, ...] = (
     ("load_unit", "DEMO-BOD-002", _ET.ATP, "FRC", 25 - _THREE_YEARS + 1, 25),
     ("load_unit", "DEMO-TRL-012", _ET.ATP, "FRC", -400, -400 + _THREE_YEARS - 1),
     ("load_unit", "DEMO-TRL-013", _ET.ATP, "FRC", -300, -300 + _THREE_YEARS - 1),
-    # Reefer unit service (D76), per machine; "reefer_unit" subjects are named "<unit>:<position>".
-    ("reefer_unit", "DEMO-TRL-007:front", _ET.REEFER_SERVICE, None, -165, 200),
-    ("reefer_unit", "DEMO-TRL-007:rear", _ET.REEFER_SERVICE, None, -345, 20),  # expiring soon
-    ("reefer_unit", "DEMO-TRL-012:front", _ET.REEFER_SERVICE, None, -245, 120),
-    ("reefer_unit", "DEMO-TRL-012:rear", _ET.REEFER_SERVICE, None, -105, 260),
-    ("reefer_unit", "DEMO-TRL-013:front", _ET.REEFER_SERVICE, None, -275, 90),
-    ("reefer_unit", "DEMO-BOD-002:front", _ET.REEFER_SERVICE, None, -215, 150),
+    # Reefer unit service (D76), one machine per load unit; "reefer_unit" subjects are named by
+    # the load unit's registration.
+    ("reefer_unit", "DEMO-TRL-007", _ET.REEFER_SERVICE, None, -345, 20),  # expiring soon
+    ("reefer_unit", "DEMO-TRL-012", _ET.REEFER_SERVICE, None, -245, 120),
+    ("reefer_unit", "DEMO-TRL-013", _ET.REEFER_SERVICE, None, -275, 90),
+    ("reefer_unit", "DEMO-BOD-002", _ET.REEFER_SERVICE, None, -215, 150),
     ("load_unit", "DEMO-TRL-007", _ET.GDP_TEMPERATURE_MAPPING, None, -64, 300),
     ("load_unit", "DEMO-BOD-001", _ET.TAIL_LIFT_INSPECTION, None, -214, 150),
 )
@@ -1068,31 +1071,37 @@ def _seed_fleet(
     unit_specs = {u.registration: u for u in LOAD_UNITS}
     body_types = {u.registration: u.body_type for u in LOAD_UNITS}
 
-    # Reefer units (D76) before the compartments that name them.
-    reefer_units: dict[str, ReeferUnit] = {}  # key "<registration>:<position>"
-    for registration, machines in REEFER_UNITS.items():
+    # Reefer units and their evaporators (D76) before the compartments that name them.
+    reefer_units: dict[str, ReeferUnit] = {}  # by registration
+    evaporators: dict[str, ReeferEvaporator] = {}  # key "<registration>:<position>"
+    for registration, (unit_name, power) in REEFER_UNITS.items():
         unit = load_units[registration]
-        validate_reefer_units(
-            body_types[registration],
-            [m[0] for m in machines],
-            unit_specs[registration].model_code,
-        )
-        for position, unit_name, power in machines:
-            machine = session.scalar(
-                select(ReeferUnit).where(
-                    ReeferUnit.load_unit_id == unit.id, ReeferUnit.position == position.value
+        model_code = unit_specs[registration].model_code
+        validate_reefer_units(body_types[registration], 1, model_code)
+        validate_evaporators(EVAPORATORS[registration], model_code)
+        machine = session.scalar(select(ReeferUnit).where(ReeferUnit.load_unit_id == unit.id))
+        if machine is None:
+            machine = ReeferUnit(
+                load_unit_id=unit.id, unit_name=unit_name, power_source=power.value
+            )
+            session.add(machine)
+            session.flush()
+            created["reefer_units"] += 1
+        reefer_units[registration] = machine
+        for position in EVAPORATORS[registration]:
+            evaporator = session.scalar(
+                select(ReeferEvaporator).where(
+                    ReeferEvaporator.reefer_unit_id == machine.id,
+                    ReeferEvaporator.position == position.value,
                 )
             )
-            if machine is None:
-                machine = ReeferUnit(
-                    load_unit_id=unit.id,
-                    position=position.value,
-                    unit_name=unit_name,
-                    power_source=power.value,
+            if evaporator is None:
+                evaporator = ReeferEvaporator(
+                    reefer_unit_id=machine.id, load_unit_id=unit.id, position=position.value
                 )
-                session.add(machine)
-                created["reefer_units"] += 1
-            reefer_units[f"{registration}:{position.value}"] = machine
+                session.add(evaporator)
+                created["reefer_evaporators"] += 1
+            evaporators[f"{registration}:{position.value}"] = evaporator
     session.flush()
 
     for registration, rows in COMPARTMENTS.items():
@@ -1105,7 +1114,7 @@ def _seed_fleet(
         for number, t_min, t_max, places, independent, serving in rows:
             validate_compartment(number, Decimal(t_min), Decimal(t_max))
             unit = load_units[registration]
-            serving_unit = reefer_units[f"{registration}:{serving.value}"] if serving else None
+            serving_evaporator = evaporators[f"{registration}:{serving.value}"] if serving else None
             if (
                 session.scalar(
                     select(Compartment.id).where(
@@ -1117,7 +1126,7 @@ def _seed_fleet(
                 session.add(
                     Compartment(
                         load_unit_id=unit.id,
-                        reefer_unit_id=serving_unit.id if serving_unit else None,
+                        evaporator_id=serving_evaporator.id if serving_evaporator else None,
                         number=number,
                         temperature_min=Decimal(t_min),
                         temperature_max=Decimal(t_max),
@@ -1363,8 +1372,9 @@ def main() -> int:
         "trucks",
         "dollies",
         "load_units",
-        "compartments",
         "reefer_units",
+        "reefer_evaporators",
+        "compartments",
         "equipment_qualifications",
     ):
         print(f"{table}: {created[table]} created")

@@ -89,6 +89,7 @@ FLEET_TABLES = {
     "load_units",
     "compartments",
     "reefer_units",
+    "reefer_evaporators",
     "equipment_qualifications",
 }
 
@@ -123,7 +124,15 @@ def test_fleet_migration_creates_and_removes_tables(test_engine: Engine) -> None
 
 def test_fleet_downgrade_is_possible_with_data(test_engine: Engine) -> None:
     """Dropping the fleet tables in reverse order works with rows in every table."""
-    from tests.test_fleet_db import _body, _equipment, _reefer, _trailer, _truck
+    from tests.test_fleet_db import (
+        _body,
+        _compartment,
+        _equipment,
+        _evaporator,
+        _reefer,
+        _trailer,
+        _truck,
+    )
     from tests.test_registers_db import _carrier
 
     cfg = _config(test_engine)
@@ -134,7 +143,8 @@ def test_fleet_downgrade_is_possible_with_data(test_engine: Engine) -> None:
     truck = _truck(test_engine, carrier, type="rigid_truck")
     _body(test_engine, carrier, truck)
     unit = _trailer(test_engine, carrier, body_type="reefer")
-    _reefer(test_engine, unit)
+    machine = _reefer(test_engine, unit)
+    _compartment(test_engine, unit, evaporator_id=_evaporator(test_engine, machine, unit))
     _equipment(test_engine, type="atp", load_unit_id=unit)
     try:
         command.downgrade(cfg, "f0c09cb23c9d")
