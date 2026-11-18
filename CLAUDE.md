@@ -99,7 +99,8 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
   Kulkumuoto ROAD, FERRY tai RAIL (D63; juna kuten saattamaton lautta, ilman Jobia).
 - **Kolme tilaketjua (R3, D50, D53):** Order, Trip (Luonnos → Suunniteltu → …) ja Job, kaikissa päätetila Peruttu.
   Laskutus kohdistuu orderiin toimituksen (IOD) jälkeen (D16).
-- **Voimassaolot jaksoina (D67):** jokaisesta voimassaolojaksosta oma rivi; uusiminen luo uuden rivin, historia säilyy.
+- **Voimassaolot jaksoina (D67):** jokaisesta voimassaolojaksosta oma rivi; uusiminen luo uuden rivin, historia säilyy. Kuljettajien pätevyydet ja kaluston kelpoisuudet ovat omissa tauluissaan (D70).
+- **Rekisteririvit arkistoidaan, ei poisteta (D72):** `archived_at`; poisto estetään (RESTRICT), jos riviin viitataan. Oma kuljetusliike viittaa oman yrityksen asiakasriviin (D73).
 - **Reititysehdotus (D64):** asetustaulukko kohdemaan mukaan; järjestelmä ehdottaa, liikenteenohjaaja päättää.
 - **Ajo- ja työaika lasketaan kuljettajalle** yli Jobien ja päivien: EU 561/2006 (myös lauttalepo, D23) ja 2002/15/EY.
   Säädösten raja-arvot tarkistetaan säädöstekstistä ennen toteutusta, eikä niitä kirjoiteta muistista.
@@ -109,6 +110,7 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 ## Kieli
 
 - Koodi, nimet, kommentit ja commit-viestit englanniksi
+- UI-termistö on alan arkikieltä ja sama kuin dokumentaatiossa (D74), esim. Tripit, Orderit, Board
 - Dokumentaatio (`docs/`) suomeksi, README englanniksi
 - **Käyttöliittymä on kaksikielinen, englanti ja suomi (D34).** Kaikki käyttäjälle näkyvät tekstit käännösavaimina
   käännöstiedostoissa (`en` ja `fi`), ei kovakoodattuja tekstejä komponenteissa. Uusi teksti lisätään aina molemmille kielille.

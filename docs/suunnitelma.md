@@ -1,6 +1,6 @@
 # FleetFreight TMS: Freight Planner + FleetFlow → yhdistetty TMS
 
-Päivitetty 18.11.2026 · D1–D69 · tilat luvussa 2 (osa päätöksistä Ehdotus tai Oletus)
+Päivitetty 18.11.2026 · D1–D74 · tilat luvussa 2 (osa päätöksistä Ehdotus tai Oletus)
 Lähteet: Freight Planner `main` (`1128d19`), FleetFlow `main` (`f9a04f0`),
 FleetFlow PR #6 (draft) ja issuet #7–#12.
 
@@ -27,7 +27,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 |---|---|---|---|
 | D1 | FleetFlow ja Freight Planner yhdistetään yhdeksi TMS:ksi | Hyväksytty 14.11.2026 | Toni, chat |
 | D2 | Tavoite on tuotantotasoinen TMS kuljetusten optimoinnilla, ja se säilyy portfolioprojektina | Hyväksytty 14.11.2026 | Toni, chat |
-| D3 | **Uusi sovellus** (uusi repo), johon siirretään molempien toimivat ja testatut osat. Vanhaa rakennetta ei siirretä yhteensopivasti, koska data on demodataa. Vanhat repot arkistoidaan linkin kanssa. *(Korvaa 14.11. luonnoksen "pohjana Freight Plannerin repo".)* | Hyväksytty 14.11.2026 | Toni, chat |
+| D3 | **Uusi sovellus** (uusi repo), johon siirretään molempien toimivat ja testatut osat. Vanhaa rakennetta ei siirretä yhteensopivasti, koska data on demodataa. Vanhat repot jäädytetään ja jäävät GitHubiin portfolioon (D7) linkin kanssa. *(Korvaa 14.11. luonnoksen "pohjana Freight Plannerin repo".)* | Hyväksytty 14.11.2026 | Toni, chat |
 | D4 | Moduulijako: kuormasuunnittelu omistaa Orderin, Order Routingin, Tripin, kulut, hinnoittelun ja dokumentit. Resurssisuunnittelu omistaa Jobin, kuljettajan päivän, aikalaskennan ja toteutettavuuden | Hyväksytty 14.11.2026 | luku 3 |
 | D5 | Yksi sääntötiedosto: `CLAUDE.md` on päälähde, ja `AGENTS.md` (Codex) viittaa siihen | Hyväksytty 14.11.2026 | luku 6 |
 | D6 | Frontend siirretään Create React Appista Viteen. Kieli pysyy JavaScriptinä, TypeScript ei ole päätetty | Korvattu → D11 | FF #11 |
@@ -87,7 +87,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | D60 | **Kuormatilarekisteri:** kuormatila on oma yksikkönsä (`load_units`), jonka tyyppi v1:ssä on **traileri** tai **kuorma-auton kiinteä kori** (D39). Trippi seuraa kuormatilaa (D55). Vaihtokori (irrotettava kuormatila) ja merikontti myöhemmin (juna: muutettu D63:lla); vaihtokori lisätään uutena tyyppinä samaan tauluun | Hyväksytty 17.11.2026 | Toni, chat |
 | D61 | **HCT ja dolly v1:ssä:** dolly on kalustoa ilman kuormatilaa ja kytketään legille. Plan Check laskee yhdistelmän pituuden ja kokonaismassan ja tarkistaa, onko reitti sallittu yhdistelmälle. Raja-arvot ja sallitut reitit tarkistetaan lähteistä ennen vaihetta 5; demossa ne ovat asetuksia | Hyväksytty 17.11.2026 | Toni, chat |
 | D62 | **Lauttayhteydet demossa (todenmukaiset reitit, keksityt varustamot):** reitit, satamat ja vuorovälit julkisten tietojen pohjalta, varustamot Demo-nimin (sääntö 5 pysyy). Jokainen yhteys molempiin suuntiin omina reitteinään ja vuoroinaan; kiertävien linjojen paluu voi kulkea eri satamien kautta. Yhteydet: Vuosaari–Travemünde päivittäin (saattaen ja saattamatta), Vuosaari–Tallinna päivittäin (varmistetaan ennen toteutusta), Kotka–Lübeck ja Kotka–Hanko–Antwerpen (saattamaton), Kotka–Antwerpen viikoittain, Hanko–Gdynia 6/vko, Hanko–Rostock 4/vko, Oulu–Travemünde–Antwerpen viikoittain, Naantali–Långnäs–Kapellskär 2/pv. Uudet demosatamat Naantali, Långnäs (Ahvenanmaa, veroraja) ja Kapellskär; Norjaan Ruotsin kautta | Hyväksytty 18.11.2026 | Toni, chat |
-| D63 | **Juna v1:ssä (muuttaa D60:n rajausta):** kulkumuoto RAIL ROAD- ja FERRY-legien rinnalle. Juna toimii kuten saattamaton lautta: kuormatila kulkee ilman vetäjää ja Jobia. Junaterminaalit paikkoina, rautatieoperaattori keksitty (Demo Rail). Ensimmäinen yhteys Rostock ja Travemünde ↔ Demo Rail Terminal Verona molempiin suuntiin. Plan Check tarkistaa kuormatilan junakelpoisuuden | Hyväksytty 18.11.2026 | Toni, chat |
+| D63 | **Juna v1:ssä (muuttaa D60:n rajausta):** kulkumuoto RAIL ROAD- ja FERRY-legien rinnalle. Juna toimii kuten saattamaton lautta: kuormatila kulkee ilman vetäjää ja Jobia. Junaterminaalit paikkoina, rautatieoperaattori keksitty (Demo Rail). Ensimmäinen yhteys Rostock ja Travemünde ↔ Demo Rail Terminal Verona (nimi tarkennettu 18.11.2026) molempiin suuntiin. Plan Check tarkistaa kuormatilan junakelpoisuuden | Hyväksytty 18.11.2026 | Toni, chat |
 | D64 | **Reititysehdotus kohdemaan mukaan (asetustaulukko):** Italia → Rostock ja juna Veronaan; Belgia, Ranska, Espanja, Alankomaat → Antwerpen; Saksa, Itävalta, Sveitsi → Travemünde tai Lübeck; Puola → Gdynia; Baltia → Tallinna; Norja → Kapellskär ja maantie Svinesundin kautta. Järjestelmä ehdottaa orderin luonnissa, liikenteenohjaaja päättää (sääntö 8). V1 maatasolla; tarkempi alue (esim. postinumero) myöhemmin, tarkempi sääntö voittaa. Yleinen alan reitityslogiikka | Hyväksytty 18.11.2026 | Toni, chat |
 | D65 | **Vaiheen 4 pääskenaario Jyväskylä–Vantaa–Lübeck, alku edellisen kuorman purusta:** sama vetäjä ja traileri ovat purkaneet edellisen tripin Jyväskylän seudulla; uusi trippi alkaa purkupaikalta tyhjänä siirtona (EMPTY_TRAILER, D17) lastaukseen Jyväskylässä → Demo Terminal Central (Vantaa) → Vuosaari → lautta → purku Lübeckissä. Näyttää tripien ketjuuntumisen samalle kalustolle ja kuljettajan ajoajan yli tripien. Lisäskenaariot myöhemmin: tyhjä traileri poolista terminaalista ja drop-and-hook (SOLO) | Hyväksytty 18.11.2026 | Toni, chat |
 | D66 | **Terminaalin kylmätila v1:ssä yhtenä lämpötila-alueena:** Plan Check tarkistaa, onko terminaalissa kylmätila ja osuuko orderin lämpötila alueelle; muuten varoitus. Erilliset vyöhykkeet (pakaste, kylmä, GDP +15…+25 °C, GDP-kartoitus) myöhemmin omana tauluna | Hyväksytty 18.11.2026 | Toni, chat |
@@ -126,7 +126,7 @@ Ehdotusta ei merkitä hyväksytyksi ilman Tonin päätöstä. Korvattu päätös
 | R3 | Elinkaari ja laskutus | Trip-statusketju, Laskutettu lukitsee tripin | Trip jatkuu toimituksen jälkeen | **Ratkaistu: D50 (hyväksytty 16.11.2026).** Kolme tilaketjua: **Order** Avoin → Reititetty → Suunniteltu → Kuljetuksessa → Toimitettu → Laskutettu. **Trip** (Luonnos, D53) → Suunniteltu → Vahvistettu → Käynnissä → Kuormat toimitettu → Suljettu. **Job** Avoin → Osoitettu → Vahvistettu → Käynnissä → Valmis. Myynti laskutetaan orderilta. Laskutus lukitsee orderin, ei Tripiä. Korjaukset vastakirjauksina, kaikissa ketjuissa lisäksi päätetila Peruttu |
 | R4 | Jobin kuljettajarajaus | Ei Job-käsitettä | Yksi kuljettaja vai useampi? (FF #8) | **Ratkaistu: D18, D20, D21.** Job = yksi vetäjä ja kuljettaja. Vaihto Nodessa luo uuden Jobin, Trip jatkuu. Job ja Trip ovat N:M legien kautta. Ajo- ja työaika lasketaan kuljettajalle yli Jobien ja päivien |
 | R5 | Fyysinen Leg vs. Order Leg | Ei kumpaakaan | Molemmat käsitteinä, suhde avoin | **Ratkaistu: D13.** Yksi Leg-käsite: fyysinen siirtymä kahden Noden välillä (ajotyyppi SOLO / EMPTY_TRAILER / LOADED_TRAILER, kulkumuoto ROAD / FERRY). Job vapaaehtoinen (saattamaton traileri lautalla). Kilometrit ja ajoaika lasketaan vain legeistä |
-| R6 | Kuljettajat | Ei kuljettajia, vain vetäjät ja kuljetusyhtiöt | Kuljettaja on keskiössä | **Osin ratkaistu: toteutettu 2B-1:ssä** (kuljettajat ja heidän pätevyytensä). Uusi `drivers`-taulu: kuljetusyhtiö, kotipaikka (kotiinpaluu ja viikkolepo), työsuhde (oma / alihankkijan nimetty). Pätevyydet `qualifications`-tauluun |
+| R6 | Kuljettajat | Ei kuljettajia, vain vetäjät ja kuljetusyhtiöt | Kuljettaja on keskiössä | **Osin ratkaistu: toteutettu 2B-1:ssä** (kuljettajat ja heidän pätevyytensä). Uusi `drivers`-taulu: kuljetusyhtiö, kotipaikka (kotiinpaluu ja viikkolepo), työsuhde (oma / alihankkijan nimetty). Pätevyydet `driver_qualifications`- ja `equipment_qualifications`-tauluihin (D70) |
 | R7 | Gateway Instructions | Suunniteltu "Gateway Instruction List" | "Gateway Instructions PDF" | **Osin ratkaistu: vaiheen 6 dokumenttimoduuli.** Sama dokumentti, johdetaan legeistä. V1:ssä versionumero ja "muuttunut lähetyksen jälkeen" -varoitus |
 
 ### Avoimet kysymykset (selvitettävä ennen toteutusta)
@@ -440,7 +440,8 @@ Lähtökohta on uusi repo (D3). Vanhoja rakenteita ei siirretä yhteensopivasti.
 - [x] D4, D5, D10, D12 ja D28 hyväksytty 14.11.2026
 - [x] Nimi: FleetFreight TMS (D29)
 - [x] Repo `fleetfreight-tms` luotu
-- [x] FleetFlow ja Freight Planner jäädytetty 18.11.2026 (D7): FleetFlow'n PR #6 suljettu, README-linkit FleetFreight TMS:ään
+- [x] FleetFlow ja Freight Planner jäädytetty 18.11.2026 (D7): FleetFlow'n PR #6 suljettu
+- [ ] README-merkinnät ja linkit FleetFreight TMS:ään: fleetflow-planner PR #15 ja freight-planner PR #38 odottavat yhdistämistä
 - [ ] Freight Planner: KONTEKSTI-tiedostoon merkitään, mitä on oikeasti toteutettu (esim. perälaudan flow ja pitkien tavaroiden esto ovat vain dokumentoituja)
 
 ### Vaihe 1: runko
@@ -511,7 +512,7 @@ Tarkempi suunnitelma, alavaiheet ja valmis-kriteerit: `vaihe-2.md`.
 ### Vaihe 8: tuotantovalmius
 - [ ] Julkinen live-demo, joka nollautuu yöllä
 - [ ] Audit trail, lokitus, virheseuranta
-- [ ] Vanhat repot arkistoidaan, ja niiden README ohjaa uuteen
+- [ ] Vanhat repot jäädytetään ja jäävät GitHubiin portfolioon (D7), ja niiden README ohjaa uuteen
 
 **Jatkotehtävät (auditoinnista 18.11.2026, tehdään viimeistään tässä vaiheessa):**
 - [ ] Domain-validointien kutsu API:ssa: aukioloajat, aikavyöhyke, työsuhde ja kuljetusliike, ADR
