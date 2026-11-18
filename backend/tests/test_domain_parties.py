@@ -52,6 +52,7 @@ def test_allowed_values() -> None:
         "adr_tank",
         "adr_class1",
         "adr_class7",
+        "driving_licence_c",
         "driving_licence_ce",
         "professional_competence",
         "tachograph_card",

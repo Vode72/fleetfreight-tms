@@ -3,14 +3,25 @@
 Usage (from the backend directory):
     ENVIRONMENT=development uv run python -m scripts.seed_demo_data
 
-Contents: the own company, the terminal network (D31-D33), ports, demo customers with sites,
-carriers, drivers and driver qualifications. All names contain "Demo"; addresses, identifiers and
-coordinates (a general city centre) are invented or generic. No real companies or contact data.
+Contents: the own company, the terminal network (D31-D33), ports, customs offices, demo customers
+with sites, carriers, drivers and driver qualifications. All names contain "Demo"; addresses and
+identifiers are invented. Coordinates: terminals at the general city centre (D31), ports at a
+general point of the port area, customer sites and customs offices at invented points (customer
+sites in Finland lie 10-40 km from the nearest terminal, except the Jyvaskyla site, which is
+served from Tampere or Kuopio). No two places share coordinates except a port area and its
+quays. No real companies, addresses or contact data.
+
+Opening hours (local time): Central and Tampere terminals 24/7, other terminals Mon-Fri 05-23
+and Sat 06-14; customer sites vary. Ports have opening_hours NULL, which means "not checked"
+(Plan Check does not test port opening hours); NULL is also "unknown" for any other place.
 
 Idempotent: every row is identified by its natural key (customers, carriers, locations by name,
 drivers by carrier and name, qualifications by driver and type). Existing rows are left as they
-are (never overwritten, so manual edits survive); only missing rows are created. Qualification
-dates are relative to the day of the first run. Refuses to run unless ENVIRONMENT=development.
+are (never overwritten, so manual edits survive, and rows created by an older version of this
+script are not updated); only missing rows are created. Qualification and licence dates are
+relative to the day of the first run (one qualification is already expired, one is expiring soon,
+and one driver has no professional competence, for Plan Check scenarios).
+Refuses to run unless ENVIRONMENT=development.
 """
 
 import sys
@@ -35,8 +46,22 @@ from domain.parties import CarrierType, CustomerType, DriverEmployment, employme
 from domain.qualifications import DriverQualificationType as Q
 
 OWN_COMPANY = "Demo Freight Oy"
-_TERMINAL_HOURS = {day: [["06:00", "22:00"]] for day in ("mon", "tue", "wed", "thu", "fri")}
-_SITE_HOURS = {day: [["07:00", "16:00"]] for day in ("mon", "tue", "wed", "thu", "fri")}
+_Hours = dict[str, list[list[str]]]
+_ALL_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_WEEKDAYS = _ALL_DAYS[:5]
+
+
+def _hours(days: tuple[str, ...], opens: str, closes: str) -> _Hours:
+    return {day: [[opens, closes]] for day in days}
+
+
+HOURS_24_7 = _hours(_ALL_DAYS, "00:00", "24:00")
+HOURS_TERMINAL = {**_hours(_WEEKDAYS, "05:00", "23:00"), "sat": [["06:00", "14:00"]]}
+HOURS_DAIRY = _hours((*_WEEKDAYS, "sat"), "05:00", "15:00")
+HOURS_PHARMA = _hours(_WEEKDAYS, "08:00", "16:00")
+HOURS_OFFICE = _hours(_WEEKDAYS, "07:00", "17:00")
+HOURS_INDUSTRY = _hours(_WEEKDAYS, "06:00", "18:00")
+HOURS_SHOP = {**_hours(_WEEKDAYS, "09:00", "17:00"), "sat": [["10:00", "14:00"]]}
 
 
 @dataclass(frozen=True)
@@ -53,9 +78,12 @@ class _Place:
     temp_min: str | None = None
     temp_max: str | None = None
     plugs: int | None = None
-    hours: dict[str, list[list[str]]] | None = None
+    hours: _Hours | None = None
     booking_required: bool = False
     parent: str | None = None
+    side_loading: bool = False
+    max_vehicle_length_m: str | None = None
+    has_loading_dock: bool | None = None
 
 
 def _terminal(
@@ -73,108 +101,193 @@ def _terminal(
         temp_min="-25.0" if cold else None,
         temp_max="8.0" if cold else None,
         plugs=plugs if cold else None,
-        hours=_TERMINAL_HOURS,
+        # Central and Tampere run around the clock (they handle thermo cross docking, D33).
+        hours=HOURS_24_7 if city in ("Central", "Tampere") else HOURS_TERMINAL,
     )
 
 
-def _port(city: str, country: str, lat: str, lon: str, tz: str) -> _Place:
+def _port(
+    name: str, country: str, lat: str, lon: str, tz: str, parent: str | None = None
+) -> _Place:
+    # opening_hours stays NULL: port opening hours are not checked.
+    return _Place(f"Demo Port {name}", LocationType.PORT, country, lat, lon, tz, parent=parent)
+
+
+def _site(
+    name: str,
+    customer: str,
+    country: str,
+    lat: str,
+    lon: str,
+    hours: _Hours,
+    *,
+    tz: str = "Europe/Helsinki",
+    booking: bool = False,
+    side: bool = False,
+    max_length: str | None = None,
+    dock: bool | None = True,
+) -> _Place:
     return _Place(
-        name=f"Demo Port {city}",
-        type=LocationType.PORT,
-        country=country,
-        latitude=lat,
-        longitude=lon,
-        timezone=tz,
+        name,
+        LocationType.CUSTOMER_SITE,
+        country,
+        lat,
+        lon,
+        tz,
+        customer=customer,
+        hours=hours,
+        booking_required=booking,
+        side_loading=side,
+        max_vehicle_length_m=max_length,
+        has_loading_dock=dock,
     )
 
 
+def _customs(name: str, country: str, lat: str, lon: str, tz: str, hours: _Hours) -> _Place:
+    return _Place(name, LocationType.CUSTOMS_OFFICE, country, lat, lon, tz, hours=hours)
+
+
+_LUBECK = "Demo Port Lübeck"
 # Terminal network (D31): all have loading docks (D32); cold storage and reefer plugs only in
-# Central, Tampere and Oulu (D33). Coordinates: general city centre.
+# Central, Tampere and Oulu (D33). Terminals sit at the general city centre.
 PLACES: tuple[_Place, ...] = (
     _terminal("Central", "60.169900", "24.938400", 12, cold=True, plugs=6),
     _terminal("Turku", "60.451800", "22.266600", 6),
     _terminal("Tampere", "61.497800", "23.761000", 8, cold=True, plugs=4),
     _terminal("Kuopio", "62.892400", "27.677000", 5),
     _terminal("Oulu", "65.012100", "25.465100", 6, cold=True, plugs=4),
-    _port("Kotka", "FI", "60.466400", "26.945800", "Europe/Helsinki"),
-    _port("Vuosaari", "FI", "60.169900", "24.938400", "Europe/Helsinki"),
-    _port("Hanko", "FI", "59.823100", "22.950000", "Europe/Helsinki"),
-    _port("Oulu", "FI", "65.012100", "25.465100", "Europe/Helsinki"),
-    _port("Travemünde", "DE", "53.961700", "10.870000", "Europe/Berlin"),
-    _port("Lübeck", "DE", "53.865500", "10.686600", "Europe/Berlin"),
-    _Place(
-        "Demo Port Lübeck \u2013 Lehmannkai",
-        LocationType.PORT,
-        "DE",
-        "53.870000",
-        "10.690000",
-        "Europe/Berlin",
-        parent="Demo Port Lübeck",
+    # Ports: a general point of the port area.
+    _port("Kotka", "FI", "60.440000", "26.960000", "Europe/Helsinki"),
+    _port("Vuosaari", "FI", "60.210000", "25.140000", "Europe/Helsinki"),
+    _port("Hanko", "FI", "59.820000", "22.970000", "Europe/Helsinki"),
+    _port("Oulu", "FI", "65.000000", "25.390000", "Europe/Helsinki"),
+    _port("Travemünde", "DE", "53.950000", "10.870000", "Europe/Berlin"),
+    _port("Lübeck", "DE", "53.865000", "10.685000", "Europe/Berlin"),
+    _port("Lübeck \u2013 Lehmannkai", "DE", "53.880000", "10.700000", "Europe/Berlin", _LUBECK),
+    _port("Lübeck \u2013 Seelandkai", "DE", "53.900000", "10.730000", "Europe/Berlin", _LUBECK),
+    _port("Rostock", "DE", "54.150000", "12.100000", "Europe/Berlin"),
+    _port("Gdynia", "PL", "54.530000", "18.550000", "Europe/Warsaw"),
+    _port("Tallinn", "EE", "59.450000", "24.770000", "Europe/Tallinn"),
+    _port("Antwerpen", "BE", "51.270000", "4.350000", "Europe/Brussels"),
+    # Customs offices (D48): invented points; opening hours matter for Plan Check.
+    _customs(
+        "Demo Customs Office Central",
+        "FI",
+        "60.240000",
+        "25.050000",
+        "Europe/Helsinki",
+        HOURS_OFFICE,
     ),
-    _Place(
-        "Demo Port Lübeck \u2013 Seelandkai",
-        LocationType.PORT,
-        "DE",
-        "53.875000",
-        "10.700000",
-        "Europe/Berlin",
-        parent="Demo Port Lübeck",
+    _customs(
+        "Demo Customs Office Svinesund",  # border crossing, Norwegian side
+        "NO",
+        "59.100000",
+        "11.250000",
+        "Europe/Oslo",
+        _hours(_WEEKDAYS, "06:00", "22:00"),
     ),
-    _port("Rostock", "DE", "54.092400", "12.099100", "Europe/Berlin"),
-    _port("Gdynia", "PL", "54.518900", "18.530500", "Europe/Warsaw"),
-    _port("Tallinn", "EE", "59.437000", "24.753600", "Europe/Tallinn"),
-    _port("Antwerpen", "BE", "51.219400", "4.402500", "Europe/Brussels"),
-    _Place(
+    _customs(
+        "Demo Customs Office Oslo",
+        "NO",
+        "59.910000",
+        "10.750000",
+        "Europe/Oslo",
+        _hours(_WEEKDAYS, "08:00", "15:30"),
+    ),
+    # Customer sites: invented points 10-40 km from the nearest terminal (Jyvaskyla excepted).
+    _site(
         "Demo Paper Mill Site",
-        LocationType.CUSTOMER_SITE,
+        "Demo Paper Oy",
         "FI",
-        "62.892400",
-        "27.677000",
-        "Europe/Helsinki",
-        customer="Demo Paper Oy",
-        hours=_SITE_HOURS,
-        booking_required=True,
+        "62.750000",
+        "27.450000",
+        HOURS_24_7,
+        booking=True,
+        side=True,
     ),
-    _Place(
-        "Demo Dairy Plant Site",
-        LocationType.CUSTOMER_SITE,
+    _site(
+        "Demo Paper Oy \u2013 Jyväskylä Site",
+        "Demo Paper Oy",
         "FI",
-        "61.497800",
-        "23.761000",
-        "Europe/Helsinki",
-        customer="Demo Meijeri Oy",
-        hours=_SITE_HOURS,
-    ),
-    _Place(
+        "62.260000",
+        "25.820000",
+        HOURS_OFFICE,
+        side=True,
+    ),  # served from Tampere or Kuopio (D31)
+    _site("Demo Dairy Plant Site", "Demo Meijeri Oy", "FI", "61.620000", "23.950000", HOURS_DAIRY),
+    _site(
         "Demo Pharma Warehouse Site",
-        LocationType.CUSTOMER_SITE,
+        "Demo Pharma Oy",
         "FI",
-        "60.451800",
-        "22.266600",
-        "Europe/Helsinki",
-        customer="Demo Pharma Oy",
-        hours=_SITE_HOURS,
-        booking_required=True,
-    ),
-    _Place(
+        "60.560000",
+        "22.400000",
+        HOURS_PHARMA,
+        booking=True,
+        max_length="12.00",
+    ),  # city warehouse, short vehicles only
+    _site(
         "Demo Papier Lager Site",
-        LocationType.CUSTOMER_SITE,
+        "Demo Papier GmbH",
         "DE",
-        "53.551100",
-        "9.993700",
-        "Europe/Berlin",
-        customer="Demo Papier GmbH",
-        hours=_SITE_HOURS,
+        "53.500000",
+        "10.100000",
+        HOURS_OFFICE,
+        tz="Europe/Berlin",
     ),
-    _Place(
+    _site(
         "Demo Timber Yard Site",
-        LocationType.CUSTOMER_SITE,
+        "Demo Puutavara Oy",
         "FI",
-        "65.012100",
-        "25.465100",
-        "Europe/Helsinki",
-        customer="Demo Puutavara Oy",
-        hours=_SITE_HOURS,
+        "64.900000",
+        "25.600000",
+        HOURS_INDUSTRY,
+        side=True,
+    ),
+    # ADR consignor near Tampere.
+    _site("Demo Kemia Plant Site", "Demo Kemia Oy", "FI", "61.380000", "23.600000", HOURS_INDUSTRY),
+    # Norway (customs scenarios).
+    _site(
+        "Demo Norge Lager Site",
+        "Demo Norge AS",
+        "NO",
+        "59.950000",
+        "10.800000",
+        HOURS_OFFICE,
+        tz="Europe/Oslo",
+    ),
+    # Small LTL sites (Kuopio, Turku and Oulu areas); the Kuopio shop has no loading dock.
+    _site(
+        "Demo Kauppa Oy \u2013 Kuopio Shop Site",
+        "Demo Kauppa Oy",
+        "FI",
+        "62.800000",
+        "27.850000",
+        HOURS_SHOP,
+        dock=False,
+    ),
+    _site(
+        "Demo Kauppa Oy \u2013 Turku Shop Site",
+        "Demo Kauppa Oy",
+        "FI",
+        "60.520000",
+        "22.050000",
+        HOURS_SHOP,
+    ),
+    _site(
+        "Demo Konepaja Oy \u2013 Kuopio Workshop Site",
+        "Demo Konepaja Oy",
+        "FI",
+        "62.980000",
+        "27.500000",
+        HOURS_INDUSTRY,
+    ),
+    _site(
+        "Demo Konepaja Oy \u2013 Oulu Workshop Site",
+        "Demo Konepaja Oy",
+        "FI",
+        "65.100000",
+        "25.650000",
+        HOURS_INDUSTRY,
     ),
 )
 
@@ -186,6 +299,10 @@ CUSTOMERS: tuple[tuple[str, CustomerType, str, str | None, bool], ...] = (
     ("Demo Pharma Oy", CustomerType.CUSTOMER, "FI", "DEMO-FI-0103", False),
     ("Demo Papier GmbH", CustomerType.CUSTOMER, "DE", "DEMO-DE-0201", False),
     ("Demo Puutavara Oy", CustomerType.CUSTOMER, "FI", "DEMO-FI-0104", False),
+    ("Demo Kemia Oy", CustomerType.CUSTOMER, "FI", "DEMO-FI-0105", False),  # ADR consignor
+    ("Demo Kauppa Oy", CustomerType.CUSTOMER, "FI", "DEMO-FI-0106", False),  # small LTL sites
+    ("Demo Konepaja Oy", CustomerType.CUSTOMER, "FI", "DEMO-FI-0107", False),
+    ("Demo Norge AS", CustomerType.CUSTOMER, "NO", "DEMO-NO-0401", False),
 )
 
 # name, type, country, business_id, licence years valid, insurance years valid
@@ -227,7 +344,14 @@ DRIVERS: tuple[tuple[str, str, str | None, DriverEmployment, tuple[tuple[Q, int]
         DriverEmployment.OWN,
         (*_BASE, (Q.ADR_BASIC, 900), (Q.ADR_CLASS7, 900)),
     ),
-    ("Demo Trans GmbH", "Demo Driver Becker", None, DriverEmployment.SUBCONTRACTOR_NAMED, _BASE),
+    (
+        "Demo Trans GmbH",
+        "Demo Driver Becker",
+        None,
+        DriverEmployment.SUBCONTRACTOR_NAMED,
+        # tachograph card already expired (negative days: the first-run day minus 15)
+        (_BASE[0], _BASE[1], (Q.TACHOGRAPH_CARD, -15)),
+    ),
     (
         "Demo Trans GmbH",
         "Demo Driver Vogel",
@@ -235,7 +359,13 @@ DRIVERS: tuple[tuple[str, str, str | None, DriverEmployment, tuple[tuple[Q, int]
         DriverEmployment.SUBCONTRACTOR_NAMED,
         (*_BASE, (Q.ADR_BASIC, 500)),
     ),
-    ("Demo Kuljetus Oy", "Demo Driver Salo", None, DriverEmployment.SUBCONTRACTOR_NAMED, _BASE),
+    (
+        "Demo Kuljetus Oy",
+        "Demo Driver Salo",
+        None,
+        DriverEmployment.SUBCONTRACTOR_NAMED,
+        (_BASE[0], _BASE[2]),  # no professional competence
+    ),
 )
 
 
@@ -295,6 +425,11 @@ def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
                 timezone=place.timezone,
                 opening_hours=validate_opening_hours(place.hours) if place.hours else None,
                 booking_required=place.booking_required,
+                side_loading_possible=place.side_loading,
+                max_vehicle_length_m=(
+                    Decimal(place.max_vehicle_length_m) if place.max_vehicle_length_m else None
+                ),
+                has_loading_dock=place.has_loading_dock,
                 loading_docks=place.docks,
                 cold_storage=place.cold,
                 temperature_min=temp_min,
@@ -310,6 +445,8 @@ def seed_demo_data(session: Session, today: date | None = None) -> Counter[str]:
     carriers: dict[str, Carrier] = {}
     for name, carrier_type, country, business_id, licence_years, insurance_years in CARRIERS:
         carrier_row = session.scalar(select(Carrier).where(Carrier.name == name))
+        if carrier_row is None and carrier_type is CarrierType.OWN:
+            carrier_row = session.scalar(select(Carrier).where(Carrier.type == carrier_type.value))
         if carrier_row is None:
             carrier_row = Carrier(
                 name=name,

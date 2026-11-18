@@ -7,7 +7,8 @@ Create Date: 2026-11-18
 Phase 2B-1 (data model v1, base registers). Allowed values are VARCHAR + CHECK (same approach as
 users.role); the lists must match the domain modules (tests/test_domain_*.py compare them).
 Opening hours are JSONB (weekly intervals, validated in domain.locations). Validity dates are
-DATE. The unique partial index uq_customers_one_own_company allows exactly one own company.
+DATE. The unique partial indexes uq_customers_one_own_company and uq_carriers_one_own allow at most one
+own company and one own carrier.
 """
 
 from typing import Any
@@ -91,6 +92,7 @@ def upgrade() -> None:
         sa.Column("temperature_min", sa.Numeric(4, 1), nullable=True),
         sa.Column("temperature_max", sa.Numeric(4, 1), nullable=True),
         sa.Column("reefer_plug_count", sa.Integer(), nullable=True),
+        sa.Column("has_loading_dock", sa.Boolean(), nullable=True),
         *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["customer_id"], ["customers.id"], name="fk_locations_customer_id"),
@@ -123,6 +125,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "parent_location_id IS NULL OR parent_location_id <> id",
             name="ck_locations_parent_not_self",
+        ),
+        sa.CheckConstraint(
+            "type = 'customer_site' OR has_loading_dock IS NULL",
+            name="ck_locations_loading_dock_customer_site_only",
         ),
         sa.CheckConstraint(
             "opening_hours IS NULL OR jsonb_typeof(opening_hours) = 'object'",
@@ -160,6 +166,13 @@ def upgrade() -> None:
         sa.CheckConstraint("type IN ('own', 'subcontractor')", name="ck_carriers_type"),
         sa.CheckConstraint("country ~ '^[A-Z]{2}$'", name="ck_carriers_country"),
         sa.CheckConstraint("btrim(name) <> ''", name="ck_carriers_name_not_blank"),
+    )
+    op.create_index(
+        "uq_carriers_one_own",
+        "carriers",
+        ["type"],
+        unique=True,
+        postgresql_where=sa.text("type = 'own'"),
     )
 
     op.create_table(
@@ -201,7 +214,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("driver_id", "type", name="uq_driver_qualifications_driver_id_type"),
         sa.CheckConstraint(
             "type IN ('adr_basic', 'adr_class1', 'adr_class7', 'adr_tank', "
-            "'driving_licence_ce', 'gdp', 'professional_competence', 'tachograph_card')",
+            "'driving_licence_c', 'driving_licence_ce', 'gdp', 'professional_competence', 'tachograph_card')",
             name="ck_driver_qualifications_type",
         ),
     )
@@ -211,6 +224,7 @@ def downgrade() -> None:
     op.drop_table("driver_qualifications")
     op.drop_index("ix_drivers_home_location_id", table_name="drivers")
     op.drop_table("drivers")
+    op.drop_index("uq_carriers_one_own", table_name="carriers")
     op.drop_table("carriers")
     op.drop_index("ix_locations_parent_location_id", table_name="locations")
     op.drop_index("ix_locations_customer_id", table_name="locations")

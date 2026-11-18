@@ -123,6 +123,29 @@ def test_customer_site_requires_customer(test_engine: Engine) -> None:
     _rejected(_location, test_engine, type="customer_site")
 
 
+def test_loading_dock_flag_is_for_customer_sites_only(test_engine: Engine) -> None:
+    customer = _customer(test_engine)
+    for flag in (True, False):
+        _location(
+            test_engine,
+            f"Demo Site {flag}",
+            type="customer_site",
+            customer_id=customer,
+            has_loading_dock=flag,
+        )
+    _location(test_engine, "Demo Site Unknown", type="customer_site", customer_id=customer)
+    _rejected(_location, test_engine, "Demo Depot", type="depot", has_loading_dock=True)
+    _rejected(
+        _location,
+        test_engine,
+        "Demo Terminal",
+        type="terminal",
+        loading_docks=2,
+        cold_storage=False,
+        has_loading_dock=True,
+    )
+
+
 def test_location_customer_fk(test_engine: Engine) -> None:
     _rejected(_location, test_engine, type="customer_site", customer_id=uuid.uuid4())
 
@@ -226,6 +249,13 @@ def test_carrier_type_accepts_domain_values(test_engine: Engine, value: str) -> 
     _carrier(test_engine, type=value)
 
 
+def test_only_one_own_carrier(test_engine: Engine) -> None:
+    _carrier(test_engine, "Demo Own Carrier Oy", type="own")
+    _rejected(_carrier, test_engine, "Demo Own Carrier 2 Oy", type="own")
+    _carrier(test_engine, "Demo Sub 1 Oy", type="subcontractor")
+    _carrier(test_engine, "Demo Sub 2 Oy", type="subcontractor")
+
+
 def test_carrier_constraints(test_engine: Engine) -> None:
     _carrier(test_engine, transport_licence_valid_until="2028-01-31")
     _rejected(_carrier, test_engine, "Demo X", type="broker")
@@ -249,7 +279,7 @@ def test_driver_constraints(test_engine: Engine) -> None:
     _rejected(_driver, test_engine, uuid.uuid4(), "Demo Driver C")  # carrier FK
     _rejected(_driver, test_engine, carrier, "Demo Driver D", home_location_id=uuid.uuid4())
     _rejected(_driver, test_engine, carrier, " ")
-    other = _carrier(test_engine, "Demo Other Oy")
+    other = _carrier(test_engine, "Demo Other Oy", type="subcontractor")
     _driver(test_engine, other)  # same name is fine at another carrier
 
 

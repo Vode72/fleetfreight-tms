@@ -190,6 +190,10 @@ class Location(Base):
             "parent_location_id IS NULL OR parent_location_id <> id",
             name="ck_locations_parent_not_self",
         ),
+        CheckConstraint(
+            "type = 'customer_site' OR has_loading_dock IS NULL",
+            name="ck_locations_loading_dock_customer_site_only",
+        ),
         Index("ix_locations_type", "type"),
         Index("ix_locations_parent_location_id", "parent_location_id"),
         Index("ix_locations_customer_id", "customer_id"),
@@ -223,6 +227,8 @@ class Location(Base):
     temperature_min: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
     temperature_max: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
     reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
+    # Customer sites only: does the site have a loading dock? NULL = unknown.
+    has_loading_dock: Mapped[bool | None] = mapped_column(Boolean)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -234,6 +240,13 @@ class Carrier(Base):
         CheckConstraint(in_list("type", CarrierType), name="ck_carriers_type"),
         CheckConstraint(_COUNTRY_CHECK, name="ck_carriers_country"),
         CheckConstraint("btrim(name) <> ''", name="ck_carriers_name_not_blank"),
+        # At most one own carrier, like the own company in customers.
+        Index(
+            "uq_carriers_one_own",
+            "type",
+            unique=True,
+            postgresql_where=text("type = 'own'"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
