@@ -139,3 +139,14 @@ def add_user(test_engine: Engine) -> Callable[..., User]:
             return user
 
     return add
+
+
+REGISTER_TABLES = "driver_qualifications, drivers, carriers, locations, customers"
+
+
+@pytest.fixture
+def clean_registers(test_engine: Engine) -> Iterator[None]:
+    """Empty the 2B-1 register tables before the test (the shared test database is reused)."""
+    with test_engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE {REGISTER_TABLES} CASCADE"))
+    yield

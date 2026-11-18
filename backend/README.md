@@ -71,6 +71,21 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
 - Demo users (not in migrations; development only):
   `DEMO_PASSWORD=... ENVIRONMENT=development uv run python -m scripts.seed_demo_users`.
   Settings are listed in `.env.example`.
+- Demo master data (fictional; not in migrations; development only; idempotent, existing rows are
+  never overwritten): own company, 5 terminals, 15 ports (incl. two Lübeck quays under their port
+  area), 3 rail terminals, 3 customs offices, customers with sites, carriers, drivers and qualifications (validity days are counted from the
+  first seed run, so one qualification is already expired and one is soon expiring). Run after `alembic upgrade head`:
+  `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
+  (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
+
+- Driver qualifications are validity periods (history is kept; overlapping periods of one driver
+  and type are rejected by the database). `GDP_TRAINING_DEFAULT_VALIDITY_MONTHS` (default 12)
+  sets the default length of a GDP training record, used to suggest `valid_until` (domain and
+  seed). It is the company's practice, not a regulation. The migration creates the `btree_gist`
+  extension (needed for the exclusion constraint); the downgrade leaves it in place.
+- Locations carry `postal_code` and `city` (optional). Finnish postal codes are checked as five
+  digits; other countries take free text. Seed data uses real codes of the general city-centre
+  area only and leaves the code empty where it is not certain.
 
 ## Tests and quality checks
 

@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D61).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D69).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -27,6 +27,7 @@ cp .env.example .env                 # vain kehitysarvot, ei salasanoja repoon
 docker compose up --build            # override-tiedosto tuo kehitysasetukset automaattisesti
 curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
 docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät; vain kehityskäynnistyksellä (override), DEMO_PASSWORD .env:stä
+docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, asiakkaat, kuljettajat); vain kehityskäynnistyksellä, idempotentti
 cd frontend && npm ci && npm run dev
 ```
 

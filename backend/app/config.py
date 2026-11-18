@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     login_max_failures: int = Field(default=5, ge=1)
     login_window_minutes: int = Field(default=15, ge=1)
 
+    # Default validity of a GDP training record, used to suggest valid_until (D69). A company
+    # practice, not a regulation: the planner can always set another end date.
+    gdp_training_default_validity_months: int = Field(default=12, ge=1, le=120)
+
     # Secret for the HMAC that pseudonymises e-mail addresses in logs. Empty: random per process.
     log_hmac_key: str = ""
     # Comma-separated reverse proxy addresses whose X-Forwarded-For is trusted. The container
