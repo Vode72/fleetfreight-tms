@@ -414,6 +414,13 @@ def test_compartment_pallet_places() -> None:
         validate_compartment_pallet_places(32, [12, 21])
     with pytest.raises(ValueError, match="negative"):
         validate_compartment_pallet_places(32, [-1])
+    # FD: the partition position is chosen for the load, not fixed in the register (D76)
+    validate_compartment_pallet_places(32, [None, None], ModelCode.FD)
+    validate_compartment_pallet_places(32, [12, 20], ModelCode.FS)
+    with pytest.raises(ValueError, match="FD compartments"):
+        validate_compartment_pallet_places(32, [16, 16], ModelCode.FD)
+    with pytest.raises(ValueError, match="FD compartments"):
+        validate_compartment_pallet_places(32, [4, None], ModelCode.FD)
 
 
 LOAD = {"kind": "load_unit"}

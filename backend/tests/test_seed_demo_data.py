@@ -703,8 +703,8 @@ def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engin
             )
         ).all()
         assert [(o.number, o.pallet_places, o.position) for o in other] == [
-            (1, 16, "front"),
-            (2, 16, "rear"),
+            (1, None, "front"),
+            (2, None, "rear"),
         ]
         # no compartments or reefer units on any other body type
         for table in ("compartments", "reefer_units"):
@@ -750,9 +750,9 @@ def test_model_codes_of_the_demo_fleet(test_engine: Engine) -> None:
 
 
 @pytest.mark.parametrize("registration", ["DEMO-TRL-007", "DEMO-TRL-012"])
-def test_partition_of_each_fd_is_an_allowed_position(
-    test_engine: Engine, registration: str
-) -> None:
+def test_fd_partition_moves_one_eur_row_at_a_time(test_engine: Engine, registration: str) -> None:
+    """D76: the FD has no fixed compartment places; the partition position is chosen for the
+    load, from 4 + 28 to 28 + 4 EUR pallets in steps of one row."""
     from domain.equipment import PartitionSpec, partition_positions
 
     _run(test_engine)
@@ -763,9 +763,7 @@ def test_partition_of_each_fd_is_an_allowed_position(
         places = [
             r[0]
             for r in conn.execute(
-                text(
-                    "SELECT pallet_places FROM compartments WHERE load_unit_id = :i ORDER BY number"
-                ),
+                text("SELECT pallet_places FROM compartments WHERE load_unit_id = :i"),
                 {"i": unit.id},
             )
         ]
@@ -774,6 +772,7 @@ def test_partition_of_each_fd_is_an_allowed_position(
         ).all()
     # only FD has a partition, and every FD has one (D76)
     assert [r.registration for r in with_partition] == ["DEMO-TRL-007", "DEMO-TRL-012"]
+    assert places == [None, None]
     spec = PartitionSpec(
         unit.internal_length_m,
         partition=unit.partition,
@@ -783,7 +782,9 @@ def test_partition_of_each_fd_is_an_allowed_position(
         min_pallets_rear=unit.min_pallets_rear,
     )
     positions = partition_positions(spec, unit.pallet_places)
-    assert (places[0], places[1]) in {(p.front_pallets, p.rear_pallets) for p in positions}
+    assert [(p.front_pallets, p.rear_pallets) for p in positions] == [
+        (front, 32 - front) for front in range(4, 29, 2)
+    ]
 
 
 def test_reefer_service_periods(test_engine: Engine) -> None:
@@ -986,8 +987,9 @@ def test_thermo_trailer_rear_unit_is_a_hybrid_for_port_electricity(test_engine: 
             text("SELECT pallet_places FROM load_units WHERE registration = 'DEMO-TRL-007'")
         ).scalar()
     assert [tuple(u) for u in units] == [("front", "diesel"), ("rear", "hybrid")]
-    assert [tuple(c) for c in comps] == [(1, 12), (2, 20)]
-    assert sum(c.pallet_places for c in comps) <= total
+    # no fixed places: the partition position is chosen for the load (D76)
+    assert [tuple(c) for c in comps] == [(1, None), (2, None)]
+    assert total == 32
 
 
 def test_combination_truck_and_full_trailer_scenario(test_engine: Engine) -> None:

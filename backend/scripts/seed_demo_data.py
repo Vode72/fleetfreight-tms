@@ -782,7 +782,7 @@ LOAD_UNITS: tuple[_LoadUnitSpec, ...] = (
         max_gross_weight_kg=18000,
         axles=2,
     ),
-    # Thermo Double, two diesel units, the partition in the middle (16 + 16 places).
+    # Thermo Double, two diesel units; the partition position is chosen for the load (D76).
     _semi(
         "DEMO-TRL-012",
         BodyType.REEFER,
@@ -850,19 +850,18 @@ LOAD_UNITS: tuple[_LoadUnitSpec, ...] = (
 
 # registration -> compartments: (number, temperature_min, temperature_max, pallet_places,
 # independently_controlled, position of the serving reefer unit or None). The temperatures are the
-# range each compartment can hold. With a partition the places follow an allowed partition
-# position (partition_positions).
+# range each compartment can hold.
 _Comp = tuple[int, str, str, int | None, bool, ReeferPosition | None]
 COMPARTMENTS: dict[str, tuple[_Comp, ...]] = {
-    # FD with two zones behind a partition (12 + 20 places), one machine each
+    # FD: two zones, one machine each. No pallet places: the partition moves one EUR row at a
+    # time (4 + 28 ... 28 + 4) and its position is chosen for the load (D76).
     "DEMO-TRL-007": (
-        (1, "-25.0", "-18.0", 12, True, ReeferPosition.FRONT),
-        (2, "2.0", "8.0", 20, True, ReeferPosition.REAR),
+        (1, "-25.0", "-18.0", None, True, ReeferPosition.FRONT),
+        (2, "2.0", "8.0", None, True, ReeferPosition.REAR),
     ),
-    # FD, both zones with the full range, partition in the middle (16 + 16 places)
     "DEMO-TRL-012": (
-        (1, "-25.0", "8.0", 16, True, ReeferPosition.FRONT),
-        (2, "-25.0", "8.0", 16, True, ReeferPosition.REAR),
+        (1, "-25.0", "8.0", None, True, ReeferPosition.FRONT),
+        (2, "-25.0", "8.0", None, True, ReeferPosition.REAR),
     ),
     "DEMO-TRL-013": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
     "DEMO-BOD-002": ((1, "-25.0", "8.0", None, False, ReeferPosition.FRONT),),
@@ -1099,7 +1098,9 @@ def _seed_fleet(
     for registration, rows in COMPARTMENTS.items():
         comp_unit = unit_specs[registration]
         validate_compartment_set(comp_unit.body_type, [row[0] for row in rows])
-        validate_compartment_pallet_places(comp_unit.pallet_places, [row[3] for row in rows])
+        validate_compartment_pallet_places(
+            comp_unit.pallet_places, [row[3] for row in rows], comp_unit.model_code
+        )
         validate_zones(len(rows), [row[4] for row in rows], comp_unit.model_code)
         for number, t_min, t_max, places, independent, serving in rows:
             validate_compartment(number, Decimal(t_min), Decimal(t_max))

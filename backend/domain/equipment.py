@@ -328,15 +328,24 @@ def validate_compartment(number: int, temperature_min: Decimal, temperature_max:
 
 
 def validate_compartment_pallet_places(
-    load_unit_pallet_places: int | None, places: Sequence[int | None]
+    load_unit_pallet_places: int | None,
+    places: Sequence[int | None],
+    model_code: ModelCode | None = None,
 ) -> None:
     """Pallet places are optional per compartment; their sum must fit the load unit's places.
 
-    With a movable partition the figures are nominal (the partition moves), so only the sum is
-    compared. Places per pallet type belong to pallet_types (2B-3), not here.
+    FD compartments have no places in the register (D76): the partition moves one pallet row at a
+    time, and its position (e.g. 4 + 28 or 16 + 16 EUR) is chosen for the load, not fixed to the
+    trailer; partition_positions gives the allowed positions. Places per pallet type belong to
+    pallet_types (2B-3), not here.
     """
     if any(p is not None and p < 0 for p in places):
         raise ValueError("pallet_places must not be negative")
+    if model_code is ModelCode.FD and any(p is not None for p in places):
+        raise ValueError(
+            "FD compartments have no fixed pallet places: the partition position is chosen"
+            " for the load"
+        )
     known = [p for p in places if p is not None]
     if load_unit_pallet_places is not None and sum(known) > load_unit_pallet_places:
         raise ValueError("compartment pallet places exceed the load unit's pallet places")
