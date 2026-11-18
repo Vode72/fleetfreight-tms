@@ -12,6 +12,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -28,10 +29,13 @@ from db.session import Base
 from domain.equipment import (
     LOAD_UNIT_ONLY_QUALIFICATIONS,
     BodyType,
+    CouplingType,
     EquipmentQualificationType,
     LoadUnitType,
+    ModelCode,
     Ownership,
     PowerSource,
+    ReeferPosition,
     TruckType,
 )
 from domain.locations import LocationType
@@ -389,7 +393,24 @@ class Truck(Base):
         CheckConstraint(in_list("type", TruckType), name="ck_trucks_type"),
         CheckConstraint("btrim(registration) <> ''", name="ck_trucks_registration_not_blank"),
         CheckConstraint(_VEHICLE_CHECKS, name="ck_trucks_dimensions"),
+        # The fifth wheel (and a low one) belong to tractors, the drawbar hitch to rigid trucks.
+        CheckConstraint(
+            "fifth_wheel_from_front_m IS NULL OR (type = 'tractor' AND fifth_wheel_from_front_m > 0"
+            " AND fifth_wheel_from_front_m <= length_m)",
+            name="ck_trucks_fifth_wheel",
+        ),
+        CheckConstraint(
+            "NOT low_fifth_wheel OR type = 'tractor'", name="ck_trucks_low_fifth_wheel_tractor"
+        ),
+        CheckConstraint(
+            "NOT drawbar_hitch OR type = 'rigid_truck'", name="ck_trucks_drawbar_hitch_rigid"
+        ),
+        CheckConstraint(
+            "max_combination_weight_kg IS NULL OR max_combination_weight_kg >= max_gross_weight_kg",
+            name="ck_trucks_max_combination_weight",
+        ),
         Index("ix_trucks_carrier_id", "carrier_id"),
+        Index("ix_trucks_home_location_id", "home_location_id"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -402,13 +423,29 @@ class Truck(Base):
     kerb_weight_kg: Mapped[int] = mapped_column(Integer)
     max_gross_weight_kg: Mapped[int] = mapped_column(Integer)
     axles: Mapped[int] = mapped_column(Integer)
+    # Distance from the front of the truck to the fifth wheel (tractors); used for combination
+    # length (a semi-trailer's front part lies over the tractor).
+    fifth_wheel_from_front_m: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    # Low fifth wheel: needed to pull a mega trailer (compatibility).
+    low_fifth_wheel: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # Rigid trucks: towing device for a dolly or a full / centre-axle trailer.
+    drawbar_hitch: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # The truck's own limit for a whole combination; NULL = not recorded.
+    max_combination_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    # Base location (where the truck normally starts and returns); NULL = none.
+    home_location_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("locations.id", "fk_trucks_home_location_id")
+    )
     archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
 
 class Dolly(Base):
-    """Converter dolly (D61): equipment without a load unit, coupled to a leg."""
+    """Converter dolly (D61): equipment without a load unit, coupled to a leg.
+
+    `length_m` runs from the drawbar eye to the dolly's fifth wheel (see domain.combinations).
+    """
 
     __tablename__ = "dollies"
     __table_args__ = (
@@ -447,6 +484,47 @@ class LoadUnit(Base):
         CheckConstraint(in_list("type", LoadUnitType), name="ck_load_units_type"),
         CheckConstraint(in_list("body_type", BodyType), name="ck_load_units_body_type"),
         CheckConstraint(in_list("ownership", Ownership), name="ck_load_units_ownership"),
+        CheckConstraint(in_list("coupling_type", CouplingType), name="ck_load_units_coupling_type"),
+        CheckConstraint(in_list("model_code", ModelCode), name="ck_load_units_model_code"),
+        # D75: the thermo codes FB, FD, FS go with reefer bodies and the others do not. The code
+        # does not decide any feature, except that FS (Thermo Side) has side doors.
+        CheckConstraint(
+            "model_code IS NULL OR ((model_code IN ('FB', 'FD', 'FS')) = (body_type = 'reefer'))",
+            name="ck_load_units_model_code_body",
+        ),
+        CheckConstraint(
+            "model_code IS DISTINCT FROM 'FS' OR side_doors", name="ck_load_units_fs_side_doors"
+        ),
+        # D76: partition values (only used when partition is true).
+        CheckConstraint(
+            "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"
+            " AND min_pallets_front >= 0 AND min_pallets_rear >= 0",
+            name="ck_load_units_partition_values",
+        ),
+        # A trailer has a coupling type; a fixed body has none (it is part of its truck).
+        CheckConstraint(
+            "(type = 'fixed_body') = (coupling_type IS NULL)", name="ck_load_units_coupling_link"
+        ),
+        # D25: a semi-trailer has no tail lift.
+        CheckConstraint(
+            "coupling_type IS DISTINCT FROM 'semi_trailer' OR NOT tail_lift",
+            name="ck_load_units_semi_trailer_no_tail_lift",
+        ),
+        # Kingpin position: semi-trailers only, inside the outer length.
+        CheckConstraint(
+            "kingpin_from_front_m IS NULL OR (coupling_type IS NOT DISTINCT FROM 'semi_trailer'"
+            " AND kingpin_from_front_m > 0 AND kingpin_from_front_m < external_length_m)",
+            name="ck_load_units_kingpin",
+        ),
+        CheckConstraint(
+            "(external_height_m IS NULL OR external_height_m > 0)"
+            " AND (external_width_m IS NULL OR external_width_m > 0)",
+            name="ck_load_units_external_size",
+        ),
+        # The body of a rigid truck is not lifted onto a train on its own (D63).
+        CheckConstraint(
+            "type <> 'fixed_body' OR NOT rail_craneable", name="ck_load_units_fixed_body_no_rail"
+        ),
         CheckConstraint("btrim(registration) <> ''", name="ck_load_units_registration_not_blank"),
         CheckConstraint(
             "(type = 'fixed_body') = (truck_id IS NOT NULL)", name="ck_load_units_truck_link"
@@ -497,11 +575,19 @@ class LoadUnit(Base):
     # Registration plate, or an invented identifier for a body that has no plate of its own.
     registration: Mapped[str] = mapped_column(String(30))
     body_type: Mapped[str] = mapped_column(String(20))
+    # D55: how a trailer is coupled; NULL for a fixed body.
+    coupling_type: Mapped[str | None] = mapped_column(String(20))
+    # D75: model code (FB, FD, FS, CS, MEGA, COIL; invented thermo codes). NULL = no code.
+    model_code: Mapped[str | None] = mapped_column(String(10))
     internal_length_m: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     internal_width_m: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     internal_height_m: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     door_height_m: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
     external_length_m: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    # Semi-trailers: distance from the front of the trailer to the kingpin.
+    kingpin_from_front_m: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    external_height_m: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    external_width_m: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
     ldm: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     pallet_places: Mapped[int | None] = mapped_column(Integer)
     kerb_weight_kg: Mapped[int | None] = mapped_column(Integer)
@@ -513,9 +599,20 @@ class LoadUnit(Base):
     tir_cable: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     top_loading: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     tail_lift: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # Side doors (side loading on a body that has no curtains, e.g. a thermo FS, D75).
+    side_doors: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # D76: partition (bulkhead) from the roof; values are per load unit and used when partition
+    # is true. Thickness in mm, step in pallet rows (1 row = 2 EUR pallets), minimum pallets per
+    # compartment (EUR pallets).
+    partition: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    partition_thickness_mm: Mapped[int] = mapped_column(Integer, server_default=text("50"))
+    partition_step_pallet_rows: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    min_pallets_front: Mapped[int] = mapped_column(Integer, server_default=text("4"))
+    min_pallets_rear: Mapped[int] = mapped_column(Integer, server_default=text("4"))
     # D63: physically suitable for rail (craneable); Plan Check tests it.
     rail_craneable: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
-    ownership: Mapped[str] = mapped_column(String(10), server_default=Ownership.OWN.value)
+    # Relative to the holder `carrier_id`; see domain.equipment.Ownership.
+    ownership: Mapped[str] = mapped_column(String(20), server_default=Ownership.OWN.value)
     # Dates, both ends inclusive. NULL end of a lease = open-ended.
     lease_valid_from: Mapped[date | None] = mapped_column(Date)
     lease_valid_until: Mapped[date | None] = mapped_column(Date)
@@ -524,14 +621,59 @@ class LoadUnit(Base):
     updated_at: Mapped[datetime] = _updated_at()
 
 
+class ReeferUnit(Base):
+    """Refrigeration unit of a reefer load unit (D47, D76): up to two per load unit, one in each
+    position. The limit of two follows from the unique (load_unit_id, position) and the two
+    positions; which body types may have one is checked in the domain."""
+
+    __tablename__ = "reefer_units"
+    __table_args__ = (
+        UniqueConstraint("load_unit_id", "position", name="uq_reefer_units_load_unit_id_position"),
+        # Target of the composite foreign key of compartments (a compartment's unit must belong
+        # to the same load unit).
+        UniqueConstraint("id", "load_unit_id", name="uq_reefer_units_id_load_unit_id"),
+        CheckConstraint(in_list("position", ReeferPosition), name="ck_reefer_units_position"),
+        CheckConstraint(in_list("power_source", PowerSource), name="ck_reefer_units_power_source"),
+        CheckConstraint("btrim(unit_name) <> ''", name="ck_reefer_units_unit_name_not_blank"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # The unique constraint above also serves lookups by load_unit_id.
+    load_unit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("load_units.id", "fk_reefer_units_load_unit_id")
+    )
+    position: Mapped[str] = mapped_column(String(10))
+    # Invented make and model in demo data.
+    unit_name: Mapped[str] = mapped_column(String(100))
+    power_source: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
 class Compartment(Base):
-    """Temperature compartment of a reefer load unit (D47)."""
+    """Temperature compartment (zone) of a reefer load unit (D47, D76).
+
+    Two reefer units do not mean two compartments: the zones and whether they are controlled
+    independently are defined per load unit. `reefer_unit_id` is the unit serving this compartment
+    (NULL = not recorded, or served by both).
+    """
 
     __tablename__ = "compartments"
     __table_args__ = (
         UniqueConstraint("load_unit_id", "number", name="uq_compartments_load_unit_id_number"),
+        # The serving unit must belong to the same load unit (MATCH SIMPLE: skipped when NULL).
+        ForeignKeyConstraint(
+            ["reefer_unit_id", "load_unit_id"],
+            ["reefer_units.id", "reefer_units.load_unit_id"],
+            ondelete="RESTRICT",
+            name="fk_compartments_reefer_unit_id",
+        ),
         CheckConstraint("number >= 1", name="ck_compartments_number"),
+        CheckConstraint(
+            "pallet_places IS NULL OR pallet_places >= 0", name="ck_compartments_pallet_places"
+        ),
         CheckConstraint("temperature_min <= temperature_max", name="ck_compartments_temperature"),
+        Index("ix_compartments_reefer_unit_id", "reefer_unit_id"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -539,31 +681,16 @@ class Compartment(Base):
     load_unit_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), _fk("load_units.id", "fk_compartments_load_unit_id")
     )
+    reefer_unit_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     number: Mapped[int] = mapped_column(Integer)
     # Degrees Celsius, the range the compartment can hold.
     temperature_min: Mapped[Decimal] = mapped_column(Numeric(4, 1))
     temperature_max: Mapped[Decimal] = mapped_column(Numeric(4, 1))
-    created_at: Mapped[datetime] = _created_at()
-    updated_at: Mapped[datetime] = _updated_at()
-
-
-class ReeferUnit(Base):
-    """Refrigeration unit of a reefer load unit (D47); at most one per load unit."""
-
-    __tablename__ = "reefer_units"
-    __table_args__ = (
-        UniqueConstraint("load_unit_id", name="uq_reefer_units_load_unit_id"),
-        CheckConstraint(in_list("power_source", PowerSource), name="ck_reefer_units_power_source"),
-        CheckConstraint("btrim(unit_name) <> ''", name="ck_reefer_units_unit_name_not_blank"),
-    )
-
-    id: Mapped[uuid.UUID] = _uuid_pk()
-    load_unit_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), _fk("load_units.id", "fk_reefer_units_load_unit_id")
-    )
-    # Invented make and model in demo data.
-    unit_name: Mapped[str] = mapped_column(String(100))
-    power_source: Mapped[str] = mapped_column(String(10))
+    # Nominal EUR pallet places of this compartment (optional); with a partition they come from
+    # the partition position (domain.equipment.partition_positions). Per pallet type: pallet_types.
+    pallet_places: Mapped[int | None] = mapped_column(Integer)
+    # The set point of this compartment is controlled independently of the others (D76).
+    independently_controlled: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -579,8 +706,13 @@ class EquipmentQualification(Base):
         CheckConstraint("valid_from <= valid_until", name="ck_equipment_qualifications_period"),
         # Exactly one subject.
         CheckConstraint(
-            "num_nonnulls(truck_id, dolly_id, load_unit_id) = 1",
+            "num_nonnulls(truck_id, dolly_id, load_unit_id, reefer_unit_id) = 1",
             name="ck_equipment_qualifications_one_subject",
+        ),
+        # D76: reefer service belongs to a reefer unit, and a reefer unit takes nothing else.
+        CheckConstraint(
+            "(type = 'reefer_service') = (reefer_unit_id IS NOT NULL)",
+            name="ck_equipment_qualifications_reefer_service",
         ),
         CheckConstraint(
             f"type NOT IN ({LOAD_UNIT_ONLY_TYPES_SQL}) OR load_unit_id IS NOT NULL",
@@ -591,10 +723,10 @@ class EquipmentQualification(Base):
             name="ck_equipment_qualifications_class_code_not_blank",
         ),
         # History (D67): periods of one subject and type never overlap (both ends inclusive).
-        # The subject is spread over three columns; the CHECK above makes exactly one non-null, so
+        # The subject is spread over four columns; the CHECK above makes exactly one non-null, so
         # coalesce() yields a single key. (Needs btree_gist, created in c52d8e3f1a47.)
         ExcludeConstraint(
-            (text("coalesce(truck_id, dolly_id, load_unit_id)"), "="),
+            (text("coalesce(truck_id, dolly_id, load_unit_id, reefer_unit_id)"), "="),
             ("type", "="),
             (text("daterange(valid_from, valid_until, '[]')"), "&&"),
             using="gist",
@@ -603,6 +735,7 @@ class EquipmentQualification(Base):
         Index("ix_equipment_qualifications_truck_id", "truck_id"),
         Index("ix_equipment_qualifications_dolly_id", "dolly_id"),
         Index("ix_equipment_qualifications_load_unit_id", "load_unit_id"),
+        Index("ix_equipment_qualifications_reefer_unit_id", "reefer_unit_id"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -614,6 +747,9 @@ class EquipmentQualification(Base):
     )
     load_unit_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), _fk("load_units.id", "fk_equipment_qualifications_load_unit_id")
+    )
+    reefer_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("reefer_units.id", "fk_equipment_qualifications_reefer_unit_id")
     )
     type: Mapped[str] = mapped_column(String(30))
     # Optional classification, e.g. the ATP class of a thermo body.

@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 import pytest
@@ -10,9 +11,12 @@ from sqlalchemy.exc import IntegrityError
 
 from domain.equipment import (
     BodyType,
+    CouplingType,
     EquipmentQualificationType,
+    ModelCode,
     Ownership,
     PowerSource,
+    ReeferPosition,
     TruckType,
 )
 from tests.test_registers_db import _carrier, _insert
@@ -65,6 +69,7 @@ def _trailer(engine: Engine, carrier: uuid.UUID, **kw: Any) -> uuid.UUID:
         "carrier_id": carrier,
         "registration": _reg("TRL"),
         "body_type": "curtainsider",
+        "coupling_type": "semi_trailer",
         "internal_length_m": "13.40",
         "internal_width_m": "2.48",
         "internal_height_m": "2.75",
@@ -158,7 +163,9 @@ def test_body_type_accepts_domain_values(
     _trailer(test_engine, carrier, body_type=value)
 
 
-@pytest.mark.parametrize("value", [o.value for o in Ownership if o.value in ("own", "partner")])
+@pytest.mark.parametrize(
+    "value", [o.value for o in Ownership if o.value in ("own", "partner", "customer_owned")]
+)
 def test_ownership_without_lease_dates(test_engine: Engine, carrier: uuid.UUID, value: str) -> None:
     _trailer(test_engine, carrier, ownership=value)
     _rejected(_trailer, test_engine, carrier, ownership=value, lease_valid_from="2026-01-01")
@@ -283,6 +290,7 @@ def test_special_features_and_rail_flag_are_stored(test_engine: Engine, carrier:
     _trailer(
         test_engine,
         carrier,
+        coupling_type="full_trailer",  # a semi-trailer cannot have a tail lift (D25)
         xl_certified=True,
         coil_well=True,
         tir_cable=True,
@@ -312,6 +320,103 @@ def test_trucks_and_load_units_in_use_cannot_be_deleted(
         conn.execute(text("DELETE FROM trucks WHERE id = :i"), {"i": truck})  # now free
 
 
+@pytest.mark.parametrize("value", [c.value for c in CouplingType])
+def test_coupling_type_accepts_domain_values(
+    test_engine: Engine, carrier: uuid.UUID, value: str
+) -> None:
+    _trailer(test_engine, carrier, coupling_type=value)
+    _rejected(_trailer, test_engine, carrier, coupling_type="pintle")
+
+
+def test_trailer_needs_a_coupling_type_and_a_fixed_body_has_none(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    _rejected(_trailer, test_engine, carrier, coupling_type=None)
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _rejected(_body, test_engine, carrier, truck, coupling_type="full_trailer")
+    _body(test_engine, carrier, truck)
+
+
+def test_semi_trailer_cannot_have_a_tail_lift_d25(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _rejected(_trailer, test_engine, carrier, coupling_type="semi_trailer", tail_lift=True)
+    _trailer(test_engine, carrier, coupling_type="semi_trailer", tail_lift=False)
+    for coupling in ("full_trailer", "centre_axle_trailer"):
+        _trailer(test_engine, carrier, coupling_type=coupling, tail_lift=True)
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _body(test_engine, carrier, truck, tail_lift=True)  # a fixed body may have one
+
+
+def test_kingpin_position(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _trailer(test_engine, carrier, kingpin_from_front_m="1.60")
+    _trailer(test_engine, carrier)  # optional
+    _rejected(_trailer, test_engine, carrier, kingpin_from_front_m="0")
+    _rejected(_trailer, test_engine, carrier, kingpin_from_front_m="13.60")  # = external length
+    _rejected(_trailer, test_engine, carrier, kingpin_from_front_m="14.00")
+    _rejected(
+        _trailer, test_engine, carrier, coupling_type="full_trailer", kingpin_from_front_m="1.6"
+    )
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _rejected(_body, test_engine, carrier, truck, kingpin_from_front_m="1.6")
+
+
+def test_external_height_and_width(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _trailer(test_engine, carrier, external_height_m="3.95", external_width_m="2.55")
+    _trailer(test_engine, carrier)  # optional
+    _rejected(_trailer, test_engine, carrier, external_height_m="0")
+    _rejected(_trailer, test_engine, carrier, external_width_m="-1")
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _body(test_engine, carrier, truck, external_height_m="3.60", external_width_m="2.55")
+
+
+def test_fixed_body_is_not_rail_craneable(test_engine: Engine, carrier: uuid.UUID) -> None:
+    truck = _truck(test_engine, carrier, type="rigid_truck")
+    _rejected(_body, test_engine, carrier, truck, rail_craneable=True)
+    _body(test_engine, carrier, truck, rail_craneable=False)
+    _trailer(test_engine, carrier, rail_craneable=True)
+
+
+# --- truck features (D55, D61)
+
+
+def test_tractor_features(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _truck(test_engine, carrier, fifth_wheel_from_front_m="3.70", low_fifth_wheel=True)
+    _truck(test_engine, carrier)  # all optional
+    _rejected(_truck, test_engine, carrier, fifth_wheel_from_front_m="0")
+    _rejected(_truck, test_engine, carrier, fifth_wheel_from_front_m="6.30")  # beyond the length
+    _rejected(_truck, test_engine, carrier, type="rigid_truck", fifth_wheel_from_front_m="3.7")
+    _rejected(_truck, test_engine, carrier, type="rigid_truck", low_fifth_wheel=True)
+    _rejected(_truck, test_engine, carrier, drawbar_hitch=True)  # a tractor has no drawbar hitch
+    _truck(test_engine, carrier, type="rigid_truck", drawbar_hitch=True)
+
+
+def test_truck_defaults_for_the_new_flags(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _truck(test_engine, carrier)
+    with test_engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT low_fifth_wheel, drawbar_hitch, max_combination_weight_kg, home_location_id"
+                " FROM trucks"
+            )
+        ).one()
+    assert tuple(row) == (False, False, None, None)
+
+
+def test_max_combination_weight(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _truck(test_engine, carrier, max_combination_weight_kg=60000)
+    _truck(test_engine, carrier, max_combination_weight_kg=26000)  # equal to the truck's own limit
+    _rejected(_truck, test_engine, carrier, max_combination_weight_kg=25000)
+
+
+def test_truck_home_location_is_restrict(test_engine: Engine, carrier: uuid.UUID) -> None:
+    from tests.test_registers_db import _location
+
+    home = _location(test_engine, "Demo Home Depot")
+    _truck(test_engine, carrier, home_location_id=home)
+    _rejected(_truck, test_engine, carrier, home_location_id=uuid.uuid4())
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM locations WHERE id = :i"), {"i": home})
+
+
 # --- compartments and reefer units
 
 
@@ -324,6 +429,47 @@ def _compartment(engine: Engine, unit: uuid.UUID, number: int = 1, **kw: Any) ->
         **kw,
     }
     return _insert(engine, "compartments", **values)
+
+
+def test_compartment_pallet_places_and_control_flag(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    _compartment(test_engine, unit, 1)  # places optional, not independently controlled by default
+    with test_engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT pallet_places, independently_controlled, reefer_unit_id FROM compartments")
+        ).one()
+    assert tuple(row) == (None, False, None)
+    _compartment(test_engine, unit, 2, pallet_places=20, independently_controlled=True)
+    _compartment(test_engine, unit, 3, pallet_places=0)
+    _rejected(_compartment, test_engine, unit, 4, pallet_places=-1)
+
+
+def test_compartment_reefer_unit_must_belong_to_the_same_load_unit(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    other = _trailer(test_engine, carrier, body_type="reefer")
+    machine = _reefer(test_engine, unit)
+    other_machine = _reefer(test_engine, other)
+    _compartment(test_engine, unit, 1, reefer_unit_id=machine)
+    _compartment(test_engine, unit, 2)  # optional
+    assert (
+        _violated(lambda: _compartment(test_engine, unit, 3, reefer_unit_id=other_machine))
+        == "fk_compartments_reefer_unit_id"
+    )
+    _rejected(_compartment, test_engine, unit, 4, reefer_unit_id=uuid.uuid4())
+
+
+def test_reefer_unit_with_compartments_cannot_be_deleted(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    machine = _reefer(test_engine, unit)
+    _compartment(test_engine, unit, 1, reefer_unit_id=machine)
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM reefer_units WHERE id = :i"), {"i": machine})
 
 
 def test_compartments(test_engine: Engine, carrier: uuid.UUID) -> None:
@@ -357,7 +503,13 @@ def test_load_unit_with_compartments_cannot_be_deleted(
 
 
 def _reefer(engine: Engine, unit: uuid.UUID, **kw: Any) -> uuid.UUID:
-    values = {"load_unit_id": unit, "unit_name": "Demo Chill 300", "power_source": "diesel", **kw}
+    values = {
+        "load_unit_id": unit,
+        "position": "front",
+        "unit_name": "Demo Chill 300",
+        "power_source": "diesel",
+        **kw,
+    }
     return _insert(engine, "reefer_units", **values)
 
 
@@ -368,14 +520,106 @@ def test_reefer_power_source_accepts_domain_values(
     _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"), power_source=value)
 
 
-def test_reefer_unit_constraints(test_engine: Engine, carrier: uuid.UUID) -> None:
+@pytest.mark.parametrize("value", [p.value for p in ReeferPosition])
+def test_reefer_position_accepts_domain_values(
+    test_engine: Engine, carrier: uuid.UUID, value: str
+) -> None:
+    _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"), position=value)
+
+
+def test_reefer_units_one_per_position_two_per_load_unit(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
     unit = _trailer(test_engine, carrier, body_type="reefer")
-    _reefer(test_engine, unit)
-    _rejected(_reefer, test_engine, unit)  # at most one per load unit
+    _reefer(test_engine, unit, position="front")
+    _reefer(test_engine, unit, position="rear", power_source="hybrid")
+    assert _violated(lambda: _reefer(test_engine, unit, position="front")) == (
+        "uq_reefer_units_load_unit_id_position"
+    )
+    assert _violated(lambda: _reefer(test_engine, unit, position="rear")) == (
+        "uq_reefer_units_load_unit_id_position"
+    )
+    # a third unit has no free position: the position check admits only front and rear
+    assert _violated(lambda: _reefer(test_engine, unit, position="middle")) == (
+        "ck_reefer_units_position"
+    )
+    other = _trailer(test_engine, carrier, body_type="reefer")
+    _reefer(test_engine, other, position="front")  # the same position on another load unit
+
+
+def test_reefer_unit_constraints(test_engine: Engine, carrier: uuid.UUID) -> None:
     other = _trailer(test_engine, carrier, body_type="reefer")
     _rejected(_reefer, test_engine, other, power_source="gas")
     _rejected(_reefer, test_engine, other, unit_name=" ")
+    _rejected(_reefer, test_engine, other, position=None)
     _rejected(_reefer, test_engine, uuid.uuid4())
+
+
+# --- load unit model code, side doors and partition (D75, D76)
+
+
+@pytest.mark.parametrize("value", [m.value for m in ModelCode])
+def test_model_code_accepts_domain_values(
+    test_engine: Engine, carrier: uuid.UUID, value: str
+) -> None:
+    thermo = value in ("FB", "FD", "FS")
+    _trailer(
+        test_engine,
+        carrier,
+        model_code=value,
+        body_type="reefer" if thermo else "curtainsider",
+        side_doors=value == "FS",
+    )
+    _rejected(_trailer, test_engine, carrier, model_code="XX")
+
+
+def test_model_code_is_optional_and_fits_the_body(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _trailer(test_engine, carrier)  # NULL is allowed
+    _trailer(test_engine, carrier, body_type="side_opening")
+    assert (
+        _violated(lambda: _trailer(test_engine, carrier, model_code="FB", body_type="curtainsider"))
+        == "ck_load_units_model_code_body"
+    )
+    assert (
+        _violated(lambda: _trailer(test_engine, carrier, model_code="CS", body_type="reefer"))
+        == "ck_load_units_model_code_body"
+    )
+
+
+def test_the_code_does_not_define_features_except_fs_side_doors(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    # MEGA with a coil well: features are separate columns, not a MEGA_COIL model
+    _trailer(test_engine, carrier, body_type="mega", model_code="MEGA", coil_well=True)
+    _trailer(test_engine, carrier, body_type="mega", model_code="MEGA", coil_well=False)
+    _trailer(test_engine, carrier, body_type="reefer", model_code="FD", side_doors=False)
+    _trailer(test_engine, carrier, body_type="reefer", model_code="FB", side_doors=True)
+    assert (
+        _violated(lambda: _trailer(test_engine, carrier, body_type="reefer", model_code="FS"))
+        == "ck_load_units_fs_side_doors"
+    )
+
+
+def test_partition_defaults_and_values(test_engine: Engine, carrier: uuid.UUID) -> None:
+    _trailer(test_engine, carrier, body_type="reefer")
+    with test_engine.connect() as conn:
+        row = conn.execute(
+            text(
+                "SELECT partition, partition_thickness_mm, partition_step_pallet_rows,"
+                " min_pallets_front, min_pallets_rear, side_doors FROM load_units"
+            )
+        ).one()
+    assert tuple(row) == (False, 50, 1, 4, 4, False)
+    _trailer(test_engine, carrier, partition=True, min_pallets_front=0, min_pallets_rear=0)
+    for bad in (
+        {"partition_thickness_mm": 0},
+        {"partition_step_pallet_rows": 0},
+        {"min_pallets_front": -1},
+        {"min_pallets_rear": -1},
+    ):
+        assert _violated(partial(_trailer, test_engine, carrier, **bad)) == (
+            "ck_load_units_partition_values"
+        )
 
 
 # --- equipment qualifications (D70, D67)
@@ -395,8 +639,11 @@ def _equipment(engine: Engine, **kw: Any) -> uuid.UUID:
 def test_equipment_type_accepts_domain_values(
     test_engine: Engine, carrier: uuid.UUID, value: str
 ) -> None:
-    unit = _trailer(test_engine, carrier)
-    _equipment(test_engine, type=value, load_unit_id=unit)
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    if value == "reefer_service":  # takes a reefer unit only
+        _equipment(test_engine, type=value, reefer_unit_id=_reefer(test_engine, unit))
+    else:
+        _equipment(test_engine, type=value, load_unit_id=unit)
     _rejected(_equipment, test_engine, type="paint_job", load_unit_id=unit)
 
 
@@ -412,6 +659,89 @@ def test_exactly_one_subject(test_engine: Engine, carrier: uuid.UUID) -> None:
     _rejected(_equipment, test_engine, dolly_id=dolly, load_unit_id=unit)
     _rejected(_equipment, test_engine, truck_id=truck, dolly_id=dolly, load_unit_id=unit)
     _rejected(_equipment, test_engine, truck_id=uuid.uuid4())  # FK
+    machine = _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"))
+    _equipment(test_engine, type="reefer_service", reefer_unit_id=machine)  # the fourth subject
+    _rejected(
+        _equipment, test_engine, type="reefer_service", reefer_unit_id=machine, truck_id=truck
+    )
+    _rejected(
+        _equipment, test_engine, type="reefer_service", reefer_unit_id=machine, load_unit_id=unit
+    )
+    _rejected(_equipment, test_engine, type="reefer_service", reefer_unit_id=uuid.uuid4())
+
+
+def test_reefer_service_is_for_reefer_units_only_and_they_take_nothing_else(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    machine = _reefer(test_engine, unit)
+    name = "ck_equipment_qualifications_reefer_service"
+    assert (
+        _violated(lambda: _equipment(test_engine, type="reefer_service", load_unit_id=unit)) == name
+    )
+    assert (
+        _violated(
+            lambda: _equipment(
+                test_engine, type="reefer_service", truck_id=_truck(test_engine, carrier)
+            )
+        )
+        == name
+    )
+    assert (
+        _violated(
+            lambda: _equipment(
+                test_engine, type="reefer_service", dolly_id=_dolly(test_engine, carrier)
+            )
+        )
+        == name
+    )
+    either = {name, "ck_equipment_qualifications_load_unit_only_types"}  # both CHECKs apply
+    for qtype in ("atp", "inspection", "gdp_temperature_mapping", "tail_lift_inspection"):
+        assert (
+            _violated(partial(_equipment, test_engine, type=qtype, reefer_unit_id=machine))
+            in either
+        )
+    _equipment(test_engine, type="reefer_service", reefer_unit_id=machine)
+
+
+def test_reefer_service_history_and_overlap(test_engine: Engine, carrier: uuid.UUID) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    front = _reefer(test_engine, unit, position="front")
+    rear = _reefer(test_engine, unit, position="rear")
+    kw: dict[str, Any] = {"type": "reefer_service"}
+    _equipment(
+        test_engine, reefer_unit_id=front, valid_from="2026-01-01", valid_until="2026-06-30", **kw
+    )
+    assert (
+        _violated(
+            lambda: _equipment(
+                test_engine,
+                reefer_unit_id=front,
+                valid_from="2026-06-30",
+                valid_until="2026-12-31",
+                **kw,
+            )
+        )
+        == "ex_equipment_qualifications_no_overlap"
+    )
+    _equipment(
+        test_engine, reefer_unit_id=front, valid_from="2026-07-01", valid_until="2027-06-30", **kw
+    )
+    # the other machine has its own history
+    _equipment(
+        test_engine, reefer_unit_id=rear, valid_from="2026-01-01", valid_until="2026-06-30", **kw
+    )
+    # a machine's service and the body's ATP are separate subjects
+    _equipment(test_engine, type="atp", load_unit_id=unit, valid_from="2026-01-01")
+
+
+def test_reefer_unit_with_service_periods_cannot_be_deleted(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    machine = _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"))
+    _equipment(test_engine, type="reefer_service", reefer_unit_id=machine)
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
+        conn.execute(text("DELETE FROM reefer_units WHERE id = :i"), {"i": machine})
 
 
 @pytest.mark.parametrize("value", ["atp", "tail_lift_inspection", "gdp_temperature_mapping"])
@@ -542,6 +872,14 @@ def test_each_rule_is_enforced_by_the_intended_constraint(
             e, type="atp", truck_id=truck
         ),
         "ex_equipment_qualifications_no_overlap": lambda: _equipment(e, truck_id=truck),
+        "ck_load_units_coupling_link": lambda: _trailer(e, carrier, coupling_type=None),
+        "ck_load_units_semi_trailer_no_tail_lift": lambda: _trailer(e, carrier, tail_lift=True),
+        "ck_load_units_kingpin": lambda: _trailer(e, carrier, kingpin_from_front_m="20"),
+        "ck_load_units_fixed_body_no_rail": lambda: _body(
+            e, carrier, _truck(e, carrier, type="rigid_truck"), rail_craneable=True
+        ),
+        "ck_trucks_drawbar_hitch_rigid": lambda: _truck(e, carrier, drawbar_hitch=True),
+        "ck_trucks_fifth_wheel": lambda: _truck(e, carrier, fifth_wheel_from_front_m="9"),
     }
     for expected, insert in cases.items():
         assert _violated(insert) == expected
