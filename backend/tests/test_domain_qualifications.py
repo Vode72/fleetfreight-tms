@@ -160,3 +160,23 @@ def test_suggested_valid_until_is_the_last_valid_day() -> None:
     assert suggest_gdp_valid_until(date(2026, 3, 10), 24) == date(2028, 3, 9)
     with pytest.raises(ValueError):
         suggest_valid_until(TODAY, 0)
+
+
+def test_period_logic_is_shared_with_equipment_periods() -> None:
+    """D67: the same functions work for equipment periods (another type enum)."""
+    from domain.equipment import EquipmentQualificationType as E
+
+    old = QualificationPeriod(E.ATP, date(2023, 1, 1), date(2025, 12, 31))
+    renewed = QualificationPeriod(E.ATP, date(2026, 1, 1), date(2028, 12, 31))
+    inspection = QualificationPeriod(E.INSPECTION, date(2026, 6, 1), date(2027, 5, 31))
+    periods = [old, renewed, inspection]
+    assert valid_on(periods, date(2026, 3, 1)) == [renewed]
+    assert current(periods, date(2026, 7, 1)) == {E.ATP: renewed, E.INSPECTION: inspection}
+    assert holds_valid(periods, E.ATP, date(2025, 12, 31))  # last day inclusive
+    assert not holds_valid(periods, E.INSPECTION, date(2027, 6, 1))
+    assert overlapping_periods(periods) == []
+    clash = QualificationPeriod(E.ATP, date(2028, 12, 31), date(2030, 1, 1))
+    assert overlapping_periods([renewed, clash]) == [(renewed, clash)]
+    assert not renewed.overlaps(
+        QualificationPeriod(E.INSPECTION, date(2026, 1, 1), date(2026, 2, 1))
+    )

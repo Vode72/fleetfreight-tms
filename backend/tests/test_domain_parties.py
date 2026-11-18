@@ -12,7 +12,9 @@ from domain.parties import (
     CarrierType,
     CustomerType,
     DriverEmployment,
+    carrier_display_name,
     employment_matches_carrier,
+    validate_carrier_customer_link,
     validate_name,
 )
 from domain.qualifications import DriverQualificationType
@@ -106,3 +108,25 @@ def test_employment_matches_carrier() -> None:
     )
     assert not employment_matches_carrier(DriverEmployment.OWN, CarrierType.SUBCONTRACTOR)
     assert not employment_matches_carrier(DriverEmployment.SUBCONTRACTOR_NAMED, CarrierType.OWN)
+
+
+def test_carrier_customer_link_rules_d73() -> None:
+    validate_carrier_customer_link(CarrierType.OWN, CustomerType.OWN_COMPANY)
+    validate_carrier_customer_link(CarrierType.SUBCONTRACTOR, None)
+    with pytest.raises(ValueError):
+        validate_carrier_customer_link(
+            CarrierType.OWN, CustomerType.CUSTOMER
+        )  # not the own company
+    with pytest.raises(ValueError):
+        validate_carrier_customer_link(CarrierType.OWN, None)
+    with pytest.raises(ValueError):
+        validate_carrier_customer_link(CarrierType.SUBCONTRACTOR, CustomerType.OWN_COMPANY)
+    with pytest.raises(ValueError):
+        validate_carrier_customer_link(CarrierType.SUBCONTRACTOR, CustomerType.CUSTOMER)
+
+
+def test_carrier_display_name_reads_the_customer_for_the_own_carrier() -> None:
+    assert carrier_display_name("Demo Sub Oy", None) == "Demo Sub Oy"
+    assert carrier_display_name(None, "Demo Freight Oy") == "Demo Freight Oy"
+    with pytest.raises(ValueError):
+        carrier_display_name(None, None)

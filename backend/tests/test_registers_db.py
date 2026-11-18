@@ -37,7 +37,16 @@ def _location(engine: Engine, name: str = "Demo Place", **kw: Any) -> uuid.UUID:
 
 
 def _carrier(engine: Engine, name: str = "Demo Carrier Oy", **kw: Any) -> uuid.UUID:
-    return _insert(engine, "carriers", **{"name": name, "type": "own", "country": "FI", **kw})
+    """A subcontractor carrier (it has its own name and country)."""
+    values = {"name": name, "type": "subcontractor", "country": "FI", **kw}
+    return _insert(engine, "carriers", **values)
+
+
+def _own_carrier(engine: Engine, customer_id: uuid.UUID | None = None, **kw: Any) -> uuid.UUID:
+    """The own carrier: linked to a customer row, no name, business ID or country (D73)."""
+    if customer_id is None:
+        customer_id = _customer(engine, "Demo Own Oy", type="own_company")
+    return _insert(engine, "carriers", type="own", customer_id=customer_id, **kw)
 
 
 def _driver(
@@ -263,14 +272,18 @@ def test_cold_terminal_accepted(test_engine: Engine) -> None:
 
 @pytest.mark.parametrize("value", [t.value for t in CarrierType])
 def test_carrier_type_accepts_domain_values(test_engine: Engine, value: str) -> None:
-    _carrier(test_engine, type=value)
+    if value == "own":
+        _own_carrier(test_engine)
+    else:
+        _carrier(test_engine, type=value)
 
 
 def test_only_one_own_carrier(test_engine: Engine) -> None:
-    _carrier(test_engine, "Demo Own Carrier Oy", type="own")
-    _rejected(_carrier, test_engine, "Demo Own Carrier 2 Oy", type="own")
-    _carrier(test_engine, "Demo Sub 1 Oy", type="subcontractor")
-    _carrier(test_engine, "Demo Sub 2 Oy", type="subcontractor")
+    own = _customer(test_engine, "Demo Own Oy", type="own_company")
+    _own_carrier(test_engine, own)
+    _rejected(_own_carrier, test_engine, own)
+    _carrier(test_engine, "Demo Sub 1 Oy")
+    _carrier(test_engine, "Demo Sub 2 Oy")
 
 
 def test_carrier_constraints(test_engine: Engine) -> None:
@@ -278,6 +291,7 @@ def test_carrier_constraints(test_engine: Engine) -> None:
     _rejected(_carrier, test_engine, "Demo X", type="broker")
     _rejected(_carrier, test_engine, "Demo Y", country="de")
     _rejected(_carrier, test_engine)  # duplicate name
+    _rejected(_carrier, test_engine, "   ")
 
 
 # --- drivers
@@ -395,12 +409,17 @@ def test_updating_a_period_into_an_overlap_is_rejected(test_engine: Engine) -> N
         )
 
 
-def test_qualifications_are_deleted_with_the_driver(test_engine: Engine) -> None:
+def test_driver_with_qualifications_cannot_be_deleted(test_engine: Engine) -> None:
+    """D72: CASCADE became RESTRICT; the history is archived with the driver, not deleted."""
     driver = _driver(test_engine, _carrier(test_engine))
     _qualification(test_engine, driver)
-    with test_engine.begin() as conn:
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
         conn.execute(text("DELETE FROM drivers WHERE id = :i"), {"i": driver})
-        assert conn.execute(text("SELECT count(*) FROM driver_qualifications")).scalar() == 0
+    with test_engine.begin() as conn:
+        assert conn.execute(text("SELECT count(*) FROM driver_qualifications")).scalar() == 1
+        # Explicitly removing the qualification rows first makes the driver deletable.
+        conn.execute(text("DELETE FROM driver_qualifications"))
+        conn.execute(text("DELETE FROM drivers WHERE id = :i"), {"i": driver})
 
 
 def test_updated_at_moves_on_orm_update(test_engine: Engine) -> None:

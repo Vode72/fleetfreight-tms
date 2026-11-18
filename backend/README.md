@@ -74,7 +74,14 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
 - Demo master data (fictional; not in migrations; development only; idempotent, existing rows are
   never overwritten): own company, 5 terminals, 15 ports (incl. two Lübeck quays under their port
   area), 3 rail terminals, 3 customs offices, customers with sites, carriers, drivers and qualifications (validity days are counted from the
-  first seed run, so one qualification is already expired and one is soon expiring). Run after `alembic upgrade head`:
+  first seed run, so one qualification is already expired and one is soon expiring), and the fleet:
+  own carrier with 5 tractors (one with a low fifth wheel for mega trailers), 3 rigid trucks (box with
+  tail lift, thermo, and a combination truck with a drawbar hitch) with fixed bodies, and a dolly;
+  subcontractors with 1-2 tractors each; 13 trailers (CS, MEGA, COIL, side-opening, XL, TIR cable,
+  top loading, a full trailer, thermo FD with two zones behind a partition and two reefer units, an FD
+  with two units but one zone, an FS with side doors; one leased, one rented, one partner's; some
+  rail-craneable); equipment periods (ATP, reefer unit service per machine, inspections with one expired,
+  GDP mapping, tail lift inspection). Registrations look like `DEMO-TRK-001`. Run after `alembic upgrade head`:
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
@@ -83,6 +90,34 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   sets the default length of a GDP training record, used to suggest `valid_until` (domain and
   seed). It is the company's practice, not a regulation. The migration creates the `btree_gist`
   extension (needed for the exclusion constraint); the downgrade leaves it in place.
+- Register rows are archived, not deleted (D72): `archived_at` (timestamptz, NULL = active) on customers,
+  locations, carriers, drivers, trucks, dollies and load units. Every register foreign key is
+  `ON DELETE RESTRICT`, so a referenced row cannot be deleted (also `driver_qualifications`, which cascaded
+  before).
+- The own carrier (`carriers.type = 'own'`) links to the own company's customer row through
+  `carriers.customer_id` and has no `name`, `business_id` or `country` of its own (D73): read them from the
+  customer row (`domain.parties.carrier_display_name`). Subcontractors carry their own and have no link.
+  That the linked customer is the own company is checked in `domain.parties.validate_carrier_customer_link`
+  (it spans two tables, so no CHECK). The migration links an existing own carrier and clears the copied fields.
+- Fleet (2B-2): `trucks` (tractor / rigid_truck; fifth wheel position, low fifth wheel, drawbar hitch,
+  combination weight limit, base location), `dollies`, `load_units` (trailer / fixed_body, D60; coupling
+  type semi / full / centre-axle trailer, kingpin position, external size, model code, side doors, partition),
+  `reefer_units`, `compartments` and `equipment_qualifications` (D70). A fixed body references its rigid
+  truck (one body per truck) and has no length, weights, axles or coupling type of its own (the truck holds
+  them) and is not rail-craneable. A semi-trailer has no tail lift (D25).
+- Model code (D75): FB / FD / FS (invented demo thermo codes) and CS / MEGA / COIL. The code never decides
+  features (MEGA + `coil_well`, not MEGA_COIL); compatibility comes from the feature columns.
+- Reefer units and zones (D76): up to two reefer units per load unit, one per position (front / rear);
+  two units do not mean two zones. Compartments (zones) may name the unit serving them and say whether
+  they are controlled independently. The partition (`partition`, thickness, step in pallet rows, minimum
+  pallets front and rear) is per load unit; `domain.equipment.partition_positions` returns the allowed
+  positions and the compartments' pallet places.
+- ATP, inspections, tail lift inspections, GDP mapping, ADR vehicle approval and reefer service are validity
+  periods in `equipment_qualifications` (D67): exactly one subject (truck, dolly, load unit or reefer unit;
+  reefer service takes a reefer unit only), overlapping periods of one subject and type rejected by an
+  exclusion constraint. `domain.combinations` computes length (fifth-wheel overlap or drawbar gaps), kerb
+  weight and axles of a combination from given values and checks its structure; it holds no legal limits
+  (those come from `road_restrictions` later, D61).
 - Locations carry `postal_code` and `city` (optional). Finnish postal codes are checked as five
   digits; other countries take free text. Seed data uses real codes of the general city-centre
   area only and leaves the code empty where it is not certain.

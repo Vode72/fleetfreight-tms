@@ -1,6 +1,7 @@
 import math
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Any, cast
 
 import pytest
@@ -8,6 +9,14 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm import sessionmaker
 
 import scripts.seed_demo_data as seed
+from domain.combinations import (
+    DollyPart,
+    TrailerPart,
+    TruckPart,
+    combination_totals,
+    validate_combination_structure,
+)
+from domain.equipment import CouplingType, EquipmentQualificationType, TruckType
 from domain.locations import validate_opening_hours, validate_postal_code, validate_timezone
 from domain.qualifications import (
     DriverQualificationType,
@@ -34,7 +43,19 @@ def _run(engine: Engine, today: date = TODAY) -> dict[str, int]:
 
 def test_seed_is_idempotent(test_engine: Engine) -> None:
     first = _run(test_engine)
-    tables = ("customers", "locations", "carriers", "drivers", "driver_qualifications")
+    tables = (
+        "customers",
+        "locations",
+        "carriers",
+        "drivers",
+        "driver_qualifications",
+        "trucks",
+        "dollies",
+        "load_units",
+        "compartments",
+        "reefer_units",
+        "equipment_qualifications",
+    )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
     assert _run(test_engine) == {}  # nothing created the second time
@@ -129,10 +150,33 @@ def test_seed_content(test_engine: Engine) -> None:
 
 def test_every_demo_name_contains_demo_and_emails_are_example(test_engine: Engine) -> None:
     _run(test_engine)
-    for table in ("customers", "locations", "carriers", "drivers"):
+    for table in ("customers", "locations", "drivers"):
         assert (
             _count(test_engine, f"SELECT count(*) FROM {table} WHERE name NOT LIKE 'Demo %'") == 0
         )
+    # carriers: a subcontractor has its own name; the own carrier's name is its customer's (D73)
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM carriers ca LEFT JOIN customers cu ON cu.id = ca.customer_id"
+            " WHERE coalesce(ca.name, cu.name) NOT LIKE 'Demo %'",
+        )
+        == 0
+    )
+    # fleet: invented registrations and names only
+    for table in ("trucks", "dollies", "load_units"):
+        assert (
+            _count(
+                test_engine,
+                f"SELECT count(*) FROM {table}"
+                f" WHERE registration !~ '^DEMO-[A-Z]{{3}}-[0-9]{{3}}$'",
+            )
+            == 0
+        )
+    assert (
+        _count(test_engine, "SELECT count(*) FROM reefer_units WHERE unit_name NOT LIKE 'Demo %'")
+        == 0
+    )
 
 
 def test_seed_data_is_valid_by_the_domain_rules() -> None:
@@ -452,3 +496,680 @@ def test_locality_of_places(test_engine: Engine) -> None:
 
 def test_every_seed_place_has_a_locality() -> None:
     assert {p.name for p in seed._PLACES_WITHOUT_LOCALITY} == set(seed._LOCALITY)
+
+
+# --- 2B-2: carriers' link to the own company (D73) and the fleet
+
+
+def test_own_carrier_links_to_the_own_company_and_has_no_name_of_its_own(
+    test_engine: Engine,
+) -> None:
+    from domain.parties import CarrierType, CustomerType, validate_carrier_customer_link
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT ca.type AS carrier_type, ca.name, ca.country, ca.business_id,"
+                " cu.type AS customer_type, cu.name AS customer_name FROM carriers ca"
+                " LEFT JOIN customers cu ON cu.id = ca.customer_id"
+            )
+        ).all()
+    assert len(rows) == 3
+    for row in rows:
+        validate_carrier_customer_link(
+            CarrierType(row.carrier_type),
+            CustomerType(row.customer_type) if row.customer_type else None,
+        )
+    own = next(r for r in rows if r.carrier_type == "own")
+    assert (own.name, own.country, own.business_id) == (None, None, None)
+    assert own.customer_name == "Demo Freight Oy"
+    assert all(r.name and r.country for r in rows if r.carrier_type != "own")
+
+
+def test_seed_reuses_an_existing_own_carrier_and_company(test_engine: Engine) -> None:
+    """E.g. a database migrated from 2B-1: the own carrier is already linked (revision A)."""
+    with test_engine.begin() as conn:
+        customer = conn.execute(
+            text(
+                "INSERT INTO customers (name, type, country) VALUES"
+                " ('Demo Existing Oy', 'own_company', 'FI') RETURNING id"
+            )
+        ).scalar()
+        conn.execute(
+            text("INSERT INTO carriers (type, customer_id) VALUES ('own', :c)"), {"c": customer}
+        )
+    created = _run(test_engine)
+    assert "carriers" in created  # only the two subcontractors
+    assert created["carriers"] == 2
+    assert _count(test_engine, "SELECT count(*) FROM customers WHERE type = 'own_company'") == 1
+    assert _count(test_engine, "SELECT count(*) FROM carriers WHERE type = 'own'") == 1
+    # the fleet hangs on that carrier
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM trucks t JOIN carriers c ON c.id = t.carrier_id"
+            " JOIN customers cu ON cu.id = c.customer_id WHERE cu.name = 'Demo Existing Oy'",
+        )
+        == 8
+    )
+    assert _run(test_engine) == {}
+
+
+def _fleet_counts(engine: Engine) -> dict[str, int]:
+    return {
+        t: _count(engine, f"SELECT count(*) FROM {t}")
+        for t in ("trucks", "dollies", "load_units", "compartments", "reefer_units")
+    }
+
+
+def test_fleet_content(test_engine: Engine) -> None:
+    _run(test_engine)
+
+    def q(sql: str) -> int:
+        return _count(test_engine, sql)
+
+    own = "(SELECT id FROM carriers WHERE type = 'own')"
+    # own carrier: 5 drivers, 4-5 tractors, 1-2 rigid trucks with a fixed body, 1 dolly
+    assert q(f"SELECT count(*) FROM drivers WHERE carrier_id = {own}") == 5
+    assert 4 <= q(f"SELECT count(*) FROM trucks WHERE carrier_id = {own} AND type = 'tractor'") <= 5
+    assert q(f"SELECT count(*) FROM trucks WHERE carrier_id = {own} AND type = 'rigid_truck'") == 3
+    assert q(f"SELECT count(*) FROM dollies WHERE carrier_id = {own}") == 1
+    # subcontractors: one or two tractors each
+    for name in ("Demo Trans GmbH", "Demo Kuljetus Oy"):
+        n = q(
+            "SELECT count(*) FROM trucks t JOIN carriers c ON c.id = t.carrier_id"
+            f" WHERE c.name = '{name}' AND t.type = 'tractor'"
+        )
+        assert 1 <= n <= 2
+    # fixed bodies: one per rigid truck, one with a tail lift, one thermo
+    assert (
+        q(
+            "SELECT count(*) FROM load_units l JOIN trucks t ON t.id = l.truck_id"
+            " WHERE l.type = 'fixed_body' AND t.type = 'rigid_truck'"
+            " AND t.carrier_id = l.carrier_id"
+        )
+        == 3
+    )
+    assert q("SELECT count(*) FROM load_units WHERE type = 'fixed_body' AND tail_lift") == 1
+    assert (
+        q("SELECT count(*) FROM load_units WHERE type = 'fixed_body' AND body_type = 'reefer'") == 1
+    )
+    # 8-13 trailers with the D36 variety
+    assert 8 <= q("SELECT count(*) FROM load_units WHERE type = 'trailer'") <= 13
+    for body in ("curtainsider", "mega", "side_opening", "reefer"):
+        assert q(f"SELECT count(*) FROM load_units WHERE type = 'trailer' AND body_type = '{body}'")
+    for flag in ("xl_certified", "coil_well", "tir_cable", "top_loading"):
+        assert q(f"SELECT count(*) FROM load_units WHERE {flag}") >= 1
+    assert q("SELECT count(*) FROM load_units WHERE xl_certified AND coil_well") >= 1
+    # D63: some, but not all, load units are rail-craneable
+    craneable = q("SELECT count(*) FROM load_units WHERE rail_craneable")
+    assert 2 <= craneable < q("SELECT count(*) FROM load_units")
+    # one leased, one rented, one partner's trailer (carrier of a subcontractor)
+    for ownership in ("leased", "rented"):
+        assert q(f"SELECT count(*) FROM load_units WHERE ownership = '{ownership}'") == 1
+    assert (
+        q(
+            "SELECT count(*) FROM load_units l JOIN carriers c ON c.id = l.carrier_id"
+            " WHERE l.ownership = 'partner' AND c.type = 'subcontractor'"
+        )
+        == 1
+    )
+
+
+def test_thermo_load_units_have_compartments_and_reefer_units(test_engine: Engine) -> None:
+    from domain.equipment import (
+        BodyType,
+        ModelCode,
+        ReeferPosition,
+        validate_compartment_set,
+        validate_reefer_units,
+        validate_zones,
+    )
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        thermos = {
+            r.registration: (r.id, r.model_code)
+            for r in conn.execute(
+                text(
+                    "SELECT id, registration, model_code FROM load_units WHERE body_type = 'reefer'"
+                )
+            )
+        }
+        # 4 thermo load units: 3 trailers (FD, FD, FS) and one fixed body (FB)
+        assert {k: v[1] for k, v in thermos.items()} == {
+            "DEMO-TRL-007": "FD",
+            "DEMO-TRL-012": "FD",
+            "DEMO-TRL-013": "FS",
+            "DEMO-BOD-002": "FB",
+        }
+        for registration, (unit_id, code) in thermos.items():
+            comps = conn.execute(
+                text(
+                    "SELECT number, independently_controlled FROM compartments"
+                    " WHERE load_unit_id = :i ORDER BY number"
+                ),
+                {"i": unit_id},
+            ).all()
+            validate_compartment_set(BodyType.REEFER, [c.number for c in comps])
+            validate_zones(len(comps), [c.independently_controlled for c in comps], ModelCode(code))
+            assert comps, registration
+            positions = [
+                ReeferPosition(r[0])
+                for r in conn.execute(
+                    text("SELECT position FROM reefer_units WHERE load_unit_id = :i"),
+                    {"i": unit_id},
+                )
+            ]
+            validate_reefer_units(BodyType.REEFER, positions, ModelCode(code))
+        # FD: front and rear; FB: one; FS: one
+        counts = {
+            r.registration: r.n
+            for r in conn.execute(
+                text(
+                    "SELECT l.registration, count(*) AS n FROM reefer_units r"
+                    " JOIN load_units l ON l.id = r.load_unit_id GROUP BY l.registration"
+                )
+            )
+        }
+        assert counts == {
+            "DEMO-TRL-007": 2,
+            "DEMO-TRL-012": 2,
+            "DEMO-TRL-013": 1,
+            "DEMO-BOD-002": 1,
+        }
+        # the two-zone FD: freezer and chilled, both independently controlled, one machine each
+        rows = conn.execute(
+            text(
+                "SELECT c.number, c.temperature_min, c.temperature_max, c.independently_controlled,"
+                " r.position FROM compartments c JOIN load_units l ON l.id = c.load_unit_id"
+                " JOIN reefer_units r ON r.id = c.reefer_unit_id"
+                " WHERE l.registration = 'DEMO-TRL-007' ORDER BY c.number"
+            )
+        ).all()
+        assert [(r.number, r.independently_controlled, r.position) for r in rows] == [
+            (1, True, "front"),
+            (2, True, "rear"),
+        ]
+        assert rows[0].temperature_max < 0 < rows[1].temperature_min
+        # the other FD: two zones too (D76), partition in the middle, one machine each
+        other = conn.execute(
+            text(
+                "SELECT c.number, c.pallet_places, r.position FROM compartments c"
+                " JOIN load_units l ON l.id = c.load_unit_id"
+                " JOIN reefer_units r ON r.id = c.reefer_unit_id"
+                " WHERE l.registration = 'DEMO-TRL-012' ORDER BY c.number"
+            )
+        ).all()
+        assert [(o.number, o.pallet_places, o.position) for o in other] == [
+            (1, None, "front"),
+            (2, None, "rear"),
+        ]
+        # no compartments or reefer units on any other body type
+        for table in ("compartments", "reefer_units"):
+            assert (
+                conn.execute(
+                    text(
+                        f"SELECT count(*) FROM {table} t JOIN load_units l ON l.id = t.load_unit_id"
+                        " WHERE l.body_type <> 'reefer'"
+                    )
+                ).scalar()
+                == 0
+            )
+        powers = {r[0] for r in conn.execute(text("SELECT power_source FROM reefer_units"))}
+    assert powers == {"diesel", "hybrid", "electric"}
+
+
+def test_model_codes_of_the_demo_fleet(test_engine: Engine) -> None:
+    from domain.equipment import BodyType, ModelCode, validate_model_code
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT registration, body_type, model_code, side_doors, coil_well FROM load_units"
+            )
+        ).all()
+    codes = {r.registration: r.model_code for r in rows}
+    assert codes["DEMO-TRL-001"] == "CS"
+    assert codes["DEMO-TRL-002"] == "MEGA"
+    assert codes["DEMO-TRL-004"] == "COIL"
+    assert codes["DEMO-TRL-003"] is None  # side-opening has no code
+    assert codes["DEMO-BOD-001"] is None  # a box body has no code
+    assert {c for c in codes.values() if c} == {"FB", "FD", "FS", "CS", "MEGA", "COIL"}
+    for r in rows:
+        validate_model_code(
+            ModelCode(r.model_code) if r.model_code else None, BodyType(r.body_type), r.side_doors
+        )
+    # features stay separate columns: a COIL trailer has the coil well, the plain CS ones do not
+    assert next(r for r in rows if r.registration == "DEMO-TRL-004").coil_well
+    assert not next(r for r in rows if r.registration == "DEMO-TRL-001").coil_well
+    # the Thermo Side trailer has side doors; the other thermos do not
+    assert {r.registration for r in rows if r.side_doors} == {"DEMO-TRL-013"}
+
+
+@pytest.mark.parametrize("registration", ["DEMO-TRL-007", "DEMO-TRL-012"])
+def test_fd_partition_moves_one_eur_row_at_a_time(test_engine: Engine, registration: str) -> None:
+    """D76: the FD has no fixed compartment places; the partition position is chosen for the
+    load, from 4 + 28 to 28 + 4 EUR pallets in steps of one row."""
+    from domain.equipment import PartitionSpec, partition_positions
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        unit = conn.execute(
+            text("SELECT * FROM load_units WHERE registration = :r"), {"r": registration}
+        ).one()
+        places = [
+            r[0]
+            for r in conn.execute(
+                text("SELECT pallet_places FROM compartments WHERE load_unit_id = :i"),
+                {"i": unit.id},
+            )
+        ]
+        with_partition = conn.execute(
+            text("SELECT registration FROM load_units WHERE partition ORDER BY registration")
+        ).all()
+    # only FD has a partition, and every FD has one (D76)
+    assert [r.registration for r in with_partition] == ["DEMO-TRL-007", "DEMO-TRL-012"]
+    assert places == [None, None]
+    spec = PartitionSpec(
+        unit.internal_length_m,
+        partition=unit.partition,
+        thickness_mm=unit.partition_thickness_mm,
+        step_pallet_rows=unit.partition_step_pallet_rows,
+        min_pallets_front=unit.min_pallets_front,
+        min_pallets_rear=unit.min_pallets_rear,
+    )
+    positions = partition_positions(spec, unit.pallet_places)
+    assert [(p.front_pallets, p.rear_pallets) for p in positions] == [
+        (front, 32 - front) for front in range(4, 29, 2)
+    ]
+
+
+def test_reefer_service_periods(test_engine: Engine) -> None:
+    from domain.qualifications import expires_within
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT l.registration, r.position, q.valid_until FROM equipment_qualifications q"
+                " JOIN reefer_units r ON r.id = q.reefer_unit_id"
+                " JOIN load_units l ON l.id = r.load_unit_id WHERE q.type = 'reefer_service'"
+            )
+        ).all()
+        machines = conn.execute(text("SELECT count(*) FROM reefer_units")).scalar()
+    assert len(rows) == machines == 6  # one service period for every machine
+    assert all(r.valid_until >= TODAY for r in rows)
+    assert [
+        (r.registration, r.position) for r in rows if expires_within(r.valid_until, TODAY, 30)
+    ] == [("DEMO-TRL-007", "rear")]
+
+
+def test_lease_periods_are_valid_on_the_seed_day(test_engine: Engine) -> None:
+    from domain.equipment import Ownership, lease_valid_on
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT ownership, lease_valid_from, lease_valid_until FROM load_units"
+                " WHERE ownership IN ('leased', 'rented')"
+            )
+        ).all()
+    assert len(rows) == 2
+    for row in rows:
+        assert lease_valid_on(
+            Ownership(row.ownership), row.lease_valid_from, row.lease_valid_until, TODAY
+        )
+
+
+def _truck_part(engine: Engine, registration: str) -> tuple[TruckPart, TruckType, bool]:
+    with engine.connect() as conn:
+        r = conn.execute(
+            text("SELECT * FROM trucks WHERE registration = :r"), {"r": registration}
+        ).one()
+    part = TruckPart(r.length_m, r.kerb_weight_kg, r.axles, r.fifth_wheel_from_front_m)
+    return part, TruckType(r.type), r.drawbar_hitch
+
+
+def _trailer_part(engine: Engine, registration: str) -> TrailerPart:
+    with engine.connect() as conn:
+        r = conn.execute(
+            text("SELECT * FROM load_units WHERE registration = :r"), {"r": registration}
+        ).one()
+    return TrailerPart(
+        r.external_length_m,
+        r.kerb_weight_kg,
+        r.axles,
+        CouplingType(r.coupling_type),
+        r.kingpin_from_front_m,
+    )
+
+
+def test_combinations_can_be_formed_from_the_seed_fleet(test_engine: Engine) -> None:
+    """Tractor + semi + dolly + semi (HCT), rigid + dolly + semi (HCT) and rigid + full trailer."""
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        d = conn.execute(text("SELECT * FROM dollies WHERE registration = 'DEMO-DOL-001'")).one()
+    dolly = DollyPart(d.length_m, d.kerb_weight_kg, d.axles)
+    gap = Decimal("0.50")
+    semi_1, semi_2 = (_trailer_part(test_engine, f"DEMO-TRL-00{n}") for n in (1, 5))
+    semi_length = semi_1.length_m - semi_1.kingpin_from_front_m  # type: ignore[operator]
+
+    tractor, tractor_type, hitch = _truck_part(test_engine, "DEMO-TRK-001")
+    validate_combination_structure(tractor_type, semi_trailers=2, dollies=1, drawbar_hitch=hitch)
+    assert tractor.fifth_wheel_from_front_m is not None
+    hct = combination_totals(tractor, chain=[semi_1, dolly, semi_2], drawbar_gap_m=gap)
+    assert hct.part_count == 4
+    # tractor front to fifth wheel, two semi-trailers from kingpin to rear, dolly and one gap
+    assert hct.length_m == tractor.fifth_wheel_from_front_m + 2 * semi_length + dolly.length_m + gap
+    assert hct.length_m < sum(  # shorter than the parts laid end to end
+        (p.length_m for p in (tractor, semi_1, dolly, semi_2)), Decimal(0)
+    )
+
+    # combination truck: hitch, full trailer (D55) or dolly + semi-trailer
+    truck, truck_type, hitch = _truck_part(test_engine, "DEMO-TRK-011")
+    assert truck_type is TruckType.RIGID_TRUCK and hitch
+    full = _trailer_part(test_engine, "DEMO-TRL-011")
+    assert full.coupling is CouplingType.FULL_TRAILER
+    validate_combination_structure(truck_type, full_trailers=1, drawbar_hitch=hitch)
+    assert combination_totals(truck, chain=[full], drawbar_gap_m=gap).length_m == (
+        truck.length_m + gap + full.length_m
+    )
+    validate_combination_structure(truck_type, semi_trailers=1, dollies=1, drawbar_hitch=hitch)
+    rigid_hct = combination_totals(truck, chain=[dolly, semi_1], drawbar_gap_m=gap)
+    assert rigid_hct.length_m == truck.length_m + gap + dolly.length_m + semi_length
+
+    # a rigid truck without a hitch cannot pull
+    _, plain_type, plain_hitch = _truck_part(test_engine, "DEMO-TRK-006")
+    assert not plain_hitch and plain_type is TruckType.RIGID_TRUCK
+    with pytest.raises(ValueError, match="hitch"):
+        validate_combination_structure(plain_type, full_trailers=1, drawbar_hitch=plain_hitch)
+
+
+def test_tractor_features_in_the_seed(test_engine: Engine) -> None:
+    _run(test_engine)
+    own = "carrier_id = (SELECT id FROM carriers WHERE type = 'own')"
+
+    def q(sql: str) -> int:
+        return _count(test_engine, sql)
+
+    # every tractor has its fifth wheel position; one low fifth wheel for the mega trailers
+    assert (
+        q("SELECT count(*) FROM trucks WHERE type = 'tractor' AND fifth_wheel_from_front_m IS NULL")
+        == 0
+    )
+    assert q("SELECT count(*) FROM trucks WHERE low_fifth_wheel") >= 1
+    assert q("SELECT count(*) FROM trucks WHERE low_fifth_wheel AND type = 'tractor'") == q(
+        "SELECT count(*) FROM trucks WHERE low_fifth_wheel"
+    )
+    assert (
+        q(f"SELECT count(*) FROM trucks WHERE {own} AND max_combination_weight_kg IS NOT NULL") >= 4
+    )
+    # own trucks have a base location (a terminal); subcontractor trucks have none recorded
+    assert q(
+        f"SELECT count(*) FROM trucks t JOIN locations l ON l.id = t.home_location_id"
+        f" WHERE t.{own} AND l.type = 'terminal'"
+    ) == q(f"SELECT count(*) FROM trucks WHERE {own}")
+    assert q(f"SELECT count(*) FROM trucks WHERE NOT ({own}) AND home_location_id IS NOT NULL") == 0
+    # exactly one combination truck: rigid, longest rigid, with a drawbar hitch
+    assert q("SELECT count(*) FROM trucks WHERE drawbar_hitch") == 1
+    assert (
+        q(
+            "SELECT count(*) FROM trucks WHERE drawbar_hitch AND type = 'rigid_truck'"
+            " AND length_m ="
+            " (SELECT max(length_m) FROM trucks WHERE type = 'rigid_truck')"
+        )
+        == 1
+    )
+
+
+def test_mega_trailers_can_be_pulled_by_a_low_fifth_wheel_tractor(test_engine: Engine) -> None:
+    _run(test_engine)
+    assert _count(test_engine, "SELECT count(*) FROM load_units WHERE body_type = 'mega'") >= 1
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM trucks t JOIN carriers c ON c.id = t.carrier_id"
+            " WHERE t.low_fifth_wheel AND c.type = 'own'",
+        )
+        >= 1
+    )
+
+
+def test_coupling_dimensions_and_trailer_lengths(test_engine: Engine) -> None:
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(text("SELECT * FROM load_units")).all()
+    for r in rows:
+        if r.type == "fixed_body":
+            assert r.coupling_type is None and r.kingpin_from_front_m is None
+            assert not r.rail_craneable
+        else:
+            assert r.coupling_type is not None
+        if r.coupling_type == "semi_trailer":
+            assert 0 < r.kingpin_from_front_m < r.external_length_m
+            assert not r.tail_lift  # D25
+        assert r.external_height_m and r.external_width_m  # demo values for every load unit
+    couplings = {r.coupling_type for r in rows if r.type == "trailer"}
+    assert couplings == {"semi_trailer", "full_trailer"}
+    # side-loading semi-trailers: internal 13.60 m and 13.6 LDM, external a little longer
+    for r in rows:
+        if (
+            r.body_type in ("curtainsider", "mega", "side_opening")
+            and r.coupling_type == "semi_trailer"
+        ):
+            assert (r.internal_length_m, r.ldm) == (Decimal("13.60"), Decimal("13.60"))
+            assert Decimal("13.60") < r.external_length_m < Decimal("14.00")
+
+
+def test_thermo_trailer_rear_unit_is_a_hybrid_for_port_electricity(test_engine: Engine) -> None:
+    """D27: the rear unit of the FD trailer can run on electricity in a port."""
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        units = conn.execute(
+            text(
+                "SELECT r.position, r.power_source FROM reefer_units r"
+                " JOIN load_units l ON l.id = r.load_unit_id WHERE l.registration = 'DEMO-TRL-007'"
+                " ORDER BY r.position"
+            )
+        ).all()
+        comps = conn.execute(
+            text(
+                "SELECT c.number, c.pallet_places FROM compartments c"
+                " JOIN load_units l ON l.id = c.load_unit_id WHERE l.registration = 'DEMO-TRL-007'"
+                " ORDER BY c.number"
+            )
+        ).all()
+        total = conn.execute(
+            text("SELECT pallet_places FROM load_units WHERE registration = 'DEMO-TRL-007'")
+        ).scalar()
+    assert [tuple(u) for u in units] == [("front", "diesel"), ("rear", "hybrid")]
+    # no fixed places: the partition position is chosen for the load (D76)
+    assert [tuple(c) for c in comps] == [(1, None), (2, None)]
+    assert total == 32
+
+
+def test_combination_truck_and_full_trailer_scenario(test_engine: Engine) -> None:
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        body = conn.execute(
+            text(
+                "SELECT l.body_type, l.tail_lift FROM load_units l"
+                " JOIN trucks t ON t.id = l.truck_id"
+                " WHERE t.registration = 'DEMO-TRK-011'"
+            )
+        ).one()
+        full = conn.execute(
+            text("SELECT * FROM load_units WHERE coupling_type = 'full_trailer'")
+        ).all()
+    assert body.body_type == "curtainsider"
+    assert len(full) == 1 and full[0].kingpin_from_front_m is None
+
+
+def test_expired_inspection_is_on_a_basic_trailer(test_engine: Engine) -> None:
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT l.registration, l.top_loading, l.xl_certified, l.body_type FROM"
+                " equipment_qualifications q JOIN load_units l ON l.id = q.load_unit_id"
+                " WHERE q.type = 'inspection' AND q.valid_until < DATE '2026-11-18'"
+            )
+        ).all()
+    assert [r.registration for r in rows] == ["DEMO-TRL-001"]
+    assert not rows[0].top_loading and not rows[0].xl_certified  # a basic curtainsider
+    # the only top-loading trailer (006) has a valid inspection
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM equipment_qualifications q"
+            " JOIN load_units l ON l.id = q.load_unit_id"
+            " WHERE l.top_loading AND q.type = 'inspection' AND q.valid_until >= DATE '2026-11-18'",
+        )
+        == 1
+    )
+
+
+def test_seed_qualifications_follow_the_subject_rules(test_engine: Engine) -> None:
+    from domain.equipment import (
+        BodyType,
+        EquipmentQualificationType,
+        EquipmentSubject,
+        validate_equipment_qualification,
+    )
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT q.type, l.body_type, l.tail_lift FROM equipment_qualifications q"
+                " JOIN load_units l ON l.id = q.load_unit_id"
+            )
+        ).all()
+    assert rows
+    for r in rows:
+        validate_equipment_qualification(
+            EquipmentSubject("load_unit", BodyType(r.body_type), r.tail_lift),
+            EquipmentQualificationType(r.type),
+        )
+
+
+def test_seed_refuses_a_qualification_that_breaks_the_rules(
+    test_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The seed calls validate_equipment_qualification: an ATP on a curtainsider is not seeded."""
+    bad = ("load_unit", "DEMO-TRL-001", EquipmentQualificationType.ATP, "FRC", -10, 100)
+    monkeypatch.setattr(seed, "EQUIPMENT_QUALIFICATIONS", (*seed.EQUIPMENT_QUALIFICATIONS, bad))
+    with pytest.raises(ValueError, match="reefer"):
+        _run(test_engine)
+
+
+def test_equipment_qualification_scenarios(test_engine: Engine) -> None:
+    from domain.equipment import EquipmentQualificationType as E
+    from domain.qualifications import QualificationPeriod, current, expires_within
+
+    _run(test_engine)
+    with test_engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT l.registration, l.body_type, q.type, q.class_code, q.valid_from,"
+                " q.valid_until FROM equipment_qualifications q"
+                " JOIN load_units l ON l.id = q.load_unit_id"
+            )
+        ).all()
+    atp = [r for r in rows if r.type == "atp"]
+    # ATP for both thermo load units, none for anything else
+    assert {r.registration for r in atp} == {
+        r.registration for r in rows if r.body_type == "reefer"
+    }
+    assert all(r.class_code for r in atp)
+    # one thermo's ATP is expiring soon (valid today, ends within 30 days)
+    expiring = {r.registration for r in atp if expires_within(r.valid_until, TODAY, 30)}
+    assert len(expiring) == 1
+    # the trailer's ATP has two consecutive periods (history), valid today through the renewal
+    trailer_atp = [r for r in atp if r.registration == "DEMO-TRL-007"]
+    assert len(trailer_atp) == 2
+    periods = [QualificationPeriod(E.ATP, r.valid_from, r.valid_until) for r in trailer_atp]
+    assert len(current(periods, TODAY)) == 1
+    assert sorted(p.valid_until for p in periods)[0] < TODAY
+    first, second = sorted(periods, key=lambda p: p.valid_from)
+    assert (second.valid_from - first.valid_until).days == 1
+    # a GDP temperature mapping for one thermo, a tail lift inspection for the tail-lift body
+    assert [r.registration for r in rows if r.type == "gdp_temperature_mapping"] == ["DEMO-TRL-007"]
+    tail = [r for r in rows if r.type == "tail_lift_inspection"]
+    assert [r.registration for r in tail] == ["DEMO-BOD-001"]
+
+
+def test_inspections_cover_trucks_dollies_and_trailers_with_one_expired(
+    test_engine: Engine,
+) -> None:
+    _run(test_engine)
+
+    def q(sql: str) -> int:
+        return _count(test_engine, sql)
+
+    inspections = "type = 'inspection'"
+    assert q(
+        f"SELECT count(DISTINCT truck_id) FROM equipment_qualifications WHERE {inspections}"
+    ) == q("SELECT count(*) FROM trucks")
+    assert (
+        q(f"SELECT count(DISTINCT dolly_id) FROM equipment_qualifications WHERE {inspections}") == 1
+    )
+    assert q(
+        f"SELECT count(DISTINCT load_unit_id) FROM equipment_qualifications WHERE {inspections}"
+    ) == q("SELECT count(*) FROM load_units WHERE type = 'trailer'")
+    expired = q(
+        f"SELECT count(*) FROM equipment_qualifications WHERE {inspections}"
+        f" AND valid_until < DATE '{TODAY.isoformat()}'"
+    )
+    assert expired == 1
+    # every other inspection is still valid on the seed day
+    valid = q(
+        f"SELECT count(*) FROM equipment_qualifications WHERE {inspections}"
+        f" AND valid_from <= DATE '{TODAY.isoformat()}'"
+        f" AND valid_until >= DATE '{TODAY.isoformat()}'"
+    )
+    assert valid == q(f"SELECT count(*) FROM equipment_qualifications WHERE {inspections}") - 1
+
+
+def test_seed_does_not_overwrite_manual_fleet_edits_or_duplicate_rows(test_engine: Engine) -> None:
+    _run(test_engine)
+    before = _fleet_counts(test_engine)
+    with test_engine.begin() as conn:
+        conn.execute(text("UPDATE trucks SET axles = 2 WHERE registration = 'DEMO-TRK-001'"))
+        conn.execute(
+            text("UPDATE load_units SET pallet_places = 1 WHERE registration = 'DEMO-TRL-001'")
+        )
+        conn.execute(text("UPDATE compartments SET temperature_min = -30"))
+    assert _run(test_engine) == {}
+    assert _fleet_counts(test_engine) == before
+    assert _count(test_engine, "SELECT axles FROM trucks WHERE registration = 'DEMO-TRK-001'") == 2
+    assert (
+        _count(test_engine, "SELECT count(*) FROM compartments WHERE temperature_min = -30")
+        == before["compartments"]
+    )
+
+
+def test_seed_fleet_data_is_valid_by_the_domain_rules() -> None:
+    from decimal import Decimal
+
+    from domain.equipment import LoadUnitType, validate_vehicle
+
+    assert len({t.registration for t in seed.TRUCKS}) == len(seed.TRUCKS)
+    assert len({u.registration for u in seed.LOAD_UNITS}) == len(seed.LOAD_UNITS)
+    carrier_names = {c[0] for c in seed.CARRIERS}
+    assert {t.carrier for t in seed.TRUCKS} <= carrier_names
+    assert {u.carrier for u in seed.LOAD_UNITS} <= carrier_names
+    for t in seed.TRUCKS:
+        validate_vehicle(
+            length_m=Decimal(t.length_m),
+            kerb_weight_kg=t.kerb_weight_kg,
+            max_gross_weight_kg=t.max_gross_weight_kg,
+            axles=t.axles,
+        )
+    trucks = {t.registration for t in seed.TRUCKS}
+    assert all(u.truck in trucks for u in seed.LOAD_UNITS if u.type is LoadUnitType.FIXED_BODY)
+    assert all(u.registration.startswith("DEMO-") for u in seed.LOAD_UNITS)

@@ -4,8 +4,11 @@ A qualification is a *period*: type, valid_from and valid_until (both inclusive)
 hold several periods of the same type one after another (an expired one and its renewal), but
 never overlapping ones; the database enforces the same with an exclusion constraint.
 
-Vehicle and equipment eligibility (ADR approval, GDP temperature mapping, tail lift) comes in
-its own table in phase 2B-2, with its own foreign keys.
+Vehicle and equipment eligibility (ADR approval, GDP temperature mapping, tail lift) lives in
+its own table (D70, `equipment_qualifications`, domain/equipment.py). The period logic here is
+generic over the type enum, so driver and equipment periods share valid_on, current, holds_valid
+and overlapping_periods (D67). Callers pass the periods of ONE subject (one driver, or one truck,
+dolly or load unit); the functions do not look at who the subject is.
 """
 
 from collections.abc import Iterable, Sequence
@@ -27,8 +30,10 @@ class DriverQualificationType(StrEnum):
 
 
 @dataclass(frozen=True)
-class QualificationPeriod:
-    type: DriverQualificationType
+class QualificationPeriod[T: StrEnum = DriverQualificationType]:
+    """A validity period of one type (a driver qualification or an equipment qualification)."""
+
+    type: T
     valid_from: date
     valid_until: date
 
@@ -40,7 +45,7 @@ class QualificationPeriod:
         """Both ends are inclusive: valid through the whole of valid_until."""
         return self.valid_from <= day <= self.valid_until
 
-    def overlaps(self, other: QualificationPeriod) -> bool:
+    def overlaps(self, other: QualificationPeriod[T]) -> bool:
         """Same type and a shared day (a period ending the day another starts overlaps)."""
         return (
             self.type is other.type
@@ -84,14 +89,16 @@ def suggest_gdp_valid_until(valid_from: date, default_months: int) -> date:
     return suggest_valid_until(valid_from, default_months)
 
 
-def valid_on(qualifications: Iterable[QualificationPeriod], day: date) -> list[QualificationPeriod]:
+def valid_on[T: StrEnum](
+    qualifications: Iterable[QualificationPeriod[T]], day: date
+) -> list[QualificationPeriod[T]]:
     """The periods that are valid on `day`."""
     return [q for q in qualifications if q.covers(day)]
 
 
-def current(
-    qualifications: Iterable[QualificationPeriod], today: date
-) -> dict[DriverQualificationType, QualificationPeriod]:
+def current[T: StrEnum](
+    qualifications: Iterable[QualificationPeriod[T]], today: date
+) -> dict[T, QualificationPeriod[T]]:
     """The valid period per type today; types with no valid period today are absent.
 
     Periods of one type do not overlap, so at most one period per type is valid on a day.
@@ -99,15 +106,15 @@ def current(
     return {q.type: q for q in valid_on(qualifications, today)}
 
 
-def holds_valid(
-    qualifications: Iterable[QualificationPeriod], qtype: DriverQualificationType, day: date
+def holds_valid[T: StrEnum](
+    qualifications: Iterable[QualificationPeriod[T]], qtype: T, day: date
 ) -> bool:
     return any(q.type is qtype for q in valid_on(qualifications, day))
 
 
-def overlapping_periods(
-    qualifications: Sequence[QualificationPeriod],
-) -> list[tuple[QualificationPeriod, QualificationPeriod]]:
+def overlapping_periods[T: StrEnum](
+    qualifications: Sequence[QualificationPeriod[T]],
+) -> list[tuple[QualificationPeriod[T], QualificationPeriod[T]]]:
     """Pairs of same-type periods that share a day (mirrors the database exclusion)."""
     return [
         (a, b)
