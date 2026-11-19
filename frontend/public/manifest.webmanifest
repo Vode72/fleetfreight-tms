@@ -1,0 +1,14 @@
+{
+  "name": "FleetFreight TMS",
+  "short_name": "FleetFreight",
+  "description": "Transport management system (portfolio project, demo data only)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3efe7",
+  "theme_color": "#e6ded2",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

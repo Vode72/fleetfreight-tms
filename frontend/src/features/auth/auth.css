@@ -82,3 +82,42 @@
   border-left: 4px solid var(--accent);
   border-radius: var(--radius-md);
 }
+
+/* Phone (D81): keep the sign-in header on one row; labels stay for screen readers. */
+@media (max-width: 640px) {
+  .login-shell {
+    grid-template-rows: var(--touch-target) minmax(0, 1fr);
+  }
+
+  .login-shell .topbar {
+    gap: var(--space-3);
+    padding: 0 var(--space-3);
+  }
+
+  .login-shell .topbar-settings {
+    gap: var(--space-2);
+  }
+
+  .login-shell .topbar-field label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .login-shell .topbar-field select {
+    max-width: 8.5rem;
+  }
+
+  .login-main {
+    align-items: flex-start;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .auth-field input,
+  .auth-submit {
+    min-height: var(--touch-target);
+  }
+}
