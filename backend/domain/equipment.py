@@ -41,9 +41,10 @@ class BodyType(StrEnum):
 class ModelCode(StrEnum):
     """Model code of a load unit (D75): a hybrid classification, kept apart from the features.
 
-    The thermo codes are invented demo codes (D76): FB (Thermo Box) and FS (Thermo Side, side
-    doors) have one reefer unit and one temperature zone; FD (Thermo Double) has two reefer units
-    and two zones separated by a partition; CS (curtainsider), MEGA and COIL are common
+    The thermo codes are invented demo codes (D76); all three have one reefer unit (machine) at
+    the front. FB (Thermo Box) and FS (Thermo Side, side doors) have one evaporator and one
+    temperature zone; FD (Thermo Double) has two evaporators and two zones separated by a
+    partition; CS (curtainsider), MEGA and COIL are common
     trade terms. A code does NOT determine the features: a MEGA trailer with a coil well is
     MEGA + `coil_well`, not a MEGA_COIL model. Compatibility is decided from the real features
     (columns), never from the code. NULL is allowed for body types with no code (box,
@@ -59,12 +60,13 @@ class ModelCode(StrEnum):
 
 
 THERMO_MODEL_CODES: frozenset[ModelCode] = frozenset({ModelCode.FB, ModelCode.FD, ModelCode.FS})
-# One reefer unit and one temperature zone (D76).
+# One evaporator and one temperature zone (D76).
 SINGLE_ZONE_MODEL_CODES: frozenset[ModelCode] = frozenset({ModelCode.FB, ModelCode.FS})
 
 
-class ReeferPosition(StrEnum):
-    """Where a reefer unit sits on the load unit (D76): at most one per position."""
+class EvaporatorPosition(StrEnum):
+    """Where an evaporator (indoor unit) sits in the load space (D76): FB and FS have one at the
+    front; FD has one in front of the partition and one behind it."""
 
     FRONT = "front"
     REAR = "rear"
@@ -73,7 +75,6 @@ class ReeferPosition(StrEnum):
 # A EUR pallet (1200 x 800 mm) loaded lengthwise-across: a row is 800 mm deep and holds 2 pallets.
 EUR_PALLET_ROW_DEPTH_M = Decimal("0.80")
 EUR_PALLETS_PER_ROW = 2
-MAX_REEFER_UNITS = 2
 
 
 class CouplingType(StrEnum):
@@ -360,32 +361,44 @@ def validate_compartment_set(body_type: BodyType, numbers: Sequence[int]) -> Non
 
 
 def validate_reefer_units(
-    body_type: BodyType,
-    positions: Sequence[ReeferPosition],
-    model_code: ModelCode | None = None,
+    body_type: BodyType, machine_count: int, model_code: ModelCode | None = None
 ) -> None:
-    """A load unit has 0-2 reefer units, each in its own position (D76). The database has the
-    unique (load_unit_id, position); the rest is checked here.
+    """A load unit has at most one reefer unit, the machine at the front (D76). The database has
+    the unique load_unit_id; the rest is checked here.
 
     - Reefer units belong to reefer bodies only.
-    - At most 2, in different positions.
-    - Model codes FB and FS have exactly one reefer unit and FD exactly two (when the units are
-      listed).
+    - A thermo model code (FB, FD, FS) has exactly one: a thermo load unit always has its
+      machine, so 0 with a thermo code is an error.
     """
-    if positions and not is_thermo(body_type):
+    if machine_count < 0:
+        raise ValueError("machine count must not be negative")
+    if machine_count and not is_thermo(body_type):
         raise ValueError("only a reefer body has a reefer unit")
-    if len(positions) > MAX_REEFER_UNITS:
-        raise ValueError(f"at most {MAX_REEFER_UNITS} reefer units per load unit")
-    if len(set(positions)) != len(positions):
-        raise ValueError("each reefer unit position (front, rear) can be used once")
-    if model_code in SINGLE_ZONE_MODEL_CODES and len(positions) != 1:
+    if machine_count > 1:
+        raise ValueError("a load unit has at most one reefer unit")
+    if model_code in THERMO_MODEL_CODES and machine_count != 1:
         raise ValueError(f"{model_code} has exactly one reefer unit")
-    if model_code is ModelCode.FD and len(positions) != 2:
-        raise ValueError("FD (Thermo Double) has exactly two reefer units")
 
 
 def validate_reefer_unit_allowed(body_type: BodyType) -> None:
-    validate_reefer_units(body_type, [ReeferPosition.FRONT])
+    validate_reefer_units(body_type, 1)
+
+
+def validate_evaporators(
+    positions: Sequence[EvaporatorPosition], model_code: ModelCode | None = None
+) -> None:
+    """Evaporators (indoor units) of one reefer unit (D76); the database has the unique
+    (reefer_unit_id, position).
+
+    - At most one per position (front, rear).
+    - FB and FS: exactly one, at the front. FD: exactly two, front and rear.
+    """
+    if len(set(positions)) != len(positions):
+        raise ValueError("each evaporator position (front, rear) can be used once")
+    if model_code in SINGLE_ZONE_MODEL_CODES and list(positions) != [EvaporatorPosition.FRONT]:
+        raise ValueError(f"{model_code} has exactly one evaporator, at the front")
+    if model_code is ModelCode.FD and set(positions) != set(EvaporatorPosition):
+        raise ValueError("FD (Thermo Double) has two evaporators, front and rear")
 
 
 def validate_zones(
@@ -428,6 +441,9 @@ class PartitionSpec:
     step_pallet_rows: int = 1
     min_pallets_front: int = 4
     min_pallets_rear: int = 4
+    # Largest share of the pallet rows for the rear compartment (e.g. Decimal("0.333")), when the
+    # machine limits the rear zone; None = no limit.
+    max_rear_share: Decimal | None = None
 
 
 def validate_partition(spec: PartitionSpec) -> None:
@@ -437,6 +453,8 @@ def validate_partition(spec: PartitionSpec) -> None:
         raise ValueError("partition step must be at least one pallet row")
     if spec.min_pallets_front < 0 or spec.min_pallets_rear < 0:
         raise ValueError("minimum pallets must not be negative")
+    if spec.max_rear_share is not None and not Decimal(0) < spec.max_rear_share <= 1:
+        raise ValueError("max_rear_share must be above 0 and at most 1")
 
 
 @dataclass(frozen=True)
@@ -458,8 +476,10 @@ def partition_positions(
     The partition consumes length: its thickness is taken off the internal length before the rows
     are counted, so the rows are min(places // 2, floor((internal length - thickness) / row depth)).
     The partition moves in steps of `step_pallet_rows` rows (1 row = 2 EUR pallets), and each
-    compartment keeps at least its minimum number of pallets. Without a partition there is no
-    position. `eur_pallet_places` is the load unit's EUR pallet places without a partition.
+    compartment keeps at least its minimum number of pallets. With `max_rear_share` the rear
+    compartment takes at most that share of the pallet rows (rows, not metres). Without a
+    partition there is no position. `eur_pallet_places` is the load unit's EUR pallet places
+    without a partition.
     """
     validate_partition(spec)
     if not spec.partition:
@@ -473,6 +493,9 @@ def partition_positions(
     for front_rows in range(spec.step_pallet_rows, rows, spec.step_pallet_rows):
         front = front_rows * EUR_PALLETS_PER_ROW
         rear = (rows - front_rows) * EUR_PALLETS_PER_ROW
+        rear_rows = rows - front_rows
+        if spec.max_rear_share is not None and rear_rows > spec.max_rear_share * rows:
+            continue
         if front >= spec.min_pallets_front and rear >= spec.min_pallets_rear:
             positions.append(PartitionPosition(front_rows, front, rear))
     return positions

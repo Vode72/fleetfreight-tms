@@ -31,11 +31,11 @@ from domain.equipment import (
     BodyType,
     CouplingType,
     EquipmentQualificationType,
+    EvaporatorPosition,
     LoadUnitType,
     ModelCode,
     Ownership,
     PowerSource,
-    ReeferPosition,
     TruckType,
 )
 from domain.locations import LocationType
@@ -502,7 +502,9 @@ class LoadUnit(Base):
         # D76: partition values (only used when partition is true).
         CheckConstraint(
             "partition_thickness_mm > 0 AND partition_step_pallet_rows >= 1"
-            " AND min_pallets_front >= 0 AND min_pallets_rear >= 0",
+            " AND min_pallets_front >= 0 AND min_pallets_rear >= 0"
+            " AND (partition_max_rear_share IS NULL"
+            " OR (partition AND partition_max_rear_share > 0 AND partition_max_rear_share <= 1))",
             name="ck_load_units_partition_values",
         ),
         # A trailer has a coupling type; a fixed body has none (it is part of its truck).
@@ -613,6 +615,9 @@ class LoadUnit(Base):
     partition_step_pallet_rows: Mapped[int] = mapped_column(Integer, server_default=text("1"))
     min_pallets_front: Mapped[int] = mapped_column(Integer, server_default=text("4"))
     min_pallets_rear: Mapped[int] = mapped_column(Integer, server_default=text("4"))
+    # Largest share of the rear compartment (e.g. 0.333 = 1/3), when the machine limits it;
+    # NULL = no limit.
+    partition_max_rear_share: Mapped[Decimal | None] = mapped_column(Numeric(4, 3))
     # D63: physically suitable for rail (craneable); Plan Check tests it.
     rail_craneable: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     # Relative to the holder `carrier_id`; see domain.equipment.Ownership.
@@ -626,17 +631,16 @@ class LoadUnit(Base):
 
 
 class ReeferUnit(Base):
-    """Refrigeration unit of a reefer load unit (D47, D76): up to two per load unit, one in each
-    position. The limit of two follows from the unique (load_unit_id, position) and the two
-    positions; which body types may have one is checked in the domain."""
+    """Refrigeration unit (the machine, at the front) of a reefer load unit (D47, D76): at most
+    one per load unit. Power source and reefer service belong to the machine; the zones are
+    served by its evaporators. Which body types may have one is checked in the domain."""
 
     __tablename__ = "reefer_units"
     __table_args__ = (
-        UniqueConstraint("load_unit_id", "position", name="uq_reefer_units_load_unit_id_position"),
-        # Target of the composite foreign key of compartments (a compartment's unit must belong
+        UniqueConstraint("load_unit_id", name="uq_reefer_units_load_unit_id"),
+        # Target of the composite foreign key of evaporators (an evaporator's machine must belong
         # to the same load unit).
         UniqueConstraint("id", "load_unit_id", name="uq_reefer_units_id_load_unit_id"),
-        CheckConstraint(in_list("position", ReeferPosition), name="ck_reefer_units_position"),
         CheckConstraint(in_list("power_source", PowerSource), name="ck_reefer_units_power_source"),
         CheckConstraint("btrim(unit_name) <> ''", name="ck_reefer_units_unit_name_not_blank"),
     )
@@ -646,7 +650,6 @@ class ReeferUnit(Base):
     load_unit_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), _fk("load_units.id", "fk_reefer_units_load_unit_id")
     )
-    position: Mapped[str] = mapped_column(String(10))
     # Invented make and model in demo data.
     unit_name: Mapped[str] = mapped_column(String(100))
     power_source: Mapped[str] = mapped_column(String(10))
@@ -654,30 +657,62 @@ class ReeferUnit(Base):
     updated_at: Mapped[datetime] = _updated_at()
 
 
+class ReeferEvaporator(Base):
+    """Evaporator (indoor unit) of a reefer unit (D76): FB and FS have one, FD two (front and
+    rear of the partition). The counts are domain checks; the position is unique per machine."""
+
+    __tablename__ = "reefer_evaporators"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["reefer_unit_id", "load_unit_id"],
+            ["reefer_units.id", "reefer_units.load_unit_id"],
+            ondelete="RESTRICT",
+            name="fk_reefer_evaporators_reefer_unit_id",
+        ),
+        UniqueConstraint(
+            "reefer_unit_id", "position", name="uq_reefer_evaporators_reefer_unit_id_position"
+        ),
+        # Target of the composite foreign key of compartments.
+        UniqueConstraint("id", "load_unit_id", name="uq_reefer_evaporators_id_load_unit_id"),
+        CheckConstraint(
+            in_list("position", EvaporatorPosition), name="ck_reefer_evaporators_position"
+        ),
+        Index("ix_reefer_evaporators_load_unit_id", "load_unit_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    reefer_unit_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # Denormalised from the machine so that compartments can check the same load unit.
+    load_unit_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    position: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
 class Compartment(Base):
     """Temperature compartment (zone) of a reefer load unit (D47, D76).
 
-    Two reefer units do not mean two compartments: the zones and whether they are controlled
-    independently are defined per load unit. `reefer_unit_id` is the unit serving this compartment
-    (NULL = not recorded, or served by both).
+    The model code fixes the zones (FB, FS one; FD two). `evaporator_id` is the evaporator
+    serving this compartment (NULL = not recorded); an evaporator serves at most one compartment.
     """
 
     __tablename__ = "compartments"
     __table_args__ = (
         UniqueConstraint("load_unit_id", "number", name="uq_compartments_load_unit_id_number"),
-        # The serving unit must belong to the same load unit (MATCH SIMPLE: skipped when NULL).
+        # The serving evaporator must belong to the same load unit (MATCH SIMPLE: skipped when
+        # NULL).
         ForeignKeyConstraint(
-            ["reefer_unit_id", "load_unit_id"],
-            ["reefer_units.id", "reefer_units.load_unit_id"],
+            ["evaporator_id", "load_unit_id"],
+            ["reefer_evaporators.id", "reefer_evaporators.load_unit_id"],
             ondelete="RESTRICT",
-            name="fk_compartments_reefer_unit_id",
+            name="fk_compartments_evaporator_id",
         ),
+        UniqueConstraint("evaporator_id", name="uq_compartments_evaporator_id"),
         CheckConstraint("number >= 1", name="ck_compartments_number"),
         CheckConstraint(
             "pallet_places IS NULL OR pallet_places >= 0", name="ck_compartments_pallet_places"
         ),
         CheckConstraint("temperature_min <= temperature_max", name="ck_compartments_temperature"),
-        Index("ix_compartments_reefer_unit_id", "reefer_unit_id"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -685,7 +720,7 @@ class Compartment(Base):
     load_unit_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), _fk("load_units.id", "fk_compartments_load_unit_id")
     )
-    reefer_unit_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    evaporator_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     number: Mapped[int] = mapped_column(Integer)
     # Degrees Celsius, the range the compartment can hold.
     temperature_min: Mapped[Decimal] = mapped_column(Numeric(4, 1))

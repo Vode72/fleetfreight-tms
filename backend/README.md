@@ -102,16 +102,18 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
 - Fleet (2B-2): `trucks` (tractor / rigid_truck; fifth wheel position, low fifth wheel, drawbar hitch,
   combination weight limit, base location), `dollies`, `load_units` (trailer / fixed_body, D60; coupling
   type semi / full / centre-axle trailer, kingpin position, external size, model code, side doors, partition),
-  `reefer_units`, `compartments` and `equipment_qualifications` (D70). A fixed body references its rigid
+  `reefer_units`, `reefer_evaporators`, `compartments` and `equipment_qualifications` (D70). A fixed body references its rigid
   truck (one body per truck) and has no length, weights, axles or coupling type of its own (the truck holds
   them) and is not rail-craneable. A semi-trailer has no tail lift (D25).
 - Model code (D75): FB / FD / FS (invented demo thermo codes) and CS / MEGA / COIL. The code never decides
   features (MEGA + `coil_well`, not MEGA_COIL); compatibility comes from the feature columns.
-- Reefer units and zones (D76): up to two reefer units per load unit, one per position (front / rear);
-  two units do not mean two zones. Compartments (zones) may name the unit serving them and say whether
-  they are controlled independently. The partition (`partition`, thickness, step in pallet rows, minimum
-  pallets front and rear) is per load unit; `domain.equipment.partition_positions` returns the allowed
-  positions and the compartments' pallet places.
+- Reefer unit, evaporators and zones (D76): one reefer unit (the machine, at the front) per load unit with
+  power source and reefer service; its evaporators (indoor units) serve the zones: FB and FS one, FD two
+  (front and rear). A compartment (zone) may name the evaporator serving it and says whether it is
+  controlled independently. Only FD has a partition (`partition`, thickness, step in pallet rows, minimum
+  pallets front and rear, optional maximum rear share); its position is chosen for the load, so FD
+  compartments have no fixed pallet places, and `domain.equipment.partition_positions` returns the allowed
+  positions (4 + 28 ... 28 + 4 EUR on a 13.6 m FD).
 - ATP, inspections, tail lift inspections, GDP mapping, ADR vehicle approval and reefer service are validity
   periods in `equipment_qualifications` (D67): exactly one subject (truck, dolly, load unit or reefer unit;
   reefer service takes a reefer unit only), overlapping periods of one subject and type rejected by an

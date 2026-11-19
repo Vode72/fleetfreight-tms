@@ -13,10 +13,10 @@ from domain.equipment import (
     BodyType,
     CouplingType,
     EquipmentQualificationType,
+    EvaporatorPosition,
     ModelCode,
     Ownership,
     PowerSource,
-    ReeferPosition,
     TruckType,
 )
 from tests.test_registers_db import _carrier, _insert
@@ -438,7 +438,7 @@ def test_compartment_pallet_places_and_control_flag(
     _compartment(test_engine, unit, 1)  # places optional, not independently controlled by default
     with test_engine.connect() as conn:
         row = conn.execute(
-            text("SELECT pallet_places, independently_controlled, reefer_unit_id FROM compartments")
+            text("SELECT pallet_places, independently_controlled, evaporator_id FROM compartments")
         ).one()
     assert tuple(row) == (None, False, None)
     _compartment(test_engine, unit, 2, pallet_places=20, independently_controlled=True)
@@ -446,30 +446,40 @@ def test_compartment_pallet_places_and_control_flag(
     _rejected(_compartment, test_engine, unit, 4, pallet_places=-1)
 
 
-def test_compartment_reefer_unit_must_belong_to_the_same_load_unit(
+def test_compartment_evaporator_must_belong_to_the_same_load_unit(
     test_engine: Engine, carrier: uuid.UUID
 ) -> None:
     unit = _trailer(test_engine, carrier, body_type="reefer")
     other = _trailer(test_engine, carrier, body_type="reefer")
     machine = _reefer(test_engine, unit)
-    other_machine = _reefer(test_engine, other)
-    _compartment(test_engine, unit, 1, reefer_unit_id=machine)
-    _compartment(test_engine, unit, 2)  # optional
+    front = _evaporator(test_engine, machine, unit, "front")
+    rear = _evaporator(test_engine, machine, unit, "rear")
+    other_front = _evaporator(test_engine, _reefer(test_engine, other), other, "front")
+    _compartment(test_engine, unit, 1, evaporator_id=front)
+    _compartment(test_engine, unit, 2, evaporator_id=rear)
+    _compartment(test_engine, unit, 3)  # optional
     assert (
-        _violated(lambda: _compartment(test_engine, unit, 3, reefer_unit_id=other_machine))
-        == "fk_compartments_reefer_unit_id"
+        _violated(lambda: _compartment(test_engine, unit, 4, evaporator_id=other_front))
+        == "fk_compartments_evaporator_id"
     )
-    _rejected(_compartment, test_engine, unit, 4, reefer_unit_id=uuid.uuid4())
+    # one evaporator serves at most one compartment
+    assert (
+        _violated(lambda: _compartment(test_engine, unit, 5, evaporator_id=front))
+        == "uq_compartments_evaporator_id"
+    )
+    _rejected(_compartment, test_engine, unit, 6, evaporator_id=uuid.uuid4())
 
 
-def test_reefer_unit_with_compartments_cannot_be_deleted(
+def test_reefer_unit_and_evaporator_in_use_cannot_be_deleted(
     test_engine: Engine, carrier: uuid.UUID
 ) -> None:
     unit = _trailer(test_engine, carrier, body_type="reefer")
     machine = _reefer(test_engine, unit)
-    _compartment(test_engine, unit, 1, reefer_unit_id=machine)
-    with pytest.raises(IntegrityError), test_engine.begin() as conn:
-        conn.execute(text("DELETE FROM reefer_units WHERE id = :i"), {"i": machine})
+    evaporator = _evaporator(test_engine, machine, unit)
+    _compartment(test_engine, unit, 1, evaporator_id=evaporator)
+    for table, row in (("reefer_evaporators", evaporator), ("reefer_units", machine)):
+        with pytest.raises(IntegrityError), test_engine.begin() as conn:
+            conn.execute(text(f"DELETE FROM {table} WHERE id = :i"), {"i": row})
 
 
 def test_compartments(test_engine: Engine, carrier: uuid.UUID) -> None:
@@ -505,12 +515,18 @@ def test_load_unit_with_compartments_cannot_be_deleted(
 def _reefer(engine: Engine, unit: uuid.UUID, **kw: Any) -> uuid.UUID:
     values = {
         "load_unit_id": unit,
-        "position": "front",
         "unit_name": "Demo Chill 300",
         "power_source": "diesel",
         **kw,
     }
     return _insert(engine, "reefer_units", **values)
+
+
+def _evaporator(
+    engine: Engine, machine: uuid.UUID, unit: uuid.UUID, position: str = "front", **kw: Any
+) -> uuid.UUID:
+    values = {"reefer_unit_id": machine, "load_unit_id": unit, "position": position, **kw}
+    return _insert(engine, "reefer_evaporators", **values)
 
 
 @pytest.mark.parametrize("value", [p.value for p in PowerSource])
@@ -520,39 +536,48 @@ def test_reefer_power_source_accepts_domain_values(
     _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"), power_source=value)
 
 
-@pytest.mark.parametrize("value", [p.value for p in ReeferPosition])
-def test_reefer_position_accepts_domain_values(
-    test_engine: Engine, carrier: uuid.UUID, value: str
-) -> None:
-    _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"), position=value)
-
-
-def test_reefer_units_one_per_position_two_per_load_unit(
-    test_engine: Engine, carrier: uuid.UUID
-) -> None:
+def test_one_reefer_unit_per_load_unit(test_engine: Engine, carrier: uuid.UUID) -> None:
+    """D76: one machine, at the front; the zones come from its evaporators."""
     unit = _trailer(test_engine, carrier, body_type="reefer")
-    _reefer(test_engine, unit, position="front")
-    _reefer(test_engine, unit, position="rear", power_source="hybrid")
-    assert _violated(lambda: _reefer(test_engine, unit, position="front")) == (
-        "uq_reefer_units_load_unit_id_position"
-    )
-    assert _violated(lambda: _reefer(test_engine, unit, position="rear")) == (
-        "uq_reefer_units_load_unit_id_position"
-    )
-    # a third unit has no free position: the position check admits only front and rear
-    assert _violated(lambda: _reefer(test_engine, unit, position="middle")) == (
-        "ck_reefer_units_position"
-    )
-    other = _trailer(test_engine, carrier, body_type="reefer")
-    _reefer(test_engine, other, position="front")  # the same position on another load unit
+    _reefer(test_engine, unit)
+    assert _violated(lambda: _reefer(test_engine, unit)) == "uq_reefer_units_load_unit_id"
+    _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"))
 
 
 def test_reefer_unit_constraints(test_engine: Engine, carrier: uuid.UUID) -> None:
     other = _trailer(test_engine, carrier, body_type="reefer")
     _rejected(_reefer, test_engine, other, power_source="gas")
     _rejected(_reefer, test_engine, other, unit_name=" ")
-    _rejected(_reefer, test_engine, other, position=None)
     _rejected(_reefer, test_engine, uuid.uuid4())
+
+
+@pytest.mark.parametrize("value", [p.value for p in EvaporatorPosition])
+def test_evaporator_position_accepts_domain_values(
+    test_engine: Engine, carrier: uuid.UUID, value: str
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    _evaporator(test_engine, _reefer(test_engine, unit), unit, value)
+
+
+def test_evaporators_one_per_position_on_the_same_load_unit(
+    test_engine: Engine, carrier: uuid.UUID
+) -> None:
+    unit = _trailer(test_engine, carrier, body_type="reefer")
+    machine = _reefer(test_engine, unit)
+    _evaporator(test_engine, machine, unit, "front")
+    _evaporator(test_engine, machine, unit, "rear")
+    assert _violated(lambda: _evaporator(test_engine, machine, unit, "front")) == (
+        "uq_reefer_evaporators_reefer_unit_id_position"
+    )
+    assert _violated(lambda: _evaporator(test_engine, machine, unit, "middle")) == (
+        "ck_reefer_evaporators_position"
+    )
+    # the machine must belong to the evaporator's load unit
+    other_machine = _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"))
+    assert _violated(lambda: _evaporator(test_engine, other_machine, unit, "front")) == (
+        "fk_reefer_evaporators_reefer_unit_id"
+    )
+    _rejected(_evaporator, test_engine, machine, unit, None)
 
 
 # --- load unit model code, side doors and partition (D75, D76)
@@ -615,15 +640,25 @@ def test_partition_defaults_and_values(test_engine: Engine, carrier: uuid.UUID) 
     assert tuple(row) == (False, 50, 1, 4, 4, False)
     fd = {"body_type": "reefer", "model_code": "FD", "partition": True}
     _trailer(test_engine, carrier, **fd, min_pallets_front=0, min_pallets_rear=0)
+    _trailer(test_engine, carrier, **fd, partition_max_rear_share="0.333")
+    _trailer(test_engine, carrier, **fd, partition_max_rear_share="1")
     for bad in (
         {"partition_thickness_mm": 0},
         {"partition_step_pallet_rows": 0},
         {"min_pallets_front": -1},
         {"min_pallets_rear": -1},
+        {"partition_max_rear_share": "0"},
+        {"partition_max_rear_share": "1.001"},
     ):
         assert _violated(partial(_trailer, test_engine, carrier, **fd, **bad)) == (
             "ck_load_units_partition_values"
         )
+
+
+def test_max_rear_share_needs_a_partition(test_engine: Engine, carrier: uuid.UUID) -> None:
+    assert _violated(
+        partial(_trailer, test_engine, carrier, body_type="reefer", partition_max_rear_share="0.5")
+    ) == ("ck_load_units_partition_values")
 
 
 def test_only_fd_has_a_partition_and_every_fd_has_one(
@@ -725,8 +760,8 @@ def test_reefer_service_is_for_reefer_units_only_and_they_take_nothing_else(
 
 def test_reefer_service_history_and_overlap(test_engine: Engine, carrier: uuid.UUID) -> None:
     unit = _trailer(test_engine, carrier, body_type="reefer")
-    front = _reefer(test_engine, unit, position="front")
-    rear = _reefer(test_engine, unit, position="rear")
+    front = _reefer(test_engine, unit)
+    rear = _reefer(test_engine, _trailer(test_engine, carrier, body_type="reefer"))
     kw: dict[str, Any] = {"type": "reefer_service"}
     _equipment(
         test_engine, reefer_unit_id=front, valid_from="2026-01-01", valid_until="2026-06-30", **kw
