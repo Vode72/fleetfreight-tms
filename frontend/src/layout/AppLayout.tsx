@@ -19,18 +19,35 @@ export function AppLayout() {
   const isTablet = useMediaQuery(TABLET_QUERY);
   const { collapsed, toggle } = useSidebarCollapsed(isTablet);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wasPhone, setWasPhone] = useState(isPhone);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const drawerOpen = isPhone && menuOpen;
 
-  const closeMenu = useCallback((returnFocus: boolean) => {
+  // Leaving the phone layout closes the drawer, so it does not reopen on its own later.
+  if (wasPhone !== isPhone) {
+    setWasPhone(isPhone);
+    if (!isPhone) setMenuOpen(false);
+  }
+
+  const closeMenu = useCallback((focusTarget: "menuButton" | "main") => {
     setMenuOpen(false);
-    if (returnFocus) menuButtonRef.current?.focus();
+    // The drawer is hidden after this render; move focus somewhere that stays visible.
+    queueMicrotask(() => {
+      (focusTarget === "main" ? mainRef.current : menuButtonRef.current)?.focus();
+    });
   }, []);
+
+  // Opening the drawer moves focus to its first link.
+  useEffect(() => {
+    if (drawerOpen) sidebarRef.current?.querySelector<HTMLElement>("a")?.focus();
+  }, [drawerOpen]);
 
   useEffect(() => {
     if (!drawerOpen) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeMenu(true);
+      if (event.key === "Escape") closeMenu("menuButton");
     }
     document.addEventListener("keydown", onKeyDown);
     return () => { document.removeEventListener("keydown", onKeyDown); };
@@ -55,11 +72,12 @@ export function AppLayout() {
         onMenuToggle={() => { setMenuOpen((open) => !open); }}
       />
       <Sidebar
+        ref={sidebarRef}
         collapsed={!isPhone && collapsed}
         onToggle={toggle}
         mode={isPhone ? "drawer" : "rail"}
         open={drawerOpen}
-        onNavigate={() => { closeMenu(false); }}
+        onNavigate={() => { closeMenu("main"); }}
       />
       {drawerOpen && (
         <button
@@ -67,10 +85,10 @@ export function AppLayout() {
           className="drawer-backdrop"
           aria-label={t("nav.closeMenu")}
           tabIndex={-1}
-          onClick={() => { closeMenu(true); }}
+          onClick={() => { closeMenu("menuButton"); }}
         />
       )}
-      <main id="main" className="app-main" tabIndex={-1} inert={drawerOpen}>
+      <main ref={mainRef} id="main" className="app-main" tabIndex={-1} inert={drawerOpen}>
         <Outlet />
       </main>
       <SaveFailedNotice />

@@ -20,8 +20,17 @@ function readStoredTheme(): Theme {
 let current: Theme = DEFAULT_THEME;
 const listeners = new Set<() => void>();
 
+/** Browser chrome colour on phones (D81): follows the theme's top bar colour. */
+function syncThemeColor(): void {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+  const color = getComputedStyle(document.documentElement).getPropertyValue("--panel-header").trim();
+  if (color) meta.setAttribute("content", color);
+}
+
 function apply(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
+  syncThemeColor();
 }
 
 /** Applies the remembered (or default) theme. Call before the first render. */

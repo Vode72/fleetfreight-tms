@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router";
 
@@ -34,6 +35,7 @@ function SidebarLink({ item, collapsed, onNavigate }: SidebarLinkProps) {
 }
 
 interface SidebarProps {
+  ref?: Ref<HTMLElement>;
   collapsed: boolean;
   onToggle: () => void;
   /** "rail": fixed column (desktop, tablet). "drawer": slides in over the content (phone, D81). */
@@ -44,13 +46,14 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
-export function Sidebar({ collapsed, onToggle, mode = "rail", open = false, onNavigate }: SidebarProps) {
+export function Sidebar({ ref, collapsed, onToggle, mode = "rail", open = false, onNavigate }: SidebarProps) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const drawer = mode === "drawer";
 
   return (
     <nav
+      ref={ref}
       id="sidebar"
       className="sidebar"
       aria-label={t("nav.label")}

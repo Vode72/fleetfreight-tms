@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -140,7 +140,9 @@ describe("responsive shell (D81)", () => {
 
     const menuButton = screen.getByRole("button", { name: en.nav.openMenu });
     expect(menuButton).toHaveAttribute("aria-expanded", "false");
-    expect(menuButton).toHaveFocus();
+    await waitFor(() => {
+      expect(menuButton).toHaveFocus();
+    });
     expect(
       screen.queryByRole("navigation", { name: en.nav.label }),
     ).not.toBeInTheDocument();

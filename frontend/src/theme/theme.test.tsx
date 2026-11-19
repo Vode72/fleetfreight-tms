@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import en from "../i18n/en.json";
 import { renderApp } from "../test/renderApp";
-import { DEFAULT_THEME, THEME_STORAGE_KEY, initTheme } from "./theme";
+import { DEFAULT_THEME, THEME_STORAGE_KEY, initTheme, setTheme } from "./theme";
 
 describe("theme", () => {
   it("defaults to Business Light", () => {
@@ -50,5 +50,22 @@ describe("theme", () => {
     await userEvent.selectOptions(screen.getByLabelText(en.theme.label), "control-dark");
     expect(document.documentElement).toHaveAttribute("data-theme", "control-dark");
     vi.restoreAllMocks();
+  });
+});
+
+describe("theme-color meta (D81)", () => {
+  it("follows the theme's top bar colour", () => {
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.content = "initial";
+    document.head.append(meta);
+    document.documentElement.style.setProperty("--panel-header", "rgb(1 2 3)");
+    try {
+      setTheme("control-dark");
+      expect(meta.content).toBe("rgb(1 2 3)");
+    } finally {
+      meta.remove();
+      document.documentElement.style.removeProperty("--panel-header");
+    }
   });
 });
