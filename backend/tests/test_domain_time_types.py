@@ -206,3 +206,60 @@ def test_to_be_agreed_is_a_non_mandatory_open() -> None:
     assert result.reason is TimeCheckReason.TIME_TO_BE_AGREED
     assert not result.mandatory
     assert result.slack is None and result.early_by is None
+
+
+# --- review additions: daylight saving, boundaries, mixed awareness -----------------------
+
+
+def test_slack_is_real_elapsed_time_across_autumn_dst_change() -> None:
+    # Helsinki clocks go back 04:00 -> 03:00 on 25.10.2026: 02:00 to 10:00 is 9 real hours.
+    result = evaluate(
+        OrderTime.fix(at(10, day=25).replace(month=10)), at(2, day=25).replace(month=10), HEL
+    )
+    assert result.slack == timedelta(hours=9)
+    assert result.early_by == timedelta(hours=9)
+
+
+def test_slack_is_real_elapsed_time_across_spring_dst_change() -> None:
+    # Helsinki clocks go forward 03:00 -> 04:00 on 29.3.2026: 02:00 to 10:00 is 7 real hours.
+    fix = OrderTime.fix(datetime(2026, 3, 29, 10, tzinfo=HEL))
+    result = evaluate(fix, datetime(2026, 3, 29, 2, tzinfo=HEL), HEL)
+    assert result.slack == timedelta(hours=7)
+
+
+def test_late_by_a_minute_across_dst_change_still_blocks() -> None:
+    # 03:30 on 25.10.2026 occurs twice in Helsinki; fold=1 is the later (EET) one, 1h after fold=0.
+    first = datetime(2026, 10, 25, 3, 30, tzinfo=HEL)
+    second = first.replace(fold=1)
+    assert evaluate(OrderTime.fix(first), second, HEL).level is CheckLevel.BLOCKED
+
+
+def test_termin_window_order_is_checked_in_real_time() -> None:
+    first = datetime(2026, 10, 25, 3, 30, tzinfo=HEL)
+    with pytest.raises(ValueError, match="before its start"):
+        OrderTime.termin(first.replace(fold=1), first.replace(minute=45))
+
+
+def test_termin_with_mixed_naive_and_aware_times_raises_value_error() -> None:
+    with pytest.raises(ValueError, match="timezone-aware"):
+        OrderTime.termin(datetime(2026, 11, 20, 8), at(12))
+
+
+def test_termin_margin_boundary_at_window_end() -> None:
+    window = OrderTime.termin(at(8), at(12))
+    assert evaluate(window, at(11, 30), HEL).level is CheckLevel.OK
+    almost = at(11, 30) + timedelta(seconds=1)
+    assert evaluate(window, almost, HEL).level is CheckLevel.RISK
+
+
+def test_early_arrival_to_a_window_narrower_than_the_margin_is_a_risk_with_wait() -> None:
+    result = evaluate(OrderTime.termin(at(10), at(10, 10)), at(9, 50), HEL)
+    assert result.level is CheckLevel.RISK
+    assert result.early_by == timedelta(minutes=10)
+    assert result.slack == timedelta(minutes=20)
+
+
+def test_termin_single_time_early_arrival_reports_wait() -> None:
+    result = evaluate(OrderTime.termin(at(14)), at(12), HEL)
+    assert result.reason is TimeCheckReason.EARLY
+    assert result.early_by == timedelta(hours=2)

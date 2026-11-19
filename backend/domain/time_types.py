@@ -19,10 +19,13 @@ Priority, most binding first, used for conflicts, ordering and optimisation: FIX
 TO_BE_AGREED.
 
 The margin is a setting (default 30 minutes, D80); the caller passes it in.
+
+All comparisons and differences are made in UTC: Python compares two datetimes that share one
+tzinfo by wall clock, which is off by an hour across a daylight saving change.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -73,6 +76,10 @@ def _require_aware(value: datetime, name: str) -> None:
         raise ValueError(f"{name} must be timezone-aware")
 
 
+def _utc(value: datetime) -> datetime:
+    return value.astimezone(UTC)
+
+
 @dataclass(frozen=True)
 class OrderTime:
     """The time of one loading or unloading on an order. Build it with the class methods.
@@ -87,14 +94,18 @@ class OrderTime:
     eta_date: date | None = None
 
     def __post_init__(self) -> None:
+        for name in ("start", "end"):
+            value = getattr(self, name)
+            if value is not None:
+                _require_aware(value, name)
         t = self.time_type
         if t is TimeType.FIX:
-            if self.start is None or self.end is None or self.start != self.end:
+            if self.start is None or self.end is None or _utc(self.start) != _utc(self.end):
                 raise ValueError("FIX needs one time: start and end equal")
         elif t is TimeType.TERMIN:
             if self.start is None:
                 raise ValueError("TERMIN needs a start")
-            if self.end is not None and self.end < self.start:
+            if self.end is not None and _utc(self.end) < _utc(self.start):
                 raise ValueError("TERMIN end must not be before its start")
         elif t is TimeType.ETA and self.eta_date is None:
             raise ValueError("ETA needs a date")
@@ -104,10 +115,6 @@ class OrderTime:
             self.start is not None or self.end is not None
         ):
             raise ValueError(f"{t} has no start or end time")
-        for name in ("start", "end"):
-            value = getattr(self, name)
-            if value is not None:
-                _require_aware(value, name)
 
     @classmethod
     def fix(cls, at: datetime) -> OrderTime:
@@ -160,20 +167,24 @@ def evaluate(
         return TimeCheckResult(CheckLevel.OPEN, TimeCheckReason.TIME_TO_BE_AGREED, mandatory=False)
 
     if t is TimeType.ETA:
-        assert order_time.eta_date is not None  # guaranteed by OrderTime
+        if order_time.eta_date is None:  # guaranteed by OrderTime; narrows the type
+            raise ValueError("ETA needs a date")
         planned_day = planned_arrival.astimezone(location_tz).date()
         if planned_day > order_time.eta_date:
             return TimeCheckResult(CheckLevel.RISK, TimeCheckReason.AFTER_ETA, mandatory=False)
         return TimeCheckResult(CheckLevel.OK, TimeCheckReason.ON_TIME, mandatory=False)
 
     # FIX and TERMIN
-    assert order_time.start is not None and order_time.latest is not None
-    slack = order_time.latest - planned_arrival
+    if order_time.start is None or order_time.latest is None:  # guaranteed by OrderTime
+        raise ValueError(f"{t} needs a time")
+    planned = _utc(planned_arrival)
+    start = _utc(order_time.start)
+    slack = _utc(order_time.latest) - planned
     if slack < timedelta(0):
         return TimeCheckResult(
             CheckLevel.BLOCKED, TimeCheckReason.LATE, mandatory=True, slack=slack
         )
-    early_by = order_time.start - planned_arrival if planned_arrival < order_time.start else None
+    early_by = start - planned if planned < start else None
     if slack < margin:
         return TimeCheckResult(
             CheckLevel.RISK,
