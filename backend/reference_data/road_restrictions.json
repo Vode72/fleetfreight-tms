@@ -7,6 +7,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "vehicle",
+    "with_trailer_any_weight": true,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -44,6 +46,8 @@
     "section": "Motorway and federal road sections listed in FerReiseV § 1(2)-(3), both directions; federal roads outside built-up areas only",
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "vehicle",
+    "with_trailer_any_weight": true,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -78,6 +82,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -127,6 +133,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -180,6 +188,8 @@
     "section": "Auvergne-Rhône-Alpes roads listed in the annex of the arrêté",
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -233,6 +243,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -242,7 +254,7 @@
       "empty_run",
       "other"
     ],
-    "note": "Regulation § 2(1): statutory days off named in the regulation, nationwide; buses excluded. Exemptions in § 3 (e.g. perishable goods filling most of the load, live animals, combined transport, ADR with orange plates, vehicles within 50 km of the border).",
+    "note": "Regulation § 2(1): statutory days off named in the regulation, nationwide; buses excluded. Exemptions in § 3 (e.g. goods listed in annex 1 forming a significant part of the load, live animals, combined transport, ADR with orange plates, vehicles that entered Poland outside the ban hours, up to 50 km from the border crossing, and vehicles waiting to leave Poland).",
     "valid_from": "2026-01-01",
     "valid_until": null,
     "source_url": "https://api.sejm.gov.pl/eli/acts/DU/2023/2423/text.html",
@@ -263,6 +275,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -396,6 +410,8 @@
     "section": null,
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -445,6 +461,8 @@
     "section": "Roads outside built-up areas",
     "restriction_type": "driving_ban",
     "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [

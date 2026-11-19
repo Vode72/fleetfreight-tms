@@ -55,33 +55,6 @@
   },
   {
     "country": "DE",
-    "region": null,
-    "date": "2026-10-03",
-    "name_local": "Tag der Deutschen Einheit",
-    "name_en": "Day of German Unity",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2026-12-25",
-    "name_local": "1. Weihnachtstag",
-    "name_en": "Christmas Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2026-12-26",
-    "name_local": "2. Weihnachtstag",
-    "name_en": "Second Day of Christmas",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
     "region": "DE-BW",
     "date": "2026-06-04",
     "name_local": "Fronleichnam",
@@ -136,6 +109,15 @@
   },
   {
     "country": "DE",
+    "region": null,
+    "date": "2026-10-03",
+    "name_local": "Tag der Deutschen Einheit",
+    "name_en": "Day of German Unity",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
     "region": "DE-BB",
     "date": "2026-10-31",
     "name_local": "Reformationstag",
@@ -181,6 +163,15 @@
   },
   {
     "country": "DE",
+    "region": "DE-SH",
+    "date": "2026-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
     "region": "DE-SN",
     "date": "2026-10-31",
     "name_local": "Reformationstag",
@@ -191,15 +182,6 @@
   {
     "country": "DE",
     "region": "DE-ST",
-    "date": "2026-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-SH",
     "date": "2026-10-31",
     "name_local": "Reformationstag",
     "name_en": "Reformation Day",
@@ -257,6 +239,285 @@
     "date": "2026-11-01",
     "name_local": "Allerheiligen",
     "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2026-12-25",
+    "name_local": "1. Weihnachtstag",
+    "name_en": "Christmas Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2026-12-26",
+    "name_local": "2. Weihnachtstag",
+    "name_en": "Second Day of Christmas",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-01-01",
+    "name_local": "Neujahr",
+    "name_en": "New Year's Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-03-26",
+    "name_local": "Karfreitag",
+    "name_en": "Good Friday",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-03-29",
+    "name_local": "Ostermontag",
+    "name_en": "Easter Monday",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-05-01",
+    "name_local": "Tag der Arbeit",
+    "name_en": "Labour Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-05-06",
+    "name_local": "Christi Himmelfahrt",
+    "name_en": "Ascension Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-05-17",
+    "name_local": "Pfingstmontag",
+    "name_en": "Whit Monday",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-BW",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-BY",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-HE",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-NW",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-RP",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-SL",
+    "date": "2027-05-27",
+    "name_local": "Fronleichnam",
+    "name_en": "Corpus Christi",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-10-03",
+    "name_local": "Tag der Deutschen Einheit",
+    "name_en": "Day of German Unity",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-BB",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-HB",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-HH",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-MV",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-NI",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-SH",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-SN",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-ST",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-TH",
+    "date": "2027-10-31",
+    "name_local": "Reformationstag",
+    "name_en": "Reformation Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-BW",
+    "date": "2027-11-01",
+    "name_local": "Allerheiligen",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-BY",
+    "date": "2027-11-01",
+    "name_local": "Allerheiligen",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-NW",
+    "date": "2027-11-01",
+    "name_local": "Allerheiligen",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-RP",
+    "date": "2027-11-01",
+    "name_local": "Allerheiligen",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": "DE-SL",
+    "date": "2027-11-01",
+    "name_local": "Allerheiligen",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-12-25",
+    "name_local": "1. Weihnachtstag",
+    "name_en": "Christmas Day",
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "DE",
+    "region": null,
+    "date": "2027-12-26",
+    "name_local": "2. Weihnachtstag",
+    "name_en": "Second Day of Christmas",
     "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
     "checked_on": "2026-11-19"
   },
@@ -357,6 +618,105 @@
     "name_local": "Noël",
     "name_en": "Christmas Day",
     "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A18558",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-01-01",
+    "name_local": "Jour de l'An",
+    "name_en": "New Year's Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-03-29",
+    "name_local": "Lundi de Pâques",
+    "name_en": "Easter Monday",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-05-01",
+    "name_local": "Fête du Travail",
+    "name_en": "Labour Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-05-06",
+    "name_local": "Ascension",
+    "name_en": "Ascension Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-05-08",
+    "name_local": "Victoire 1945",
+    "name_en": "Victory in Europe Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-05-17",
+    "name_local": "Lundi de Pentecôte",
+    "name_en": "Whit Monday",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-07-14",
+    "name_local": "Fête nationale",
+    "name_en": "Bastille Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-08-15",
+    "name_local": "Assomption",
+    "name_en": "Assumption Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-11-01",
+    "name_local": "Toussaint",
+    "name_en": "All Saints' Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-11-11",
+    "name_local": "Armistice 1918",
+    "name_en": "Armistice Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
+    "checked_on": "2026-11-19"
+  },
+  {
+    "country": "FR",
+    "region": null,
+    "date": "2027-12-25",
+    "name_local": "Noël",
+    "name_en": "Christmas Day",
+    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
     "checked_on": "2026-11-19"
   },
   {
@@ -465,366 +825,6 @@
     "name_local": "Drugi dzień Bożego Narodzenia",
     "name_en": "Second Day of Christmas",
     "source_url": "https://api.sejm.gov.pl/eli/acts/DU/2023/2423/text.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-01-01",
-    "name_local": "Neujahr",
-    "name_en": "New Year's Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-03-26",
-    "name_local": "Karfreitag",
-    "name_en": "Good Friday",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-03-29",
-    "name_local": "Ostermontag",
-    "name_en": "Easter Monday",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-05-01",
-    "name_local": "Tag der Arbeit",
-    "name_en": "Labour Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-05-06",
-    "name_local": "Christi Himmelfahrt",
-    "name_en": "Ascension Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-05-17",
-    "name_local": "Pfingstmontag",
-    "name_en": "Whit Monday",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-10-03",
-    "name_local": "Tag der Deutschen Einheit",
-    "name_en": "Day of German Unity",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-12-25",
-    "name_local": "1. Weihnachtstag",
-    "name_en": "Christmas Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": null,
-    "date": "2027-12-26",
-    "name_local": "2. Weihnachtstag",
-    "name_en": "Second Day of Christmas",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-BW",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-BY",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-HE",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-NW",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-RP",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-SL",
-    "date": "2027-05-27",
-    "name_local": "Fronleichnam",
-    "name_en": "Corpus Christi",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-BB",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-HB",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-HH",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-MV",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-NI",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-SN",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-ST",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-SH",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-TH",
-    "date": "2027-10-31",
-    "name_local": "Reformationstag",
-    "name_en": "Reformation Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-BW",
-    "date": "2027-11-01",
-    "name_local": "Allerheiligen",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-BY",
-    "date": "2027-11-01",
-    "name_local": "Allerheiligen",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-NW",
-    "date": "2027-11-01",
-    "name_local": "Allerheiligen",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-RP",
-    "date": "2027-11-01",
-    "name_local": "Allerheiligen",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "DE",
-    "region": "DE-SL",
-    "date": "2027-11-01",
-    "name_local": "Allerheiligen",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-01-01",
-    "name_local": "Jour de l'An",
-    "name_en": "New Year's Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-03-29",
-    "name_local": "Lundi de Pâques",
-    "name_en": "Easter Monday",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-05-01",
-    "name_local": "Fête du Travail",
-    "name_en": "Labour Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-05-08",
-    "name_local": "Victoire 1945",
-    "name_en": "Victory in Europe Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-05-06",
-    "name_local": "Ascension",
-    "name_en": "Ascension Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-05-17",
-    "name_local": "Lundi de Pentecôte",
-    "name_en": "Whit Monday",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-07-14",
-    "name_local": "Fête nationale",
-    "name_en": "Bastille Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-08-15",
-    "name_local": "Assomption",
-    "name_en": "Assumption Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-11-01",
-    "name_local": "Toussaint",
-    "name_en": "All Saints' Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-11-11",
-    "name_local": "Armistice 1918",
-    "name_en": "Armistice Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
-    "checked_on": "2026-11-19"
-  },
-  {
-    "country": "FR",
-    "region": null,
-    "date": "2027-12-25",
-    "name_local": "Noël",
-    "name_en": "Christmas Day",
-    "source_url": "https://www.service-public.gouv.fr/particuliers/actualites/A19019",
     "checked_on": "2026-11-19"
   },
   {

@@ -9,8 +9,11 @@ Road restrictions
   for weights, millimetres for heights and lengths.
 - A driving ban, an HCT route and an environmental zone have no value; an ADR tunnel restriction
   has a tunnel category B-E instead.
-- Who it applies to: vehicles over a permissible gross weight (e.g. over 7.5 t), ADR only,
-  loaded or empty vehicles, and listed exemptions (e.g. perishable goods).
+- Who it applies to: vehicles over a permissible gross weight (e.g. over 7.5 t), compared with the
+  single vehicle or the whole combination; optionally any truck towing a trailer whatever its
+  weight (Germany); ADR only; loaded or empty vehicles; and listed exemptions (e.g. perishable
+  goods). Country-specific conditions of an exemption (lists of goods, distances) are in the note
+  and are evaluated in phase 5.
 
 Driving ban windows (local time of the country or region)
 - A window applies on given weekdays, on public holidays, on the day before a public holiday, or
@@ -55,6 +58,13 @@ class LoadState(StrEnum):
     ANY = "any"
     LOADED = "loaded"
     EMPTY = "empty"
+
+
+class WeightBasis(StrEnum):
+    """Which permissible gross weight a weight scope is compared with."""
+
+    VEHICLE = "vehicle"  # the single vehicle (e.g. Germany: a truck over 7.5 t)
+    COMBINATION = "combination"  # the vehicle or the whole combination (e.g. Poland over 12 t)
 
 
 class Exemption(StrEnum):

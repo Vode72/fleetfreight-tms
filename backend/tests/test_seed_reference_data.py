@@ -8,7 +8,13 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from db.models import Country, PublicHoliday, RoadRestriction, RoadRestrictionWindow
+from db.models import (
+    Country,
+    CountryRule,
+    PublicHoliday,
+    RoadRestriction,
+    RoadRestrictionWindow,
+)
 from domain.restrictions import WindowKind
 from scripts.seed_reference_data import ReferenceData, load_files, seed_reference_data
 
@@ -45,6 +51,7 @@ def test_seed_content_matches_the_sources(test_engine: Engine) -> None:
             select(RoadRestriction).where(RoadRestriction.code == "DE-SUNDAY-HOLIDAY-BAN")
         ).one()
         assert de.over_gross_weight_kg == 7500
+        assert (de.weight_basis, de.with_trailer_any_weight) == ("vehicle", True)
         windows = session.scalars(
             select(RoadRestrictionWindow).where(RoadRestrictionWindow.restriction_id == de.id)
         ).all()
@@ -64,6 +71,7 @@ def test_seed_content_matches_the_sources(test_engine: Engine) -> None:
             select(RoadRestriction).where(RoadRestriction.code == "PL-HOLIDAY-BAN")
         ).one()
         assert poland.over_gross_weight_kg == 12000
+        assert (poland.weight_basis, poland.with_trailer_any_weight) == ("combination", False)
         # Easter 2026 is 5 April: Easter Monday is a ban day in DE, FR and PL.
         easter_monday = session.scalars(
             select(PublicHoliday.country).where(PublicHoliday.holiday_date == date(2026, 4, 6))
@@ -115,6 +123,14 @@ def _bad(tmp_path: Path, change) -> Path:  # type: ignore[no-untyped-def]
         (lambda d: d["public_holidays.json"].append(d["public_holidays.json"][0]), "duplicate"),
         (lambda d: d["public_holidays.json"][0].update(region="FR-ARA"), "region"),
         (lambda d: d["countries.json"][0].update(time_zone="Mars/Base"), "time zone"),
+        (lambda d: d["road_restrictions.json"][0].update(code="DE-bad code"), "code must"),
+        (lambda d: d["road_restrictions.json"][0].update(region="DE-toolong"), "ISO 3166-2"),
+        (lambda d: d["road_restrictions.json"][0].update(over_gross_weight_kg=0), "positive"),
+        (lambda d: d["public_holidays.json"][0].update(checked_on="2099-01-01"), "checked_on"),
+        (
+            lambda d: d["road_restrictions.json"][0]["windows"][0].update(weekdays=[7, 7]),
+            "distinct",
+        ),
     ],
 )
 def test_an_invalid_row_stops_the_load(tmp_path: Path, change, message: str) -> None:  # type: ignore[no-untyped-def]
@@ -177,5 +193,110 @@ def test_database_checks_mirror_the_domain_rules(
             "checked_on": date(2026, 11, 19),
         } | fields
         session.add(RoadRestriction(**row))
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_holidays_follow_easter() -> None:
+    """Movable feasts in the files match Easter (5.4.2026, 28.3.2027)."""
+    easter = {2026: date(2026, 4, 5), 2027: date(2027, 3, 28)}
+    offsets = {
+        "Karfreitag": -2,
+        "Ostermontag": 1,
+        "Christi Himmelfahrt": 39,
+        "Pfingstmontag": 50,
+        "Fronleichnam": 60,
+        "Lundi de Pâques": 1,
+        "Ascension": 39,
+        "Lundi de Pentecôte": 50,
+        "Wielkanoc": 0,
+        "Poniedziałek Wielkanocny": 1,
+        "Zielone Świątki": 49,
+        "Boże Ciało": 60,
+    }
+    seen = set()
+    for h in load_files().holidays:
+        if h["name_local"] in offsets:
+            day = date.fromisoformat(h["date"])
+            assert (day - easter[day.year]).days == offsets[h["name_local"]], h
+            seen.add(h["name_local"])
+    assert seen == set(offsets)
+
+
+def test_country_rule_periods_must_not_overlap(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+
+        def rule(start: date, end: date | None) -> CountryRule:
+            return CountryRule(
+                country="FI",
+                valid_from=start,
+                valid_until=end,
+                toll_system="none",
+                source_url="https://example.com",
+                checked_on=date(2026, 11, 19),
+            )
+
+        session.add_all([rule(date(2026, 1, 1), date(2026, 6, 30)), rule(date(2026, 7, 1), None)])
+        session.commit()  # adjacent periods and an open end are fine
+        session.add(rule(date(2027, 1, 1), date(2027, 12, 31)))
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_holiday_unique_also_without_region(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+        for _ in range(2):
+            session.add(
+                PublicHoliday(
+                    country="FI",
+                    region=None,
+                    holiday_date=date(2026, 12, 6),
+                    name_local="Itsenäisyyspäivä",
+                    source_url="https://example.com",
+                    checked_on=date(2026, 11, 19),
+                )
+            )
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def _ban(session) -> RoadRestriction:  # type: ignore[no-untyped-def]
+    seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+    ban = RoadRestriction(
+        code="FI-TEST-BAN",
+        country="FI",
+        restriction_type="driving_ban",
+        valid_from=date(2026, 1, 1),
+        source_url="https://example.com",
+        checked_on=date(2026, 11, 19),
+    )
+    session.add(ban)
+    session.commit()
+    return ban
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"kind": "weekdays", "weekdays": []},
+        {"kind": "weekdays", "weekdays": [8]},
+        {"kind": "public_holiday", "weekdays": [7]},
+        {"kind": "public_holiday", "start_time": time(22), "end_time": time(6)},
+        {"kind": "public_holiday", "season_start": 701},
+        {"kind": "public_holiday", "season_start": 1301, "season_end": 1302},
+        {"kind": "public_holiday", "season_start": 732, "season_end": 801},
+        {"kind": "date"},
+        {"kind": "public_holiday", "on_date": date(2026, 1, 1)},
+        {"kind": "date", "on_date": date(2026, 1, 1), "season_start": 101, "season_end": 131},
+        {"kind": "public_holiday", "restriction_type": "bridge"},
+    ],
+)
+def test_window_checks(test_engine: Engine, fields: dict[str, object]) -> None:
+    with _session(test_engine) as session:
+        ban = _ban(session)
+        row = {"restriction_id": ban.id, "start_time": time(0)} | fields
+        session.add(RoadRestrictionWindow(**row))
         with pytest.raises(IntegrityError):
             session.commit()

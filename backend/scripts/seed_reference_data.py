@@ -18,6 +18,7 @@ written; one invalid row stops the whole load.
 """
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date, time
@@ -37,12 +38,16 @@ from domain.restrictions import (
     LimitUnit,
     LoadState,
     RestrictionType,
+    WeightBasis,
     WindowKind,
     validate_period,
     validate_restriction,
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "reference_data"
+_CODE_RE = re.compile(r"[A-Z]{2}-[A-Z0-9-]+")
+_REGION_RE = re.compile(r"[A-Z]{2}-[A-Z0-9]{1,3}")
+_EARLIEST_CHECK = date(2026, 1, 1)
 TABLES = ("countries", "public_holidays", "road_restrictions", "road_restriction_windows")
 
 
@@ -72,14 +77,24 @@ def _window(raw: dict[str, Any]) -> BanWindow:
     )
 
 
-def _check_source(row: dict[str, Any], what: str) -> None:
+def _check_source(row: dict[str, Any], what: str, today: date) -> None:
     if not str(row.get("source_url", "")).startswith("https://"):
         raise ValueError(f"{what}: source_url must be an https link")
-    date.fromisoformat(row["checked_on"])
+    checked = date.fromisoformat(row["checked_on"])
+    if not _EARLIEST_CHECK <= checked <= today:
+        raise ValueError(f"{what}: checked_on must be between {_EARLIEST_CHECK} and today")
 
 
-def load_files(data_dir: Path = DATA_DIR) -> ReferenceData:
+def _check_region(region: str | None, country: str, what: str) -> None:
+    if region is not None and (
+        not _REGION_RE.fullmatch(region) or not region.startswith(f"{country}-")
+    ):
+        raise ValueError(f"{what}: region must be an ISO 3166-2 code of the country")
+
+
+def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> ReferenceData:
     """Read and validate the JSON files; raises ValueError on the first invalid row."""
+    today = today or date.today()
 
     def read(name: str) -> list[dict[str, Any]]:
         rows = json.loads((data_dir / name).read_text(encoding="utf-8"))
@@ -105,29 +120,35 @@ def load_files(data_dir: Path = DATA_DIR) -> ReferenceData:
         what = f"holiday {h['country']} {h['date']}"
         if h["country"] not in codes:
             raise ValueError(f"{what}: unknown country")
-        if h["region"] is not None and not h["region"].startswith(f"{h['country']}-"):
-            raise ValueError(f"{what}: region must belong to the country")
+        _check_region(h["region"], h["country"], what)
         date.fromisoformat(h["date"])
-        _check_source(h, what)
+        _check_source(h, what, today)
 
     seen_codes = Counter(r["code"] for r in data.restrictions)
     if dupes := [k for k, n in seen_codes.items() if n > 1]:
         raise ValueError(f"duplicate restriction codes: {dupes}")
     for r in data.restrictions:
         what = f"restriction {r['code']}"
+        if not _CODE_RE.fullmatch(r["code"]):
+            raise ValueError(f"{what}: code must look like DE-SUNDAY-HOLIDAY-BAN")
         if r["country"] not in codes or not r["code"].startswith(f"{r['country']}-"):
             raise ValueError(f"{what}: unknown country or code not prefixed by it")
+        _check_region(r.get("region"), r["country"], what)
+        over = r.get("over_gross_weight_kg")
+        if over is not None and over <= 0:
+            raise ValueError(f"{what}: over_gross_weight_kg must be positive")
         rtype = RestrictionType(r["restriction_type"])
         unit = LimitUnit(r["limit_unit"]) if r.get("limit_unit") else None
         validate_restriction(rtype, r.get("limit_value"), unit, r.get("tunnel_category"))
         LoadState(r["load_state"])
+        WeightBasis(r.get("weight_basis", WeightBasis.VEHICLE.value))
         for e in r["exemptions"]:
             Exemption(e)
         validate_period(
             date.fromisoformat(r["valid_from"]),
             date.fromisoformat(r["valid_until"]) if r["valid_until"] else None,
         )
-        _check_source(r, what)
+        _check_source(r, what, today)
         windows = r.get("windows", [])
         if windows and rtype is not RestrictionType.DRIVING_BAN:
             raise ValueError(f"{what}: only a driving ban has windows")
@@ -185,6 +206,8 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
             limit_unit=r.get("limit_unit"),
             tunnel_category=r.get("tunnel_category"),
             over_gross_weight_kg=r.get("over_gross_weight_kg"),
+            weight_basis=r.get("weight_basis", WeightBasis.VEHICLE.value),
+            with_trailer_any_weight=r.get("with_trailer_any_weight", False),
             adr_only=r.get("adr_only", False),
             load_state=r["load_state"],
             exemptions=list(r["exemptions"]),

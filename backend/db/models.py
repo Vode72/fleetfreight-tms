@@ -51,6 +51,7 @@ from domain.restrictions import (
     LoadState,
     RestrictionType,
     TollSystem,
+    WeightBasis,
     WindowKind,
 )
 
@@ -822,10 +823,12 @@ _SOURCE_CHECKS = (
 _REGION_CHECK = (
     "region IS NULL OR (region ~ '^[A-Z]{2}-[A-Z0-9]{1,3}$' AND left(region, 2) = country)"
 )
+# Month 1-12 and day 1-31 (the exact day per month is checked by domain.restrictions.month_day).
 _SEASON_CHECK = (
     "(season_start IS NULL) = (season_end IS NULL)"
-    " AND (season_start IS NULL OR (season_start BETWEEN 101 AND 1231"
-    " AND season_end BETWEEN 101 AND 1231))"
+    " AND (season_start IS NULL OR (season_start / 100 BETWEEN 1 AND 12"
+    " AND season_start % 100 BETWEEN 1 AND 31 AND season_end / 100 BETWEEN 1 AND 12"
+    " AND season_end % 100 BETWEEN 1 AND 31))"
 )
 
 
@@ -973,6 +976,9 @@ class RoadRestriction(Base):
             name="ck_road_restrictions_limit_unit",
         ),
         CheckConstraint(in_list("load_state", LoadState), name="ck_road_restrictions_load_state"),
+        CheckConstraint(
+            in_list("weight_basis", WeightBasis), name="ck_road_restrictions_weight_basis"
+        ),
         # A limit has a positive value in its unit; other types have none (validate_restriction).
         # coalesce(): a NULL would make the expression unknown, and CHECK lets unknown pass.
         CheckConstraint(
@@ -1028,6 +1034,13 @@ class RoadRestriction(Base):
     # Who it applies to: vehicles over this permissible gross weight (NULL = all), ADR only,
     # load state.
     over_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    weight_basis: Mapped[str] = mapped_column(
+        String(15), server_default=text("'vehicle'"), default=WeightBasis.VEHICLE.value
+    )
+    # Also any truck towing a trailer, whatever its weight (e.g. § 30(3) StVO).
+    with_trailer_any_weight: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), default=False
+    )
     adr_only: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), default=False)
     load_state: Mapped[str] = mapped_column(
         String(10), server_default=text("'any'"), default=LoadState.ANY.value
@@ -1064,6 +1077,7 @@ class RoadRestrictionWindow(Base):
         CheckConstraint(
             "end_time IS NULL OR end_time > start_time", name="ck_road_restriction_windows_times"
         ),
+        # Distinct weekdays: checked by BanWindow (a CHECK cannot hold a subquery).
         CheckConstraint(
             "(kind = 'weekdays') = (cardinality(weekdays) > 0)"
             " AND weekdays <@ ARRAY[1, 2, 3, 4, 5, 6, 7]::smallint[]",
