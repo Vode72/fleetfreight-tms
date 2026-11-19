@@ -287,3 +287,63 @@ def test_to_be_agreed_is_a_non_mandatory_open() -> None:
     assert result.reason is TimeCheckReason.TIME_TO_BE_AGREED
     assert not result.mandatory
     assert (result.handling_start, result.wait, result.slack) == (None, None, None)
+
+
+# --- review additions ---------------------------------------------------------------------
+
+
+def test_clock_time_skipped_by_spring_dst_change_is_rejected() -> None:
+    # Helsinki 29.3.2026: clocks go 03:00 -> 04:00, so 03:30 does not exist.
+    gap = OrderTime.termin(latest=bound(3, 30, day=29, month=3))
+    with pytest.raises(ValueError, match="does not exist"):
+        evaluate(gap, at(1, day=29, month=3), HEL)
+
+
+def test_repeated_clock_time_means_its_first_occurrence() -> None:
+    # Helsinki 25.10.2026: 03:30 happens twice; Latest 03:30 is the first (EEST) one.
+    by_0330 = OrderTime.termin(latest=bound(3, 30, day=25, month=10))
+    second = at(3, 30, day=25, month=10).replace(fold=1)
+    assert evaluate(by_0330, second, HEL).level is CheckLevel.BLOCKED
+
+
+@pytest.mark.parametrize(("day", "month"), [(25, 10), (29, 3)])  # 25-hour and 23-hour days
+def test_fix_day_boundaries_on_dst_change_days(day: int, month: int) -> None:
+    fix = OrderTime.fix(date(2026, month, day))
+    assert evaluate(fix, at(0, day=day, month=month), HEL).level is CheckLevel.OK
+    assert evaluate(fix, at(23, 59, day=day, month=month), HEL).level is CheckLevel.OK
+    assert evaluate(fix, at(0, day=day + 1, month=month), HEL).level is CheckLevel.BLOCKED
+
+
+def test_handling_exactly_at_latest_is_a_risk_not_late() -> None:
+    result = evaluate(WINDOW_14_16, at(16), HEL)
+    assert result.level is CheckLevel.RISK
+    assert result.slack == timedelta(0)
+    assert evaluate(WINDOW_14_16, at(16), HEL, margin=timedelta(0)).level is CheckLevel.OK
+
+
+def test_wait_runs_to_the_planned_handling_start() -> None:
+    from_14 = OrderTime.termin(earliest=bound(14))
+    result = evaluate(from_14, at(12), HEL, planned_handling=at(15))
+    assert result.level is CheckLevel.OK
+    assert result.reason is TimeCheckReason.WAITS
+    assert result.wait == timedelta(hours=3)
+    assert result.handling_start == at(15)
+
+
+def test_eta_is_judged_on_the_planned_handling_day() -> None:
+    result = evaluate(OrderTime.eta(NOV20), at(22), HEL, planned_handling=at(7, day=21))
+    assert result.level is CheckLevel.RISK
+    assert result.reason is TimeCheckReason.AFTER_ETA
+    assert result.wait == timedelta(hours=9)
+
+
+def test_latest_before_earliest_on_different_days_is_rejected() -> None:
+    with pytest.raises(ValueError, match="before Earliest"):
+        OrderTime.termin(bound(14, day=21), bound(16, day=20))
+
+
+def test_date_only_bounds_exist_only_for_fix_and_eta() -> None:
+    with pytest.raises(ValueError, match="clock time"):
+        OrderTime.termin(earliest=TimeBound(NOV20))
+    with pytest.raises(ValueError, match="Latest date only"):
+        OrderTime(TimeType.ETA, TimeBound(NOV20), TimeBound(NOV20))

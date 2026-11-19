@@ -25,11 +25,13 @@ management systems. The time type says how binding the window is:
 
 One rule for Plan Check (D77), through `evaluate`:
 - Arriving before Earliest is OK: the vehicle waits and handling starts at Earliest; the result
-  gives the waiting time.
+  gives the waiting time (arrival to handling start).
 - Handling planned before Earliest is BLOCKED (e.g. no early unloading of a FIX delivery).
 - Handling after Latest is BLOCKED for FIX and TERMIN, only a RISK for ETA.
 - Handling within the margin before a Latest clock time is a RISK.
 A date-only Earliest starts at 00:00 local time; a date-only Latest lasts to the end of that day.
+A clock time skipped by a daylight saving change is rejected; a repeated one means its first
+occurrence.
 
 Priority, most binding first, used for conflicts, ordering and optimisation: FIX, TERMIN, ETA,
 TO_BE_AGREED.
@@ -97,6 +99,18 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def _local_instant(day: date, at: time, tz: ZoneInfo) -> datetime:
+    """A local wall-clock time at a location as an instant.
+
+    A time skipped by a daylight saving change (e.g. 03:30 when clocks go 03:00 -> 04:00) does
+    not exist and is rejected. A repeated time (clocks go back) means its first occurrence.
+    """
+    local = datetime.combine(day, at, tzinfo=tz)  # fold=0: first occurrence
+    if _utc(local).astimezone(tz).replace(tzinfo=None) != local.replace(tzinfo=None):
+        raise ValueError(f"{day} {at} does not exist in {tz.key} (daylight saving change)")
+    return local
+
+
 @dataclass(frozen=True)
 class TimeBound:
     """A date with an optional clock time, in the location's local time."""
@@ -115,13 +129,13 @@ class TimeBound:
 
     def earliest_instant(self, tz: ZoneInfo) -> datetime:
         """First allowed instant when this bound is an Earliest."""
-        return datetime.combine(self.day, self.at or time.min, tzinfo=tz)
+        return _local_instant(self.day, self.at or time.min, tz)
 
     def latest_instant(self, tz: ZoneInfo) -> datetime:
         """End of the allowed time when this bound is a Latest (exclusive for a date only)."""
         if self.at is not None:
-            return datetime.combine(self.day, self.at, tzinfo=tz)
-        return datetime.combine(self.day + timedelta(days=1), time.min, tzinfo=tz)
+            return _local_instant(self.day, self.at, tz)
+        return _local_instant(self.day + timedelta(days=1), time.min, tz)
 
 
 @dataclass(frozen=True)
@@ -182,9 +196,10 @@ class TimeCheckResult:
     # Whether the check is mandatory (D77): a missing or failing mandatory check affects the
     # overall status; a non-mandatory OPEN or RISK is shown as a note.
     mandatory: bool
-    # When handling starts: the given planned handling, or arrival / Earliest, whichever is later.
+    # When handling starts, in UTC (convert to the location's time zone for display): the given
+    # planned handling, or arrival / Earliest, whichever is later.
     handling_start: datetime | None = None
-    # How long the vehicle waits from arrival until Earliest.
+    # How long the vehicle waits from arrival until handling starts.
     wait: timedelta | None = None
     # Latest clock time minus handling start (negative when late); only for a Latest with a time.
     slack: timedelta | None = None
@@ -218,7 +233,6 @@ def evaluate(
         if order_time.earliest is not None
         else None
     )
-    wait = earliest - arrival_utc if earliest is not None and arrival_utc < earliest else None
 
     if planned_handling is not None:
         handling = _utc(planned_handling)
@@ -226,6 +240,7 @@ def evaluate(
             raise ValueError("planned_handling must not be before arrival")
     else:
         handling = max(arrival_utc, earliest) if earliest is not None else arrival_utc
+    wait = handling - arrival_utc if handling > arrival_utc else None
 
     def result(
         level: CheckLevel, reason: TimeCheckReason, slack: timedelta | None = None
