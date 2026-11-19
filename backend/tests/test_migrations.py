@@ -436,3 +436,17 @@ def test_solo_tractor_migration_adds_and_removes_the_column(test_engine: Engine)
     columns = {c["name"] for c in inspect(test_engine).get_columns("road_restrictions")}
     assert "solo_tractor" not in columns
     command.upgrade(cfg, "head")
+
+
+def test_toll_system_migration_allows_an_unrecorded_value(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+
+    def nullable() -> bool:
+        columns = inspect(test_engine).get_columns("country_rules")
+        return next(c["nullable"] for c in columns if c["name"] == "toll_system")
+
+    command.upgrade(cfg, "c3888037643f")
+    assert nullable()
+    command.downgrade(cfg, "9bb6eb8d032e")
+    assert not nullable()
+    command.upgrade(cfg, "head")

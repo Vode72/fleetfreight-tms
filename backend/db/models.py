@@ -919,7 +919,7 @@ class CountryRule(Base):
     # Season of winter equipment requirements, MMDD (may run over the new year).
     winter_equipment_start: Mapped[int | None] = mapped_column(SmallInteger)
     winter_equipment_end: Mapped[int | None] = mapped_column(SmallInteger)
-    toll_system: Mapped[str] = mapped_column(String(20))
+    toll_system: Mapped[str | None] = mapped_column(String(20))
     posted_worker_declaration: Mapped[bool | None] = mapped_column(Boolean)
     cabotage_note: Mapped[str | None] = mapped_column(Text)
     note: Mapped[str | None] = mapped_column(Text)

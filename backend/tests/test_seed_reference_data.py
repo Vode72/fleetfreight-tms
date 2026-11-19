@@ -30,7 +30,11 @@ def _session(engine: Engine):  # type: ignore[no-untyped-def]
 def test_files_are_valid_and_cover_the_demo_countries() -> None:
     data = load_files()
     assert {c["code"] for c in data.countries} == DEMO_COUNTRIES
-    assert all(r["source_url"].startswith("https://") for r in data.holidays + data.restrictions)
+    assert all(
+        r["source_url"].startswith("https://")
+        for r in data.holidays + data.restrictions + data.rules
+    )
+    assert {r["country"] for r in data.rules} == DEMO_COUNTRIES
 
 
 def test_seed_is_idempotent(test_engine: Engine) -> None:
@@ -39,6 +43,7 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
     with _session(test_engine) as session:
         second = seed_reference_data(session)
     assert first["countries"] == 13
+    assert first["country_rules"] == 13
     assert first["road_restrictions"] == len(load_files().restrictions)
     assert first["road_restriction_windows"] > 0
     assert sum(second.values()) == 0  # nothing created, nothing filled
@@ -101,6 +106,7 @@ def _bad(tmp_path: Path, change) -> Path:  # type: ignore[no-untyped-def]
         "countries.json": copy.deepcopy(data.countries),
         "public_holidays.json": copy.deepcopy(data.holidays),
         "road_restrictions.json": copy.deepcopy(data.restrictions),
+        "country_rules.json": copy.deepcopy(data.rules),
     }
     change(raw)
     for name, rows in raw.items():
@@ -131,6 +137,23 @@ def _bad(tmp_path: Path, change) -> Path:  # type: ignore[no-untyped-def]
             lambda d: d["road_restrictions.json"][0]["windows"][0].update(weekdays=[7, 7]),
             "distinct",
         ),
+        (lambda d: d["country_rules.json"][0].update(truck_speed_other_kmh=0), "1-200"),
+        (lambda d: d["country_rules.json"][0].update(country="XX"), "unknown country"),
+        (lambda d: d["country_rules.json"][0].update(toll_system="bridge"), "bridge"),
+        (lambda d: d["country_rules.json"][0].update(max_length_mm=-1), "positive"),
+        (
+            lambda d: d["country_rules.json"][0].update(
+                winter_equipment_start=1201, winter_equipment_end=None
+            ),
+            "both a start and an end",
+        ),
+        (
+            lambda d: d["country_rules.json"][0].update(
+                winter_equipment_start=1301, winter_equipment_end=301
+            ),
+            "MMDD",
+        ),
+        (lambda d: d["country_rules.json"].append(d["country_rules.json"][0]), "duplicate"),
     ],
 )
 def test_an_invalid_row_stops_the_load(tmp_path: Path, change, message: str) -> None:  # type: ignore[no-untyped-def]
@@ -352,3 +375,30 @@ def test_solo_tractor_rule_only_on_driving_bans(test_engine: Engine) -> None:
         )
         with pytest.raises(IntegrityError):
             session.commit()
+
+
+def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        rules = {r.country: r for r in session.scalars(select(CountryRule))}
+        assert (rules["DE"].truck_speed_motorway_kmh, rules["DE"].truck_speed_other_kmh) == (80, 60)
+        assert (rules["IT"].truck_speed_motorway_kmh, rules["IT"].truck_speed_other_kmh) == (80, 70)
+        assert (rules["LT"].winter_equipment_start, rules["LT"].winter_equipment_end) == (1110, 331)
+        assert rules["NL"].truck_speed_motorway_kmh is None  # not recorded
+        assert all(r.toll_system is None for r in rules.values())  # no official source yet
+        assert all(r.posted_worker_declaration and r.cabotage_note for r in rules.values())
+        # Unrecorded values are filled, recorded ones are never overwritten.
+        session.execute(
+            text("UPDATE country_rules SET truck_speed_other_kmh = NULL WHERE country = 'PL'")
+        )
+        session.execute(
+            text("UPDATE country_rules SET truck_speed_other_kmh = 65 WHERE country = 'DE'")
+        )
+        session.commit()
+        created = seed_reference_data(session)
+        assert created["filled_values"] == 1
+        assert created["country_rules"] == 0
+        session.expire_all()
+        rules = {r.country: r for r in session.scalars(select(CountryRule))}
+        assert rules["PL"].truck_speed_other_kmh == 70
+        assert rules["DE"].truck_speed_other_kmh == 65

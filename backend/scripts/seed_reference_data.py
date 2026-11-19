@@ -1,4 +1,4 @@
-"""Load reference data: countries, public holidays and road restrictions (2B-3a, D84).
+"""Load reference data: countries, country rules, holidays and road restrictions (2B-3a, D84).
 
 Usage (from the backend directory):
     uv run python -m scripts.seed_reference_data
@@ -8,9 +8,10 @@ production too. The rows live in versioned JSON files in `reference_data/`; ever
 restriction row carries the official source it was taken from and the day it was checked. Legal
 values are never written from memory (CLAUDE.md, D84).
 
-Idempotent: countries are matched by code, holidays by country, region and date, restrictions by
-their code. Only missing rows are created; existing rows are left as they are, except that a value
-not recorded yet (NULL, e.g. a restriction's solo tractor rule, D85) is filled in. A rule that
+Idempotent: countries are matched by code, country rules by country and validity start,
+holidays by country, region and date, restrictions by their code. Only missing rows are created;
+existing rows are left as they are, except that a value not recorded yet (NULL, e.g. a
+restriction's solo tractor rule, D85, or a country's speed limit) is filled in. A rule that
 changes gets a new row with its own validity period (D67), not an edit. A restriction's windows
 are created with the restriction.
 
@@ -21,7 +22,7 @@ written; one invalid row stops the whole load.
 import json
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, time
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from db.models import Country, PublicHoliday, RoadRestriction, RoadRestrictionWindow
+from db.models import Country, CountryRule, PublicHoliday, RoadRestriction, RoadRestrictionWindow
 from db.session import get_engine
 from domain.countries import validate_country
 from domain.locations import validate_timezone
@@ -40,8 +41,10 @@ from domain.restrictions import (
     LoadState,
     RestrictionType,
     SoloTractor,
+    TollSystem,
     WeightBasis,
     WindowKind,
+    month_day,
     validate_period,
     validate_restriction,
 )
@@ -50,7 +53,26 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "reference_data"
 _CODE_RE = re.compile(r"[A-Z]{2}-[A-Z0-9-]+")
 _REGION_RE = re.compile(r"[A-Z]{2}-[A-Z0-9]{1,3}")
 _EARLIEST_CHECK = date(2026, 1, 1)
-TABLES = ("countries", "public_holidays", "road_restrictions", "road_restriction_windows")
+TABLES = (
+    "countries",
+    "country_rules",
+    "public_holidays",
+    "road_restrictions",
+    "road_restriction_windows",
+)
+# Country rule values that may be left unrecorded (NULL) and filled in later.
+RULE_VALUES = (
+    "truck_speed_motorway_kmh",
+    "truck_speed_other_kmh",
+    "max_gross_weight_kg",
+    "max_length_mm",
+    "hct_allowed",
+    "winter_equipment_start",
+    "winter_equipment_end",
+    "toll_system",
+    "posted_worker_declaration",
+    "cabotage_note",
+)
 # Reported besides the tables: values filled into existing rows that had none recorded.
 FILLED = "filled_values"
 
@@ -60,6 +82,7 @@ class ReferenceData:
     countries: list[dict[str, Any]]
     holidays: list[dict[str, Any]]
     restrictions: list[dict[str, Any]]
+    rules: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _time(value: str | None) -> time | None:
@@ -96,6 +119,31 @@ def _check_region(region: str | None, country: str, what: str) -> None:
         raise ValueError(f"{what}: region must be an ISO 3166-2 code of the country")
 
 
+def _check_rule(r: dict[str, Any], codes: set[str], today: date) -> None:
+    what = f"country rule {r['country']} {r['valid_from']}"
+    if r["country"] not in codes:
+        raise ValueError(f"{what}: unknown country")
+    for key in ("truck_speed_motorway_kmh", "truck_speed_other_kmh"):
+        if r.get(key) is not None and not 1 <= r[key] <= 200:
+            raise ValueError(f"{what}: {key} must be 1-200 km/h")
+    for key in ("max_gross_weight_kg", "max_length_mm"):
+        if r.get(key) is not None and r[key] <= 0:
+            raise ValueError(f"{what}: {key} must be positive")
+    start, end = r.get("winter_equipment_start"), r.get("winter_equipment_end")
+    if (start is None) != (end is None):
+        raise ValueError(f"{what}: winter season needs both a start and an end")
+    if start is not None and end is not None:
+        month_day(start)
+        month_day(end)
+    if r.get("toll_system") is not None:
+        TollSystem(r["toll_system"])
+    validate_period(
+        date.fromisoformat(r["valid_from"]),
+        date.fromisoformat(r["valid_until"]) if r["valid_until"] else None,
+    )
+    _check_source(r, what, today)
+
+
 def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> ReferenceData:
     """Read and validate the JSON files; raises ValueError on the first invalid row."""
     today = today or date.today()
@@ -107,7 +155,10 @@ def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> Referenc
         return rows
 
     data = ReferenceData(
-        read("countries.json"), read("public_holidays.json"), read("road_restrictions.json")
+        read("countries.json"),
+        read("public_holidays.json"),
+        read("road_restrictions.json"),
+        read("country_rules.json"),
     )
     codes = set()
     for c in data.countries:
@@ -116,6 +167,12 @@ def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> Referenc
         if len(c["currency"]) != 3 or not c["currency"].isupper():
             raise ValueError(f"{c['code']}: currency must be a three-letter code")
         codes.add(c["code"])
+
+    seen_rules = Counter((r["country"], r["valid_from"]) for r in data.rules)
+    if rule_dupes := [k for k, n in seen_rules.items() if n > 1]:
+        raise ValueError(f"duplicate country rules: {rule_dupes}")
+    for r in data.rules:
+        _check_rule(r, codes, today)
 
     seen_holidays = Counter((h["country"], h["region"], h["date"]) for h in data.holidays)
     if dupes := [k for k, n in seen_holidays.items() if n > 1]:
@@ -178,6 +235,29 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
             session.add(Country(**c))
             created["countries"] += 1
     session.flush()
+
+    existing_rules = {(x.country, x.valid_from): x for x in session.scalars(select(CountryRule))}
+    for r in data.rules:
+        valid_from = date.fromisoformat(r["valid_from"])
+        if (rule := existing_rules.get((r["country"], valid_from))) is not None:
+            # Fill values not recorded yet (NULL); never overwrite a recorded one.
+            for name in RULE_VALUES:
+                if getattr(rule, name) is None and r.get(name) is not None:
+                    setattr(rule, name, r[name])
+                    created[FILLED] += 1
+            continue
+        session.add(
+            CountryRule(
+                country=r["country"],
+                valid_from=valid_from,
+                valid_until=date.fromisoformat(r["valid_until"]) if r["valid_until"] else None,
+                **{name: r.get(name) for name in RULE_VALUES},
+                note=r.get("note"),
+                source_url=r["source_url"],
+                checked_on=date.fromisoformat(r["checked_on"]),
+            )
+        )
+        created["country_rules"] += 1
 
     existing_holidays = {
         (h.country, h.region, h.holiday_date) for h in session.scalars(select(PublicHoliday))
