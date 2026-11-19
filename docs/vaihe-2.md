@@ -51,7 +51,7 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
 
 ### 2C Kuorma ja keikka · tulossa
-- Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56), `order_lines`, `dangerous_goods`, `temperature_requirements`
+- Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, aikatyypit lastaukselle ja purulle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
 - Keikka: `jobs`, `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
 - Resurssit ja ajoaika: `duty_events`, `resource_reservations`, `trailer_positions`
 - Kylmä, tulli ja dokumentit: `sensors`, `trip_compartment_settings`, `temperature_readings`, `temperature_alarms`,
