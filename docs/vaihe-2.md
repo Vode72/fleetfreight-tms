@@ -81,6 +81,7 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
   `customs_declarations`, `customs_items` (D58), `customs_events`, `documents`
 - Kulut ja lavasaldot: `service_codes`, `costs`, `cost_allocations`, `invoices`, `invoice_lines`, `pallet_ledger` (D59)
 - Toteumatauluissa vain lisäys, `source` ja `reversal_of_id` (sääntö 9)
+- Poikkeusluvat (D85): `exemption_permits` (maa, rajoitus tai rajoitustyyppi, ajoneuvo tai trippi, lupanumero, voimassaolojakso D67, liitedokumentti)
 - Noden aikaikkuna = varattu aika ja ajanvarausnumero (D82)
 - **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
 - **Valmis kun:** D65:n skenaario (Jyväskylä–Vantaa–Lübeck) voidaan kirjata kantaan riveinä, ja liput täsmäävät alirivien kanssa
