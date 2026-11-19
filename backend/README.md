@@ -85,6 +85,18 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
+- Reference data (2B-3a, D84): countries, the holidays road rules refer to, and road restrictions
+  (driving bans with their windows) from versioned JSON files in `reference_data/`. Real public
+  information, so it is loaded in every environment, production included; every holiday and
+  restriction row has an official `source_url` and a `checked_on` date. Idempotent (only missing
+  rows are created; a changed rule gets a new row with its own validity). Run after
+  `alembic upgrade head`: `uv run python -m scripts.seed_reference_data`
+  (in Docker Compose: `docker compose exec backend python -m scripts.seed_reference_data`).
+  Contents now: 13 countries (FI, SE, EE, LV, LT, PL, DE, NL, BE, DK, FR, ES, IT), holidays
+  2026-2027 for DE, FR and PL, and driving bans for DE (Sundays and holidays, summer Saturdays),
+  FR (weekends and holidays, 2026 extra Saturdays), PL (holidays, holiday eves 2026-2027, summer
+  2026) and IT (2026 calendar). Country rules, Spain's section bans and limits come next.
+
 - Driver qualifications are validity periods (history is kept; overlapping periods of one driver
   and type are rejected by the database). `GDP_TRAINING_DEFAULT_VALIDITY_MONTHS` (default 12)
   sets the default length of a GDP training record, used to suggest `valid_until` (domain and

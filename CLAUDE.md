@@ -29,6 +29,7 @@ docker compose up --build            # override-tiedosto tuo kehitysasetukset au
 curl http://localhost:8000/health    # {"status":"ok","database":"ok"}
 docker compose exec backend python -m scripts.seed_demo_users   # demokäyttäjät; vain kehityskäynnistyksellä (override), DEMO_PASSWORD .env:stä
 docker compose exec backend python -m scripts.seed_demo_data    # demodata (yritys, terminaalit, satamat, junaterminaalit, tullitoimipaikat, asiakkaat, kuljetusliikkeet, kuljettajat, pätevyydet, kalusto); vain kehityskäynnistyksellä, idempotentti
+docker compose exec backend python -m scripts.seed_reference_data  # viitedata (maat, pyhät, ajokiellot; D84); myös tuotannossa, idempotentti
 cd frontend && npm ci && npm run dev
 ```
 

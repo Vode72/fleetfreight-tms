@@ -1,8 +1,8 @@
 """Country codes. Pure domain module (no framework or database imports).
 
 Only the ISO 3166-1 alpha-2 *format* is checked (two uppercase ASCII letters). The module does
-not carry a country list; the list of countries that matter for customs and road rules is a
-versioned table of its own (customs_areas, later revision).
+not carry a country list: the countries that matter for road rules are reference data in the
+`countries` table (2B-3a, D84), and customs areas get a table of their own (2B-3c).
 """
 
 import re

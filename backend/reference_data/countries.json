@@ -1,0 +1,106 @@
+[
+  {
+    "code": "FI",
+    "name_en": "Finland",
+    "name_fi": "Suomi",
+    "time_zone": "Europe/Helsinki",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "SE",
+    "name_en": "Sweden",
+    "name_fi": "Ruotsi",
+    "time_zone": "Europe/Stockholm",
+    "currency": "SEK",
+    "eu_member": true
+  },
+  {
+    "code": "EE",
+    "name_en": "Estonia",
+    "name_fi": "Viro",
+    "time_zone": "Europe/Tallinn",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "LV",
+    "name_en": "Latvia",
+    "name_fi": "Latvia",
+    "time_zone": "Europe/Riga",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "LT",
+    "name_en": "Lithuania",
+    "name_fi": "Liettua",
+    "time_zone": "Europe/Vilnius",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "PL",
+    "name_en": "Poland",
+    "name_fi": "Puola",
+    "time_zone": "Europe/Warsaw",
+    "currency": "PLN",
+    "eu_member": true
+  },
+  {
+    "code": "DE",
+    "name_en": "Germany",
+    "name_fi": "Saksa",
+    "time_zone": "Europe/Berlin",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "NL",
+    "name_en": "Netherlands",
+    "name_fi": "Alankomaat",
+    "time_zone": "Europe/Amsterdam",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "BE",
+    "name_en": "Belgium",
+    "name_fi": "Belgia",
+    "time_zone": "Europe/Brussels",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "DK",
+    "name_en": "Denmark",
+    "name_fi": "Tanska",
+    "time_zone": "Europe/Copenhagen",
+    "currency": "DKK",
+    "eu_member": true
+  },
+  {
+    "code": "FR",
+    "name_en": "France",
+    "name_fi": "Ranska",
+    "time_zone": "Europe/Paris",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "ES",
+    "name_en": "Spain",
+    "name_fi": "Espanja",
+    "time_zone": "Europe/Madrid",
+    "currency": "EUR",
+    "eu_member": true
+  },
+  {
+    "code": "IT",
+    "name_en": "Italy",
+    "name_fi": "Italia",
+    "time_zone": "Europe/Rome",
+    "currency": "EUR",
+    "eu_member": true
+  }
+]
