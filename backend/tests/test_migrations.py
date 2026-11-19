@@ -425,3 +425,14 @@ def test_restrictions_migration_creates_and_removes_tables(test_engine: Engine) 
 
     command.upgrade(cfg, "head")
     assert set(inspect(test_engine).get_table_names()) >= RESTRICTION_TABLES
+
+
+def test_solo_tractor_migration_adds_and_removes_the_column(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "9bb6eb8d032e")
+    columns = {c["name"] for c in inspect(test_engine).get_columns("road_restrictions")}
+    assert "solo_tractor" in columns
+    command.downgrade(cfg, "2cb43f9f78c1")
+    columns = {c["name"] for c in inspect(test_engine).get_columns("road_restrictions")}
+    assert "solo_tractor" not in columns
+    command.upgrade(cfg, "head")

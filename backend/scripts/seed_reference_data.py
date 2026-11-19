@@ -9,7 +9,8 @@ restriction row carries the official source it was taken from and the day it was
 values are never written from memory (CLAUDE.md, D84).
 
 Idempotent: countries are matched by code, holidays by country, region and date, restrictions by
-their code. Only missing rows are created; existing rows are left as they are. A rule that
+their code. Only missing rows are created; existing rows are left as they are, except that a value
+not recorded yet (NULL, e.g. a restriction's solo tractor rule, D85) is filled in. A rule that
 changes gets a new row with its own validity period (D67), not an edit. A restriction's windows
 are created with the restriction.
 
@@ -38,6 +39,7 @@ from domain.restrictions import (
     LimitUnit,
     LoadState,
     RestrictionType,
+    SoloTractor,
     WeightBasis,
     WindowKind,
     validate_period,
@@ -49,6 +51,8 @@ _CODE_RE = re.compile(r"[A-Z]{2}-[A-Z0-9-]+")
 _REGION_RE = re.compile(r"[A-Z]{2}-[A-Z0-9]{1,3}")
 _EARLIEST_CHECK = date(2026, 1, 1)
 TABLES = ("countries", "public_holidays", "road_restrictions", "road_restriction_windows")
+# Reported besides the tables: values filled into existing rows that had none recorded.
+FILLED = "filled_values"
 
 
 @dataclass(frozen=True)
@@ -141,6 +145,10 @@ def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> Referenc
         unit = LimitUnit(r["limit_unit"]) if r.get("limit_unit") else None
         validate_restriction(rtype, r.get("limit_value"), unit, r.get("tunnel_category"))
         LoadState(r["load_state"])
+        if r.get("solo_tractor") is not None:
+            SoloTractor(r["solo_tractor"])
+            if rtype is not RestrictionType.DRIVING_BAN:
+                raise ValueError(f"{what}: only a driving ban has a solo tractor rule")
         WeightBasis(r.get("weight_basis", WeightBasis.VEHICLE.value))
         for e in r["exemptions"]:
             Exemption(e)
@@ -191,9 +199,13 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
         )
         created["public_holidays"] += 1
 
-    existing_codes = set(session.scalars(select(RoadRestriction.code)))
+    existing = {x.code: x for x in session.scalars(select(RoadRestriction))}
     for r in data.restrictions:
-        if r["code"] in existing_codes:
+        if (current := existing.get(r["code"])) is not None:
+            # Fill a value that was not recorded yet (NULL); never overwrite a recorded one.
+            if current.solo_tractor is None and r.get("solo_tractor") is not None:
+                current.solo_tractor = r["solo_tractor"]
+                created["filled_values"] += 1
             continue
         restriction = RoadRestriction(
             code=r["code"],
@@ -208,6 +220,7 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
             over_gross_weight_kg=r.get("over_gross_weight_kg"),
             weight_basis=r.get("weight_basis", WeightBasis.VEHICLE.value),
             with_trailer_any_weight=r.get("with_trailer_any_weight", False),
+            solo_tractor=r.get("solo_tractor"),
             adr_only=r.get("adr_only", False),
             load_state=r["load_state"],
             exemptions=list(r["exemptions"]),
@@ -247,6 +260,7 @@ def main() -> int:
         created = seed_reference_data(session, data)
     for table in TABLES:
         print(f"{table}: {created[table]} created")
+    print(f"{FILLED}: {created[FILLED]}")
     return 0
 
 

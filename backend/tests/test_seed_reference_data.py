@@ -41,7 +41,7 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
     assert first["countries"] == 13
     assert first["road_restrictions"] == len(load_files().restrictions)
     assert first["road_restriction_windows"] > 0
-    assert sum(second.values()) == 0
+    assert sum(second.values()) == 0  # nothing created, nothing filled
 
 
 def test_seed_content_matches_the_sources(test_engine: Engine) -> None:
@@ -298,5 +298,57 @@ def test_window_checks(test_engine: Engine, fields: dict[str, object]) -> None:
         ban = _ban(session)
         row = {"restriction_id": ban.id, "start_time": time(0)} | fields
         session.add(RoadRestrictionWindow(**row))
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def test_solo_tractor_rule_is_recorded_and_filled_into_older_rows(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        rules = dict(
+            session.execute(select(RoadRestriction.code, RoadRestriction.solo_tractor)).all()
+        )
+        assert rules["DE-SUNDAY-HOLIDAY-BAN"] == "exempt"
+        assert rules["IT-BAN-CALENDAR-2026"] == "conditional"
+        assert rules["PL-HOLIDAY-BAN"] == "not_exempt"
+        assert rules["FR-WEEKEND-HOLIDAY-BAN"] is None  # not recorded
+        # A row loaded before D85 has no value: the loader fills it but never overwrites.
+        session.execute(
+            text(
+                "UPDATE road_restrictions SET solo_tractor = NULL"
+                " WHERE code = 'DE-SUNDAY-HOLIDAY-BAN'"
+            )
+        )
+        session.execute(
+            text(
+                "UPDATE road_restrictions SET solo_tractor = 'exempt' WHERE code = 'PL-HOLIDAY-BAN'"
+            )
+        )
+        session.commit()
+        created = seed_reference_data(session)
+        assert created["filled_values"] == 1
+        rules = dict(
+            session.execute(select(RoadRestriction.code, RoadRestriction.solo_tractor)).all()
+        )
+        assert rules["DE-SUNDAY-HOLIDAY-BAN"] == "exempt"
+        assert rules["PL-HOLIDAY-BAN"] == "exempt"
+
+
+def test_solo_tractor_rule_only_on_driving_bans(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+        session.add(
+            RoadRestriction(
+                code="FI-TEST-BRIDGE",
+                country="FI",
+                restriction_type="bridge",
+                limit_value=40000,
+                limit_unit="kg",
+                solo_tractor="exempt",
+                valid_from=date(2026, 1, 1),
+                source_url="https://example.com",
+                checked_on=date(2026, 11, 19),
+            )
+        )
         with pytest.raises(IntegrityError):
             session.commit()

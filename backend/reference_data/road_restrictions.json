@@ -9,6 +9,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "vehicle",
     "with_trailer_any_weight": true,
+    "solo_tractor": "exempt",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -48,6 +49,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "vehicle",
     "with_trailer_any_weight": true,
+    "solo_tractor": "exempt",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -84,6 +86,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": null,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -135,6 +138,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": null,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -190,6 +194,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": null,
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -245,6 +250,7 @@
     "over_gross_weight_kg": 12000,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": "not_exempt",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -277,6 +283,7 @@
     "over_gross_weight_kg": 12000,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": "not_exempt",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -412,6 +419,7 @@
     "over_gross_weight_kg": 12000,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": "not_exempt",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [
@@ -463,6 +471,7 @@
     "over_gross_weight_kg": 7500,
     "weight_basis": "combination",
     "with_trailer_any_weight": false,
+    "solo_tractor": "conditional",
     "adr_only": false,
     "load_state": "any",
     "exemptions": [

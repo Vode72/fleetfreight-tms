@@ -50,6 +50,7 @@ from domain.restrictions import (
     LimitUnit,
     LoadState,
     RestrictionType,
+    SoloTractor,
     TollSystem,
     WeightBasis,
     WindowKind,
@@ -979,6 +980,11 @@ class RoadRestriction(Base):
         CheckConstraint(
             in_list("weight_basis", WeightBasis), name="ck_road_restrictions_weight_basis"
         ),
+        CheckConstraint(
+            f"solo_tractor IS NULL OR (restriction_type = 'driving_ban'"
+            f" AND {in_list('solo_tractor', SoloTractor)})",
+            name="ck_road_restrictions_solo_tractor",
+        ),
         # A limit has a positive value in its unit; other types have none (validate_restriction).
         # coalesce(): a NULL would make the expression unknown, and CHECK lets unknown pass.
         CheckConstraint(
@@ -1041,6 +1047,8 @@ class RoadRestriction(Base):
     with_trailer_any_weight: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), default=False
     )
+    # Driving bans: a tractor unit without a trailer (D85). NULL = not recorded.
+    solo_tractor: Mapped[str | None] = mapped_column(String(15))
     adr_only: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), default=False)
     load_state: Mapped[str] = mapped_column(
         String(10), server_default=text("'any'"), default=LoadState.ANY.value
