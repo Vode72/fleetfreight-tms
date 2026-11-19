@@ -75,7 +75,7 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 
 ### 2C Kuorma ja keikka · tulossa
 - Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, Earliest/Latest ja aikatyyppi noudolle ja toimitukselle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
-- Keikka: `jobs`, `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
+- Keikka: `jobs`, `round_trips` (D86), `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
 - Resurssit ja ajoaika: `duty_events`, `resource_reservations`, `trailer_positions`
 - Kylmä, tulli ja dokumentit: `sensors`, `trip_compartment_settings`, `temperature_readings`, `temperature_alarms`,
   `customs_declarations`, `customs_items` (D58), `customs_events`, `documents`
