@@ -47,6 +47,7 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 - `customs_areas` (D48), `adr_rules`-rakenne (sisältö tarkistetaan lähteistä ennen vaihetta 5, luku 3C), `pallet_types`,
   `road_restrictions`, `ltl_linehauls`, `line_operators`, `line_routes`, `line_departures` (lautta ja juna, D62, D63),
   `routing_preferences` (D64)
+- Satamien säilytysasetukset (D83): ilmaiset päivät (oletus 3) ja päivämaksu `*_cents` satamakohtaisesti uudella revisiolla; demossa keksityt summat
 - Demodata: lauttayhteydet D62:n mukaan molempiin suuntiin, junayhteys Rostock ja Travemünde ↔ Verona, reititysehdotukset D64:n mukaan
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
 
