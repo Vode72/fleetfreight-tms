@@ -383,13 +383,19 @@ def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engi
         rules = {r.country: r for r in session.scalars(select(CountryRule))}
         assert (rules["DE"].truck_speed_motorway_kmh, rules["DE"].truck_speed_other_kmh) == (80, 60)
         assert (rules["IT"].truck_speed_motorway_kmh, rules["IT"].truck_speed_other_kmh) == (80, 70)
-        assert (rules["LT"].winter_equipment_start, rules["LT"].winter_equipment_end) == (1110, 331)
+        # Sweden's heavy vehicle season crosses the new year; car-page seasons are not recorded.
+        assert (rules["SE"].winter_equipment_start, rules["SE"].winter_equipment_end) == (1110, 410)
+        assert rules["LT"].winter_equipment_start is None
         assert rules["NL"].truck_speed_motorway_kmh is None  # not recorded
         assert all(r.toll_system is None for r in rules.values())  # no official source yet
         assert all(r.posted_worker_declaration and r.cabotage_note for r in rules.values())
         # Unrecorded values are filled, recorded ones are never overwritten.
         session.execute(
-            text("UPDATE country_rules SET truck_speed_other_kmh = NULL WHERE country = 'PL'")
+            text(
+                "UPDATE country_rules SET truck_speed_other_kmh = NULL,"
+                " source_url = 'https://old.example.com', checked_on = '2026-01-02'"
+                " WHERE country = 'PL'"
+            )
         )
         session.execute(
             text("UPDATE country_rules SET truck_speed_other_kmh = 65 WHERE country = 'DE'")
@@ -401,4 +407,24 @@ def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engi
         session.expire_all()
         rules = {r.country: r for r in session.scalars(select(CountryRule))}
         assert rules["PL"].truck_speed_other_kmh == 70
+        # The filled value's source and check day replace the old ones.
+        assert rules["PL"].source_url.startswith("https://europa.eu/youreurope/")
+        assert rules["PL"].checked_on == date(2026, 11, 19)
         assert rules["DE"].truck_speed_other_kmh == 65
+
+
+def test_toll_system_may_be_unrecorded_but_not_unknown(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+        session.add(
+            CountryRule(
+                country="FI",
+                valid_from=date(2026, 1, 1),
+                toll_system=None,
+                source_url="https://example.com",
+                checked_on=date(2026, 11, 19),
+            )
+        )
+        session.commit()  # NULL = not recorded
+        with pytest.raises(IntegrityError):
+            session.execute(text("UPDATE country_rules SET toll_system = 'bridge'"))

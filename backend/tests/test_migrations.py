@@ -447,6 +447,33 @@ def test_toll_system_migration_allows_an_unrecorded_value(test_engine: Engine) -
 
     command.upgrade(cfg, "c3888037643f")
     assert nullable()
+    with test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO countries (code, name_en, name_fi, time_zone, currency, eu_member)"
+                " VALUES ('FI', 'Finland', 'Suomi', 'Europe/Helsinki', 'EUR', true)"
+                " ON CONFLICT DO NOTHING"
+            )
+        )
+        for valid_from, valid_until, toll in (
+            ("2026-01-01", "2026-12-31", None),
+            ("2027-01-01", None, "none"),
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO country_rules (id, country, valid_from, valid_until,"
+                    " toll_system, source_url, checked_on) VALUES (gen_random_uuid(), 'FI',"
+                    " :valid_from, :valid_until, :toll, 'https://example.com', '2026-11-19')"
+                ),
+                {"valid_from": valid_from, "valid_until": valid_until, "toll": toll},
+            )
     command.downgrade(cfg, "9bb6eb8d032e")
     assert not nullable()
+    with test_engine.connect() as conn:
+        # The row without a toll system is deleted; the recorded one stays.
+        assert conn.execute(text("SELECT toll_system FROM country_rules")).scalars().all() == [
+            "none"
+        ]
+        conn.execute(text("DELETE FROM country_rules"))
+        conn.commit()
     command.upgrade(cfg, "head")

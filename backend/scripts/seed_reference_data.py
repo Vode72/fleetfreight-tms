@@ -224,6 +224,13 @@ def load_files(data_dir: Path = DATA_DIR, today: date | None = None) -> Referenc
     return data
 
 
+def _take_source(row: CountryRule | RoadRestriction, raw: dict[str, Any]) -> None:
+    """A filled-in value comes from the file row, so the row now cites that source and check day."""
+    row.source_url = raw["source_url"]
+    row.checked_on = date.fromisoformat(raw["checked_on"])
+    row.note = raw.get("note")
+
+
 def seed_reference_data(session: Session, data: ReferenceData | None = None) -> Counter[str]:
     """Create the missing reference rows; returns how many rows were created per table."""
     data = data or load_files()
@@ -241,10 +248,12 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
         valid_from = date.fromisoformat(r["valid_from"])
         if (rule := existing_rules.get((r["country"], valid_from))) is not None:
             # Fill values not recorded yet (NULL); never overwrite a recorded one.
-            for name in RULE_VALUES:
-                if getattr(rule, name) is None and r.get(name) is not None:
-                    setattr(rule, name, r[name])
-                    created[FILLED] += 1
+            filled = [n for n in RULE_VALUES if getattr(rule, n) is None and r.get(n) is not None]
+            for name in filled:
+                setattr(rule, name, r[name])
+            if filled:
+                _take_source(rule, r)
+                created[FILLED] += len(filled)
             continue
         session.add(
             CountryRule(
@@ -285,6 +294,7 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
             # Fill a value that was not recorded yet (NULL); never overwrite a recorded one.
             if current.solo_tractor is None and r.get("solo_tractor") is not None:
                 current.solo_tractor = r["solo_tractor"]
+                _take_source(current, r)
                 created["filled_values"] += 1
             continue
         restriction = RoadRestriction(
