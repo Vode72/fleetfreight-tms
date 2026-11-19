@@ -1,6 +1,6 @@
 # Vaihe 2: tietomalli
 
-Tila: **käynnissä** (2A, tietomalli v1 ja 2B-1 valmiit; seuraavaksi 2B-2) · Päivitetty 18.11.2026
+Tila: **käynnissä** (2A, tietomalli v1, 2B-1 ja 2B-2 valmiit; seuraavaksi 2B-3a) · Päivitetty 19.11.2026
 
 Tavoite: koko tietomalli v1 (`suunnitelma.md` luku 3) Alembic-revisioina, tilakoneet testeineen ja
 yhdistetty demodata, jonka päälle vaiheen 4 läpimenevä polku rakennetaan. Taulut luodaan luvun 3
@@ -36,20 +36,42 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
   asiakkaat toimipaikkoineen, kuljetusliikkeet, kuljettajat ja pätevyydet
 - GDP-koulutuksen oletusvoimassaolo asetuksena (D69)
 
-### 2B-2 Kalusto · tulossa
+### 2B-2 Kalusto · valmis, PR #17 ja #18
 - `trucks` (vetäjä / kuorma-auto), `dollies` (D61), `load_units` (traileri, kiinteä kori; D60), `compartments`, `reefer_units` ja `reefer_evaporators` (D47, D76)
 - Kaluston kelpoisuudet omassa taulussaan (`equipment_qualifications`, D70) voimassaolojaksoina (D67)
 - Arkistointi (D72): `archived_at` rekistereihin (myös 2B-1:n taulut) ja `driver_qualifications` CASCADE → RESTRICT, uutena revisiona; samassa revisiossa oman kuljetusliikkeen linkki oman yrityksen asiakasriviin (D73)
 - Demodata: kalusto kuljetusliikkeittäin, thermo-kuormatilat lohkoineen, junakelpoiset kuormatilat (D63), HCT-yhdistelmä dollyineen
 - **Valmis kun:** kuormatila voidaan kuvata trailerina tai kiinteänä korina, ja kelpoisuuksien historia säilyy
 
-### 2B-3 Asetustaulut · tulossa
-- `customs_areas` (D48), `adr_rules`-rakenne (sisältö tarkistetaan lähteistä ennen vaihetta 5, luku 3C), `pallet_types`,
-  `road_restrictions`, `ltl_linehauls`, `line_operators`, `line_routes`, `line_departures` (lautta ja juna, D62, D63),
-  `routing_preferences` (D64)
-- Satamien säilytysasetukset (D83): ilmaiset päivät (oletus 3) ja päivämaksu `*_cents` satamakohtaisesti uudella revisiolla; demossa keksityt summat
+### 2B-3 Asetustaulut (laajennettu D84) · tulossa
+
+Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demodatansa ja testinsä. Demomaat: FI, SE, EE, LV, LT, PL, DE, NL, BE, DK, FR, ES ja IT.
+**Säädösten ja viranomaisten raja-arvot** (painot, mitat, nopeudet, ajokiellot, pyhät, tiemaksut) haetaan virallisista lähteistä ennen kirjausta, ja jokaisella rivillä on lähdelinkki ja tarkistuspäivä. Mitään ei kirjoiteta muistista. Plan Check -tarkistukset tehdään vaiheessa 5.
+
+#### 2B-3a Maat ja rajoitukset
+- `countries`: maan yleissäännöt (oletuspainorajat, kuorma-auton nopeusrajoitukset ajoajan ja ETA:n laskentaan, HCT sallittu, talvivarustekausi, tiemaksujärjestelmä, lähetetyn työntekijän ilmoitus, kabotaasi)
+- `public_holidays`: pyhäpäivät maittain ja tarvittaessa alueittain (pyhien ajokiellot)
+- `road_restrictions` laajennettuna: ajokiellot (viikonloppu, sunnuntai, pyhät, yö, loma-ajat) viikoittaisine aikaikkunoineen; akseli-, teli- ja kokonaispainorajat; kelirikko (kausittainen); silta-, korkeus- ja pituusrajat; HCT-reitit; ADR-tunneliluokat; ympäristövyöhykkeet. Kohdistus (esim. yli 7,5 t, ADR, tyhjä / kuormattu) ja poikkeukset (esim. elintarvike), voimassaolo, lähde ja tarkistuspäivä
+- **Valmis kun:** demomaiden yleissäännöt, pyhät ja keskeiset ajokiellot ja painorajat ovat kannassa lähteineen
+
+#### 2B-3b Paikat
+- Turvaparkit: `parking_details` paikoille (tyyppi parking): sertifiointitaso alan yleisten standardien mukaan, paikkamäärä, varauspakko, yöhinta `*_cents`, sähkö thermotrailerille, palvelut, aukiolo
+- Rajanylityspaikat: uusi paikkatyyppi *border_crossing* ja lisätiedot: maat, EU:n ulkoraja, linkki tullitoimipaikkaan (D48), aukioloajat, raskas liikenne sallittu, tila (auki / kiinni), arvioitu odotusaika
+- Lastaus- ja purkupaikan ominaisuudet: laituri / maataso, sivulastaus, trukki, perälautavaatimus, ajoneuvon enimmäispituus (HCT), ajanvarauspakko (D82)
+- Satamien säilytysasetukset (D83): ilmaiset päivät (oletus 3) ja päivämaksu `*_cents`; demossa keksityt summat
+- Pesupaikat ja pesutodistus (European Cleaning Document) elintarvike- ja kemikaalikuljetuksiin (D56)
+- **Valmis kun:** demon turvaparkit, rajanylitykset ja satamat asetuksineen ovat kannassa
+
+#### 2B-3c Linjat ja reititys
+- `line_operators`, `line_routes`, `line_departures` (lautta ja juna, D62, D63) ja aluskohtaiset ADR-rajoitukset (kaikki alukset eivät ota kaikkia luokkia)
+- `routing_preferences` (D64), `ltl_linehauls`, `customs_areas` (D48), `adr_rules`-rakenne (sisältö lähteistä ennen vaihetta 5, luku 3C)
 - Demodata: lauttayhteydet D62:n mukaan molempiin suuntiin, junayhteys Rostock ja Travemünde ↔ Verona, reititysehdotukset D64:n mukaan
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
+
+#### 2B-3d Kustannusasetukset (rakenne; laskenta vaiheessa 6)
+- Tiemaksut maittain akselimäärän, päästöluokan ja CO2-luokan mukaan; kalustoon päästö- ja CO2-luokka uudella revisiolla
+- Polttoainelisän indeksi, valuutat ja kurssit (SEK, PLN, DKK, NOK), `pallet_types`
+- **Valmis kun:** tiemaksun, polttoainelisän ja valuuttamuunnoksen lähtötiedot ovat kannassa
 
 ### 2C Kuorma ja keikka · tulossa
 - Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, Earliest/Latest ja aikatyyppi noudolle ja toimitukselle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
@@ -77,7 +99,7 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 
 ## Järjestys
 
-2A → tietomalli v1 → 2B-1 → 2B-2 → 2B-3 → 2C. Tilakoneet voidaan tehdä 2C:n rinnalla, tilatokenit milloin tahansa.
+2A → tietomalli v1 → 2B-1 → 2B-2 → 2B-3a → 2B-3b → 2B-3c → 2B-3d → 2C. Tilakoneet voidaan tehdä 2C:n rinnalla, tilatokenit milloin tahansa.
 
 ## Vaiheen 2 valmis-kriteerit
 - `alembic upgrade head` tyhjään kantaan luo kaikki luvun 3 taulut, ja CI on vihreä
