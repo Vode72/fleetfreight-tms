@@ -51,14 +51,14 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
 
 ### 2C Kuorma ja keikka · tulossa
-- Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, aikatyypit lastaukselle ja purulle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
+- Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, Earliest/Latest ja aikatyyppi noudolle ja toimitukselle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
 - Keikka: `jobs`, `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
 - Resurssit ja ajoaika: `duty_events`, `resource_reservations`, `trailer_positions`
 - Kylmä, tulli ja dokumentit: `sensors`, `trip_compartment_settings`, `temperature_readings`, `temperature_alarms`,
   `customs_declarations`, `customs_items` (D58), `customs_events`, `documents`
 - Kulut ja lavasaldot: `service_codes`, `costs`, `cost_allocations`, `invoices`, `invoice_lines`, `pallet_ledger` (D59)
 - Toteumatauluissa vain lisäys, `source` ja `reversal_of_id` (sääntö 9)
-- **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** Noden aikaikkunan ja orderin ajan suhde (varattu laituriaika vs. asiakkaalle luvattu aika); "alkaen"-aika lastaukseen (tavara valmiina klo X alkaen); orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
+- **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** Noden aikaikkunan ja orderin ajan suhde (varattu laituriaika vs. asiakkaalle luvattu aika); orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
 - **Valmis kun:** D65:n skenaario (Jyväskylä–Vantaa–Lübeck) voidaan kirjata kantaan riveinä, ja liput täsmäävät alirivien kanssa
 
 ### Tilakoneet (R3, D50, D53) · tulossa

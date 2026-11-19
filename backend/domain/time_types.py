@@ -1,35 +1,47 @@
-"""Order time types FIX, Termin, ETA and to be agreed (D80). Pure domain module.
+"""Order time windows and time types FIX, Termin, ETA and to be agreed (D80). Pure domain module.
 
-An order carries a time type and a time separately for loading and for unloading. Plan Check
-(D77, phase 5) compares a Node's planned time (arrival, or the planned handling time when the
-vehicle waits) with that time through `evaluate`.
+An order carries, separately for pickup and for delivery, an Earliest and a Latest bound and a
+time type. A bound is a date with an optional clock time, in the location's local time (as the
+customer states it). These are the earliest/latest pickup and delivery dates common to transport
+management systems. The time type says how binding the window is:
 
-- FIX: one exact date; the customer has paid for delivery on that day. Strict both ways: an
-  earlier day blocks (the receiver may have a full warehouse or cross-dock straight onto another
-  trailer) and a later day blocks. The clock time is checked against the location's opening
-  hours separately, so no margin applies.
-- TERMIN: an agreed date and time or time window, e.g. 20.11. 14:00-16:00 (start, optional
-  end). Arriving after the end (or after the single time) blocks the plan; arriving within the
-  margin before it is a risk; arriving before the start is OK, the vehicle waits and the result
-  says how long (Toni 19.11.2026).
-- ETA: an estimated delivery date given to the customer. Not binding, so a later day is only a
-  risk.
+| Case                     | Earliest      | Latest        |
+|--------------------------|---------------|---------------|
+| FIX 20.11.               | 20.11.        | 20.11.        |
+| Termin 20.11. 14-16      | 20.11. 14:00  | 20.11. 16:00  |
+| Pickup "from 14:00"      | 20.11. 14:00  | -             |
+| ETA 20.11.               | -             | 20.11.        |
+| To be agreed             | -             | -             |
+
+- FIX: one exact date; the customer has paid for delivery on that day. Strict both ways: no
+  handling before the day (the receiver may have a full warehouse or cross-dock straight onto
+  another trailer) and none after it. No margin; the clock time is checked against the
+  location's opening hours separately.
+- TERMIN: an agreed date and time or time window, or only one end of it ("from 14:00",
+  "by 16:00"). Every given bound has a clock time.
+- ETA: an estimated delivery date given to the customer (Latest only). Not binding.
 - TO_BE_AGREED: no time yet. A non-mandatory OPEN result: the trip can be planned and confirmed,
   and the time is filled in later.
 
-FIX and ETA are dates and are compared on the location's local date.
+One rule for Plan Check (D77), through `evaluate`:
+- Arriving before Earliest is OK: the vehicle waits and handling starts at Earliest; the result
+  gives the waiting time.
+- Handling planned before Earliest is BLOCKED (e.g. no early unloading of a FIX delivery).
+- Handling after Latest is BLOCKED for FIX and TERMIN, only a RISK for ETA.
+- Handling within the margin before a Latest clock time is a RISK.
+A date-only Earliest starts at 00:00 local time; a date-only Latest lasts to the end of that day.
 
 Priority, most binding first, used for conflicts, ordering and optimisation: FIX, TERMIN, ETA,
 TO_BE_AGREED.
 
 The margin is a setting (default 30 minutes, D80); the caller passes it in.
 
-All clock-time comparisons and differences are made in UTC: Python compares two datetimes that
-share one tzinfo by wall clock, which is off by an hour across a daylight saving change.
+Instants are compared in UTC: Python compares two datetimes that share one tzinfo by wall
+clock, which is off by an hour across a daylight saving change.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from zoneinfo import ZoneInfo
 
@@ -48,10 +60,6 @@ PRIORITY: tuple[TimeType, ...] = (
     TimeType.ETA,
     TimeType.TO_BE_AGREED,
 )
-
-# Time types given as a date, and those given as a clock time.
-DATE_TYPES = frozenset({TimeType.FIX, TimeType.ETA})
-CLOCK_TYPES = frozenset({TimeType.TERMIN})
 
 DEFAULT_MARGIN = timedelta(minutes=30)
 
@@ -72,8 +80,8 @@ class CheckLevel(StrEnum):
 
 class TimeCheckReason(StrEnum):
     ON_TIME = "on_time"
-    EARLY = "early"  # TERMIN: arrives before the window; the vehicle waits
-    BEFORE_FIX_DATE = "before_fix_date"  # FIX: earlier day than agreed; not allowed
+    WAITS = "waits"  # arrives before Earliest; handling starts at Earliest
+    BEFORE_EARLIEST = "before_earliest"  # handling planned before Earliest; not allowed
     WITHIN_MARGIN = "within_margin"
     LATE = "late"
     AFTER_ETA = "after_eta"
@@ -90,57 +98,81 @@ def _utc(value: datetime) -> datetime:
 
 
 @dataclass(frozen=True)
-class OrderTime:
-    """The time of one loading or unloading on an order. Build it with the class methods.
+class TimeBound:
+    """A date with an optional clock time, in the location's local time."""
 
-    FIX and ETA: `day` only. TERMIN: `start`, and `end` >= `start` or None for a single time.
-    TO_BE_AGREED: nothing.
-    """
-
-    time_type: TimeType
-    day: date | None = None
-    start: datetime | None = None
-    end: datetime | None = None
+    day: date
+    at: time | None = None
 
     def __post_init__(self) -> None:
-        for name in ("start", "end"):
-            value = getattr(self, name)
-            if value is not None:
-                _require_aware(value, name)
-        t = self.time_type
-        if t in DATE_TYPES:
-            if self.day is None:
-                raise ValueError(f"{t} needs a date")
-        elif self.day is not None:
-            raise ValueError("only FIX and ETA have a date")
-        if t not in CLOCK_TYPES and (self.start is not None or self.end is not None):
-            raise ValueError(f"{t} has no start or end time")
-        if t is TimeType.TERMIN:
-            if self.start is None:
-                raise ValueError("TERMIN needs a start")
-            if self.end is not None and _utc(self.end) < _utc(self.start):
-                raise ValueError("TERMIN end must not be before its start")
+        if self.at is not None and self.at.tzinfo is not None:
+            raise ValueError("a bound's clock time is local: give it without a time zone")
+
+    def sort_key(self, end_of_day: bool) -> tuple[date, time]:
+        if self.at is not None:
+            return (self.day, self.at)
+        return (self.day, time.max if end_of_day else time.min)
+
+    def earliest_instant(self, tz: ZoneInfo) -> datetime:
+        """First allowed instant when this bound is an Earliest."""
+        return datetime.combine(self.day, self.at or time.min, tzinfo=tz)
+
+    def latest_instant(self, tz: ZoneInfo) -> datetime:
+        """End of the allowed time when this bound is a Latest (exclusive for a date only)."""
+        if self.at is not None:
+            return datetime.combine(self.day, self.at, tzinfo=tz)
+        return datetime.combine(self.day + timedelta(days=1), time.min, tzinfo=tz)
+
+
+@dataclass(frozen=True)
+class OrderTime:
+    """Pickup or delivery time of an order (D80). Build it with the class methods."""
+
+    time_type: TimeType
+    earliest: TimeBound | None = None
+    latest: TimeBound | None = None
+
+    def __post_init__(self) -> None:
+        t, first, last = self.time_type, self.earliest, self.latest
+        if t is TimeType.FIX:
+            if first is None or last is None or first.day != last.day:
+                raise ValueError("FIX needs one date: Earliest and Latest on the same day")
+            if first.at is not None or last.at is not None:
+                raise ValueError("FIX is a date without a clock time")
+        elif t is TimeType.TERMIN:
+            if first is None and last is None:
+                raise ValueError("TERMIN needs an Earliest, a Latest or both")
+            if any(b is not None and b.at is None for b in (first, last)):
+                raise ValueError("TERMIN bounds need a clock time")
+        elif t is TimeType.ETA:
+            if first is not None or last is None or last.at is not None:
+                raise ValueError("ETA is a Latest date only")
+        elif first is not None or last is not None:
+            raise ValueError("TO_BE_AGREED has no Earliest or Latest")
+        if (
+            first is not None
+            and last is not None
+            and last.sort_key(end_of_day=True) < first.sort_key(end_of_day=False)
+        ):
+            raise ValueError("Latest must not be before Earliest")
 
     @classmethod
     def fix(cls, day: date) -> OrderTime:
-        return cls(TimeType.FIX, day=day)
+        return cls(TimeType.FIX, TimeBound(day), TimeBound(day))
 
     @classmethod
-    def termin(cls, start: datetime, end: datetime | None = None) -> OrderTime:
-        return cls(TimeType.TERMIN, start=start, end=end)
+    def termin(
+        cls, earliest: TimeBound | None = None, latest: TimeBound | None = None
+    ) -> OrderTime:
+        return cls(TimeType.TERMIN, earliest, latest)
 
     @classmethod
     def eta(cls, day: date) -> OrderTime:
-        return cls(TimeType.ETA, day=day)
+        return cls(TimeType.ETA, latest=TimeBound(day))
 
     @classmethod
     def to_be_agreed(cls) -> OrderTime:
         return cls(TimeType.TO_BE_AGREED)
-
-    @property
-    def latest(self) -> datetime | None:
-        """TERMIN: last acceptable arrival."""
-        return self.end if self.end is not None else self.start
 
 
 @dataclass(frozen=True)
@@ -148,77 +180,74 @@ class TimeCheckResult:
     level: CheckLevel
     reason: TimeCheckReason
     # Whether the check is mandatory (D77): a missing or failing mandatory check affects the
-    # overall status; a non-mandatory OPEN is shown as a note.
+    # overall status; a non-mandatory OPEN or RISK is shown as a note.
     mandatory: bool
-    # TERMIN: latest acceptable arrival minus planned arrival (negative when late).
+    # When handling starts: the given planned handling, or arrival / Earliest, whichever is later.
+    handling_start: datetime | None = None
+    # How long the vehicle waits from arrival until Earliest.
+    wait: timedelta | None = None
+    # Latest clock time minus handling start (negative when late); only for a Latest with a time.
     slack: timedelta | None = None
-    # TERMIN: how long the vehicle waits before the window opens.
-    early_by: timedelta | None = None
-    # FIX and ETA: planned local date minus the agreed date, in days (negative = earlier).
-    days_off: int | None = None
 
 
 def evaluate(
     order_time: OrderTime,
-    planned: datetime,
+    arrival: datetime,
     location_tz: ZoneInfo,
     margin: timedelta = DEFAULT_MARGIN,
+    planned_handling: datetime | None = None,
 ) -> TimeCheckResult:
-    """Compare a Node's planned time with the order's time (D80)."""
-    _require_aware(planned, "planned")
+    """Compare a Node's planned arrival (and planned handling, if set) with the order's time.
+
+    Without `planned_handling` the vehicle is assumed to wait for Earliest.
+    """
+    _require_aware(arrival, "arrival")
+    if planned_handling is not None:
+        _require_aware(planned_handling, "planned_handling")
     if margin < timedelta(0):
         raise ValueError("margin must not be negative")
     t = order_time.time_type
+    mandatory = t in (TimeType.FIX, TimeType.TERMIN)
 
     if t is TimeType.TO_BE_AGREED:
         return TimeCheckResult(CheckLevel.OPEN, TimeCheckReason.TIME_TO_BE_AGREED, mandatory=False)
 
-    if t in DATE_TYPES:
-        if order_time.day is None:  # guaranteed by OrderTime; narrows the type
-            raise ValueError(f"{t} needs a date")
-        days_off = (planned.astimezone(location_tz).date() - order_time.day).days
-        if t is TimeType.FIX:
-            if days_off < 0:
-                return TimeCheckResult(
-                    CheckLevel.BLOCKED,
-                    TimeCheckReason.BEFORE_FIX_DATE,
-                    mandatory=True,
-                    days_off=days_off,
-                )
-            if days_off > 0:
-                return TimeCheckResult(
-                    CheckLevel.BLOCKED, TimeCheckReason.LATE, mandatory=True, days_off=days_off
-                )
-            return TimeCheckResult(
-                CheckLevel.OK, TimeCheckReason.ON_TIME, mandatory=True, days_off=0
-            )
-        # ETA
-        if days_off > 0:
-            return TimeCheckResult(
-                CheckLevel.RISK, TimeCheckReason.AFTER_ETA, mandatory=False, days_off=days_off
-            )
-        return TimeCheckResult(
-            CheckLevel.OK, TimeCheckReason.ON_TIME, mandatory=False, days_off=days_off
-        )
+    arrival_utc = _utc(arrival)
+    earliest = (
+        _utc(order_time.earliest.earliest_instant(location_tz))
+        if order_time.earliest is not None
+        else None
+    )
+    wait = earliest - arrival_utc if earliest is not None and arrival_utc < earliest else None
 
-    # TERMIN
-    if order_time.start is None or order_time.latest is None:  # guaranteed by OrderTime
-        raise ValueError("TERMIN needs a time")
-    planned_utc = _utc(planned)
-    start = _utc(order_time.start)
-    slack = _utc(order_time.latest) - planned_utc
-    if slack < timedelta(0):
-        return TimeCheckResult(
-            CheckLevel.BLOCKED, TimeCheckReason.LATE, mandatory=True, slack=slack
-        )
-    early_by = start - planned_utc if planned_utc < start else None
-    if slack < margin:
-        return TimeCheckResult(
-            CheckLevel.RISK,
-            TimeCheckReason.WITHIN_MARGIN,
-            mandatory=True,
-            slack=slack,
-            early_by=early_by,
-        )
-    reason = TimeCheckReason.EARLY if early_by is not None else TimeCheckReason.ON_TIME
-    return TimeCheckResult(CheckLevel.OK, reason, mandatory=True, slack=slack, early_by=early_by)
+    if planned_handling is not None:
+        handling = _utc(planned_handling)
+        if handling < arrival_utc:
+            raise ValueError("planned_handling must not be before arrival")
+    else:
+        handling = max(arrival_utc, earliest) if earliest is not None else arrival_utc
+
+    def result(
+        level: CheckLevel, reason: TimeCheckReason, slack: timedelta | None = None
+    ) -> TimeCheckResult:
+        return TimeCheckResult(level, reason, mandatory, handling, wait, slack)
+
+    if earliest is not None and handling < earliest:
+        return result(CheckLevel.BLOCKED, TimeCheckReason.BEFORE_EARLIEST)
+
+    last = order_time.latest
+    slack: timedelta | None = None
+    if last is not None:
+        latest = _utc(last.latest_instant(location_tz))
+        if last.at is not None:
+            slack = latest - handling
+        late = handling > latest if last.at is not None else handling >= latest
+        if late:
+            if t is TimeType.ETA:
+                return result(CheckLevel.RISK, TimeCheckReason.AFTER_ETA)
+            return result(CheckLevel.BLOCKED, TimeCheckReason.LATE, slack)
+        if slack is not None and slack < margin:
+            return result(CheckLevel.RISK, TimeCheckReason.WITHIN_MARGIN, slack)
+
+    reason = TimeCheckReason.WAITS if wait is not None else TimeCheckReason.ON_TIME
+    return result(CheckLevel.OK, reason, slack)
