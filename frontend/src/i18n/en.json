@@ -19,6 +19,8 @@
   "nav": {
     "label": "Main navigation",
     "toggle": "Sidebar",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
     "dashboard": "Dashboard",
     "sections": {
       "loadPlanning": "Load planning",

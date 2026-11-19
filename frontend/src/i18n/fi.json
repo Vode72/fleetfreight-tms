@@ -19,6 +19,8 @@
   "nav": {
     "label": "Päävalikko",
     "toggle": "Sivupalkki",
+    "openMenu": "Avaa valikko",
+    "closeMenu": "Sulje valikko",
     "dashboard": "Etusivu",
     "sections": {
       "loadPlanning": "Kuormasuunnittelu",

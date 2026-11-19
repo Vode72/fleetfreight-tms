@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D80).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D81).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -18,6 +18,7 @@ ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita p
 - **Frontend:** React + TypeScript + Vite, Vitest, ESLint
 - **Backend:** Python, FastAPI, Pydantic, SQLAlchemy, Alembic, pytest
 - **Tietokanta:** PostgreSQL (Docker Compose)
+- **Mobiili (D81):** responsiivinen web ja PWA; taitekohdat tabletti ≤ 1024 px ja puhelin ≤ 640 px (`layout/useMediaQuery.ts` ja `layout.css`). Jokainen näkymä toimii ja testataan myös puhelimen ja tabletin leveydellä.
 - **Tyypit:** frontendin API-tyypit generoidaan backendin OpenAPI-kuvauksesta (`openapi-typescript`). Älä kirjoita API-tyyppejä käsin.
 
 ### Käynnistys (kehitys)
