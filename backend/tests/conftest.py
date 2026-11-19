@@ -153,3 +153,16 @@ def clean_registers(test_engine: Engine) -> Iterator[None]:
     with test_engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {REGISTER_TABLES} CASCADE"))
     yield
+
+
+REFERENCE_TABLES = (
+    "road_restriction_windows, road_restrictions, public_holidays, country_rules, countries"
+)
+
+
+@pytest.fixture
+def clean_reference(test_engine: Engine) -> Iterator[None]:
+    """Empty the reference data tables (2B-3a); the shared test database is reused."""
+    with test_engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE {REFERENCE_TABLES} CASCADE"))
+    yield

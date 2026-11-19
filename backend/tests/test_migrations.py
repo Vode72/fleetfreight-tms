@@ -402,3 +402,26 @@ def test_evaporator_migration_stops_on_an_fs_with_two_machines(test_engine: Engi
         with test_engine.begin() as conn:
             conn.execute(text("TRUNCATE equipment_qualifications, carriers CASCADE"))
         command.upgrade(cfg, "head")
+
+
+RESTRICTION_TABLES = {
+    "countries",
+    "country_rules",
+    "public_holidays",
+    "road_restrictions",
+    "road_restriction_windows",
+}
+
+
+def test_restrictions_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "2cb43f9f78c1")
+    assert set(inspect(test_engine).get_table_names()) >= RESTRICTION_TABLES
+
+    command.downgrade(cfg, "e0f14a4663b6")
+    tables = set(inspect(test_engine).get_table_names())
+    assert not RESTRICTION_TABLES & tables
+    assert "load_units" in tables  # earlier revisions untouched
+
+    command.upgrade(cfg, "head")
+    assert set(inspect(test_engine).get_table_names()) >= RESTRICTION_TABLES

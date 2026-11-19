@@ -1,0 +1,956 @@
+[
+  {
+    "code": "DE-SUNDAY-HOLIDAY-BAN",
+    "country": "DE",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "vehicle",
+    "with_trailer_any_weight": true,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "combined_transport",
+      "perishable_goods",
+      "empty_run",
+      "other"
+    ],
+    "note": "§ 30(3) StVO: commercial goods transport incl. connected empty runs; also any truck towing a trailer regardless of weight. Holidays: § 30(4) StVO, regional ones per state. Combined transport: rail up to 200 km, port up to 150 km. Other exemptions: animal by-products, breakdown service, live bees.",
+    "valid_from": "2026-01-01",
+    "valid_until": null,
+    "source_url": "https://www.gesetze-im-internet.de/stvo_2013/__30.html",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "weekdays",
+        "start": "00:00",
+        "end": "22:00",
+        "weekdays": [
+          7
+        ]
+      },
+      {
+        "kind": "public_holiday",
+        "start": "00:00",
+        "end": "22:00"
+      }
+    ]
+  },
+  {
+    "code": "DE-SUMMER-SATURDAY-BAN",
+    "country": "DE",
+    "region": null,
+    "road_ref": null,
+    "section": "Motorway and federal road sections listed in FerReiseV § 1(2)-(3), both directions; federal roads outside built-up areas only",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "vehicle",
+    "with_trailer_any_weight": true,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "combined_transport",
+      "perishable_goods",
+      "empty_run",
+      "other"
+    ],
+    "note": "Ferienreiseverordnung § 1: Saturdays 1 July - 31 August; trucks over 7.5 t and trucks with a trailer; exemptions in § 3.",
+    "valid_from": "2026-01-01",
+    "valid_until": null,
+    "source_url": "https://www.gesetze-im-internet.de/ferreisev_1985/__1.html",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "weekdays",
+        "start": "07:00",
+        "end": "20:00",
+        "weekdays": [
+          6
+        ],
+        "season_start": 701,
+        "season_end": 831
+      }
+    ]
+  },
+  {
+    "code": "FR-WEEKEND-HOLIDAY-BAN",
+    "country": "FR",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "other"
+    ],
+    "note": "Arrêté du 16 avril 2021, art. 1: from 22:00 on Saturdays and holiday eves to 22:00 on Sundays and holidays, whole national road network; permanent exemptions in art. 4. Île-de-France has extra bans on some motorway sections (not recorded here).",
+    "valid_from": "2026-01-01",
+    "valid_until": null,
+    "source_url": "https://www.ecologie.gouv.fr/politiques-publiques/regles-interdictions-circulation-transport-routier",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "weekdays",
+        "start": "22:00",
+        "end": null,
+        "weekdays": [
+          6
+        ]
+      },
+      {
+        "kind": "weekdays",
+        "start": "00:00",
+        "end": "22:00",
+        "weekdays": [
+          7
+        ]
+      },
+      {
+        "kind": "day_before_holiday",
+        "start": "22:00",
+        "end": null
+      },
+      {
+        "kind": "public_holiday",
+        "start": "00:00",
+        "end": "22:00"
+      }
+    ]
+  },
+  {
+    "code": "FR-SUMMER-SATURDAYS-2026",
+    "country": "FR",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "other"
+    ],
+    "note": "Arrêté du 26 décembre 2025, art. 2-II: whole metropolitan road network.",
+    "valid_from": "2026-01-01",
+    "valid_until": "2026-12-31",
+    "source_url": "https://www.hauts-de-france.developpement-durable.gouv.fr/IMG/pdf/interdictions_complementaires_samedis_.pdf",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "19:00",
+        "on_date": "2026-07-11"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "19:00",
+        "on_date": "2026-07-18"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "19:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "19:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "19:00",
+        "on_date": "2026-08-08"
+      }
+    ]
+  },
+  {
+    "code": "FR-ARA-WINTER-SATURDAYS-2026",
+    "country": "FR",
+    "region": "FR-ARA",
+    "road_ref": null,
+    "section": "Auvergne-Rhône-Alpes roads listed in the annex of the arrêté",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "other"
+    ],
+    "note": "Arrêté du 26 décembre 2025, art. 2-I.",
+    "valid_from": "2026-01-01",
+    "valid_until": "2026-12-31",
+    "source_url": "https://www.hauts-de-france.developpement-durable.gouv.fr/IMG/pdf/interdictions_complementaires_samedis_.pdf",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "18:00",
+        "on_date": "2026-02-07"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "18:00",
+        "on_date": "2026-02-14"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "18:00",
+        "on_date": "2026-02-21"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "18:00",
+        "on_date": "2026-02-28"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "18:00",
+        "on_date": "2026-03-07"
+      }
+    ]
+  },
+  {
+    "code": "PL-HOLIDAY-BAN",
+    "country": "PL",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "combined_transport",
+      "empty_run",
+      "other"
+    ],
+    "note": "Regulation § 2(1): statutory days off named in the regulation, nationwide; buses excluded. Exemptions in § 3 (e.g. goods listed in annex 1 forming a significant part of the load, live animals, combined transport, ADR with orange plates, vehicles that entered Poland outside the ban hours, up to 50 km from the border crossing, and vehicles waiting to leave Poland).",
+    "valid_from": "2026-01-01",
+    "valid_until": null,
+    "source_url": "https://api.sejm.gov.pl/eli/acts/DU/2023/2423/text.html",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "public_holiday",
+        "start": "08:00",
+        "end": "22:00"
+      }
+    ]
+  },
+  {
+    "code": "PL-HOLIDAY-EVE-BAN",
+    "country": "PL",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "combined_transport",
+      "empty_run",
+      "other"
+    ],
+    "note": "Regulation § 2: 18:00-22:00 on the day before Easter Sunday, Easter Monday, 1 May, 3 May, Pentecost Sunday, Corpus Christi, 15 August, 1 November and 11 November (not before 1 January or Christmas); dates listed for 2026-2027.",
+    "valid_from": "2026-01-01",
+    "valid_until": "2027-12-31",
+    "source_url": "https://api.sejm.gov.pl/eli/acts/DU/2023/2423/text.html",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-04-04"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-04-30"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-05-02"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-05-23"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-06-03"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-10-31"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-03-27"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-03-28"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-04-30"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-05-02"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-05-15"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-05-26"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-10-31"
+      },
+      {
+        "kind": "date",
+        "start": "18:00",
+        "end": "22:00",
+        "on_date": "2027-11-10"
+      }
+    ]
+  },
+  {
+    "code": "PL-SUMMER-BAN-2026",
+    "country": "PL",
+    "region": null,
+    "road_ref": null,
+    "section": null,
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 12000,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "combined_transport",
+      "empty_run",
+      "other"
+    ],
+    "note": "Regulation § 2: school summer holidays, from the Friday classes end (26 June 2026, school year calendar 2025/2026) to the last Sunday before the new school year (30 August 2026).",
+    "valid_from": "2026-06-26",
+    "valid_until": "2026-08-30",
+    "source_url": "https://api.sejm.gov.pl/eli/acts/DU/2023/2423/text.html",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "weekdays",
+        "start": "18:00",
+        "end": "22:00",
+        "weekdays": [
+          5
+        ]
+      },
+      {
+        "kind": "weekdays",
+        "start": "08:00",
+        "end": "14:00",
+        "weekdays": [
+          6
+        ]
+      },
+      {
+        "kind": "weekdays",
+        "start": "08:00",
+        "end": "22:00",
+        "weekdays": [
+          7
+        ]
+      }
+    ]
+  },
+  {
+    "code": "IT-BAN-CALENDAR-2026",
+    "country": "IT",
+    "region": null,
+    "road_ref": null,
+    "section": "Roads outside built-up areas",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "combined_transport",
+      "other"
+    ],
+    "note": "Decreto MIT n. 325 del 12 dicembre 2025 (G.U. n. 302 del 31.12.2025), allegato A: 79 ban days 2026; later start or earlier end for transport to or from abroad, Sardinia and Sicily; separate rules for dangerous goods.",
+    "valid_from": "2026-01-01",
+    "valid_until": "2026-12-31",
+    "source_url": "https://www.rc.camcom.gov.it/sites/default/files/Pubblicit%C3%A0%20legale/Decretodivietidicircolazionemezzipesanti-anno2026-signed.pdf",
+    "checked_on": "2026-11-19",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-01"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-04"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-01-05"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-06"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-11"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-18"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-01-25"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-02-01"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-02-08"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-02-15"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-02-22"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-03-01"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-03-08"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-03-15"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-03-22"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-03-29"
+      },
+      {
+        "kind": "date",
+        "start": "14:00",
+        "end": "22:00",
+        "on_date": "2026-04-03"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "16:00",
+        "on_date": "2026-04-04"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "14:00",
+        "on_date": "2026-04-07"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-12"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-19"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-25"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-04-26"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-01"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-03"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-10"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-17"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "14:00",
+        "on_date": "2026-05-30"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-05-31"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-06-02"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-07-04"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-07-11"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-07-18"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-24"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "22:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-07"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "22:00",
+        "on_date": "2026-08-08"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-08-22"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "08:00",
+        "end": "16:00",
+        "on_date": "2026-08-29"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-09-13"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-09-20"
+      },
+      {
+        "kind": "date",
+        "start": "07:00",
+        "end": "22:00",
+        "on_date": "2026-09-27"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-10-04"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-10-11"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-10-18"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-10-25"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-11-01"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-11-08"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-11-15"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-11-22"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-11-29"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-06"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-08"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-13"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-20"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-25"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-26"
+      },
+      {
+        "kind": "date",
+        "start": "09:00",
+        "end": "22:00",
+        "on_date": "2026-12-27"
+      }
+    ]
+  }
+]

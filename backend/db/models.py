@@ -1,7 +1,7 @@
 """ORM models. Schema changes always go through a new Alembic revision."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
@@ -16,13 +16,15 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
+    Time,
     UniqueConstraint,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID, ExcludeConstraint
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from db.session import Base
@@ -41,6 +43,17 @@ from domain.equipment import (
 from domain.locations import LocationType
 from domain.parties import CarrierType, CustomerType, DriverEmployment
 from domain.qualifications import DriverQualificationType
+from domain.restrictions import (
+    ADR_TUNNEL_CATEGORIES,
+    UNIT_BY_TYPE,
+    Exemption,
+    LimitUnit,
+    LoadState,
+    RestrictionType,
+    TollSystem,
+    WeightBasis,
+    WindowKind,
+)
 
 
 def in_list(column: str, values: type[StrEnum]) -> str:
@@ -796,5 +809,301 @@ class EquipmentQualification(Base):
     valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date] = mapped_column(Date)
     document_ref: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+# --- Countries and road restrictions (2B-3a, D84). Reference data with a source per row; the
+# legal values are never written from memory. Plan Check uses them in phase 5.
+
+_SOURCE_CHECKS = (
+    "source_url ~ '^https://'",
+    "checked_on >= DATE '2026-01-01'",
+)
+_REGION_CHECK = (
+    "region IS NULL OR (region ~ '^[A-Z]{2}-[A-Z0-9]{1,3}$' AND left(region, 2) = country)"
+)
+# Month 1-12 and day 1-31 (the exact day per month is checked by domain.restrictions.month_day).
+_SEASON_CHECK = (
+    "(season_start IS NULL) = (season_end IS NULL)"
+    " AND (season_start IS NULL OR (season_start / 100 BETWEEN 1 AND 12"
+    " AND season_start % 100 BETWEEN 1 AND 31 AND season_end / 100 BETWEEN 1 AND 12"
+    " AND season_end % 100 BETWEEN 1 AND 31))"
+)
+
+
+def _source_checks(table: str) -> tuple[CheckConstraint, CheckConstraint]:
+    return (
+        CheckConstraint(_SOURCE_CHECKS[0], name=f"ck_{table}_source_url"),
+        CheckConstraint(_SOURCE_CHECKS[1], name=f"ck_{table}_checked_on"),
+    )
+
+
+def _sql_list(values: list[str] | tuple[str, ...]) -> str:
+    return ", ".join(f"'{v}'" for v in sorted(values))
+
+
+_KG_TYPES = _sql_list([t.value for t, u in UNIT_BY_TYPE.items() if u is LimitUnit.KG])
+_TUNNEL_CATEGORIES = _sql_list(ADR_TUNNEL_CATEGORIES)
+_MM_TYPES = _sql_list([t.value for t, u in UNIT_BY_TYPE.items() if u is LimitUnit.MM])
+
+
+class Country(Base):
+    """A country that matters for road rules (D84). Key: ISO 3166-1 alpha-2 code."""
+
+    __tablename__ = "countries"
+    __table_args__ = (
+        CheckConstraint("code ~ '^[A-Z]{2}$'", name="ck_countries_code"),
+        CheckConstraint("currency ~ '^[A-Z]{3}$'", name="ck_countries_currency"),
+        CheckConstraint(
+            "btrim(name_en) <> '' AND btrim(name_fi) <> ''", name="ck_countries_names_not_blank"
+        ),
+    )
+
+    code: Mapped[str] = mapped_column(String(2), primary_key=True)
+    name_en: Mapped[str] = mapped_column(String(100))
+    name_fi: Mapped[str] = mapped_column(String(100))
+    time_zone: Mapped[str] = mapped_column(String(64))
+    currency: Mapped[str] = mapped_column(String(3))
+    eu_member: Mapped[bool] = mapped_column(Boolean)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class CountryRule(Base):
+    """General road rules of a country for one validity period (D67, D84). NULL = not recorded."""
+
+    __tablename__ = "country_rules"
+    __table_args__ = (
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until", name="ck_country_rules_period"
+        ),
+        ExcludeConstraint(
+            ("country", "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_country_rules_no_overlap",
+        ),
+        CheckConstraint(in_list("toll_system", TollSystem), name="ck_country_rules_toll_system"),
+        CheckConstraint(
+            "(truck_speed_motorway_kmh IS NULL OR truck_speed_motorway_kmh BETWEEN 1 AND 200)"
+            " AND (truck_speed_other_kmh IS NULL OR truck_speed_other_kmh BETWEEN 1 AND 200)",
+            name="ck_country_rules_speeds",
+        ),
+        CheckConstraint(
+            "(max_gross_weight_kg IS NULL OR max_gross_weight_kg > 0)"
+            " AND (max_length_mm IS NULL OR max_length_mm > 0)",
+            name="ck_country_rules_limits",
+        ),
+        CheckConstraint(
+            _SEASON_CHECK.replace("season_", "winter_equipment_"),
+            name="ck_country_rules_winter_season",
+        ),
+        *_source_checks("country_rules"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    country: Mapped[str] = mapped_column(
+        String(2), _fk("countries.code", "fk_country_rules_country")
+    )
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    # Speed limits for heavy goods vehicles: motorways, and other roads outside built-up areas.
+    truck_speed_motorway_kmh: Mapped[int | None] = mapped_column(SmallInteger)
+    truck_speed_other_kmh: Mapped[int | None] = mapped_column(SmallInteger)
+    # Standard maximum gross weight and length of an articulated vehicle in national traffic.
+    max_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    max_length_mm: Mapped[int | None] = mapped_column(Integer)
+    hct_allowed: Mapped[bool | None] = mapped_column(Boolean)
+    # Season of winter equipment requirements, MMDD (may run over the new year).
+    winter_equipment_start: Mapped[int | None] = mapped_column(SmallInteger)
+    winter_equipment_end: Mapped[int | None] = mapped_column(SmallInteger)
+    toll_system: Mapped[str] = mapped_column(String(20))
+    posted_worker_declaration: Mapped[bool | None] = mapped_column(Boolean)
+    cabotage_note: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class PublicHoliday(Base):
+    """A holiday that a country's road rules refer to, nationwide or in one region (ISO 3166-2,
+    e.g. DE-BY) (D84). Only the holidays the rules name: e.g. Germany's driving ban lists its own
+    days (§ 30(4) StVO), so a regional holiday outside that list is not a row here."""
+
+    __tablename__ = "public_holidays"
+    __table_args__ = (
+        UniqueConstraint(
+            "country",
+            "region",
+            "holiday_date",
+            name="uq_public_holidays_country_region_date",
+            postgresql_nulls_not_distinct=True,
+        ),
+        CheckConstraint(_REGION_CHECK, name="ck_public_holidays_region"),
+        CheckConstraint("btrim(name_local) <> ''", name="ck_public_holidays_name_not_blank"),
+        Index("ix_public_holidays_date", "holiday_date"),
+        *_source_checks("public_holidays"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    country: Mapped[str] = mapped_column(
+        String(2), _fk("countries.code", "fk_public_holidays_country")
+    )
+    region: Mapped[str | None] = mapped_column(String(6))
+    holiday_date: Mapped[date] = mapped_column(Date)
+    name_local: Mapped[str] = mapped_column(String(120))
+    name_en: Mapped[str | None] = mapped_column(String(120))
+    source_url: Mapped[str] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class RoadRestriction(Base):
+    """A driving ban, a weight or dimension limit, an HCT route, an ADR tunnel or an environmental
+    zone in a country, a region or on a road section (D84). Rules: domain/restrictions.py."""
+
+    __tablename__ = "road_restrictions"
+    __table_args__ = (
+        CheckConstraint(
+            in_list("restriction_type", RestrictionType), name="ck_road_restrictions_type"
+        ),
+        CheckConstraint(
+            f"limit_unit IS NULL OR {in_list('limit_unit', LimitUnit)}",
+            name="ck_road_restrictions_limit_unit",
+        ),
+        CheckConstraint(in_list("load_state", LoadState), name="ck_road_restrictions_load_state"),
+        CheckConstraint(
+            in_list("weight_basis", WeightBasis), name="ck_road_restrictions_weight_basis"
+        ),
+        # A limit has a positive value in its unit; other types have none (validate_restriction).
+        # coalesce(): a NULL would make the expression unknown, and CHECK lets unknown pass.
+        CheckConstraint(
+            f"(restriction_type IN ({_KG_TYPES}) AND coalesce(limit_value, 0) > 0"
+            " AND coalesce(limit_unit, '') = 'kg')"
+            f" OR (restriction_type IN ({_MM_TYPES}) AND coalesce(limit_value, 0) > 0"
+            " AND coalesce(limit_unit, '') = 'mm')"
+            f" OR (restriction_type NOT IN ({_KG_TYPES}, {_MM_TYPES})"
+            " AND limit_value IS NULL AND limit_unit IS NULL)",
+            name="ck_road_restrictions_limit",
+        ),
+        CheckConstraint(
+            "(restriction_type = 'adr_tunnel') = (tunnel_category IS NOT NULL)"
+            f" AND (tunnel_category IS NULL OR tunnel_category IN ({_TUNNEL_CATEGORIES}))",
+            name="ck_road_restrictions_tunnel_category",
+        ),
+        CheckConstraint(
+            f"exemptions <@ ARRAY[{_sql_list([e.value for e in Exemption])}]::varchar[]",
+            name="ck_road_restrictions_exemptions",
+        ),
+        CheckConstraint(
+            "over_gross_weight_kg IS NULL OR over_gross_weight_kg > 0",
+            name="ck_road_restrictions_over_gross_weight",
+        ),
+        UniqueConstraint("code", name="uq_road_restrictions_code"),
+        CheckConstraint("code ~ '^[A-Z]{2}-[A-Z0-9-]+$'", name="ck_road_restrictions_code"),
+        CheckConstraint(_REGION_CHECK, name="ck_road_restrictions_region"),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until", name="ck_road_restrictions_period"
+        ),
+        CheckConstraint(
+            "road_ref IS NULL OR btrim(road_ref) <> ''", name="ck_road_restrictions_road_ref"
+        ),
+        # Target of the windows' composite key: only driving bans have windows.
+        UniqueConstraint("id", "restriction_type", name="uq_road_restrictions_id_type"),
+        Index("ix_road_restrictions_country_type", "country", "restriction_type"),
+        *_source_checks("road_restrictions"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # Stable key of a reference row, e.g. DE-SUNDAY-HOLIDAY-BAN; the loader matches on it.
+    code: Mapped[str] = mapped_column(String(60))
+    country: Mapped[str] = mapped_column(
+        String(2), _fk("countries.code", "fk_road_restrictions_country")
+    )
+    region: Mapped[str | None] = mapped_column(String(6))
+    road_ref: Mapped[str | None] = mapped_column(String(40))  # e.g. a road number
+    section: Mapped[str | None] = mapped_column(Text)  # where on the road, in words
+    restriction_type: Mapped[str] = mapped_column(String(30))
+    limit_value: Mapped[int | None] = mapped_column(Integer)
+    limit_unit: Mapped[str | None] = mapped_column(String(2))
+    tunnel_category: Mapped[str | None] = mapped_column(String(1))
+    # Who it applies to: vehicles over this permissible gross weight (NULL = all), ADR only,
+    # load state.
+    over_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    weight_basis: Mapped[str] = mapped_column(
+        String(15), server_default=text("'vehicle'"), default=WeightBasis.VEHICLE.value
+    )
+    # Also any truck towing a trailer, whatever its weight (e.g. § 30(3) StVO).
+    with_trailer_any_weight: Mapped[bool] = mapped_column(
+        Boolean, server_default=text("false"), default=False
+    )
+    adr_only: Mapped[bool] = mapped_column(Boolean, server_default=text("false"), default=False)
+    load_state: Mapped[str] = mapped_column(
+        String(10), server_default=text("'any'"), default=LoadState.ANY.value
+    )
+    exemptions: Mapped[list[str]] = mapped_column(
+        ARRAY(String(30)), server_default=text("'{}'::varchar[]"), default=list
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    source_url: Mapped[str] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class RoadRestrictionWindow(Base):
+    """When a driving ban applies (D84): weekdays, public holidays, the day before one, or one
+    calendar date; a local time within one day, optionally only in a yearly season (MMDD).
+    Rules: BanWindow."""
+
+    __tablename__ = "road_restriction_windows"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["restriction_id", "restriction_type"],
+            ["road_restrictions.id", "road_restrictions.restriction_type"],
+            ondelete="RESTRICT",
+            name="fk_road_restriction_windows_restriction",
+        ),
+        CheckConstraint(
+            "restriction_type = 'driving_ban'", name="ck_road_restriction_windows_driving_ban"
+        ),
+        CheckConstraint(in_list("kind", WindowKind), name="ck_road_restriction_windows_kind"),
+        CheckConstraint(
+            "end_time IS NULL OR end_time > start_time", name="ck_road_restriction_windows_times"
+        ),
+        # Distinct weekdays: checked by BanWindow (a CHECK cannot hold a subquery).
+        CheckConstraint(
+            "(kind = 'weekdays') = (cardinality(weekdays) > 0)"
+            " AND weekdays <@ ARRAY[1, 2, 3, 4, 5, 6, 7]::smallint[]",
+            name="ck_road_restriction_windows_weekdays",
+        ),
+        CheckConstraint(_SEASON_CHECK, name="ck_road_restriction_windows_season"),
+        CheckConstraint(
+            "(kind = 'date') = (on_date IS NOT NULL) AND (kind <> 'date' OR season_start IS NULL)",
+            name="ck_road_restriction_windows_date",
+        ),
+        Index("ix_road_restriction_windows_restriction_id", "restriction_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    restriction_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    restriction_type: Mapped[str] = mapped_column(
+        String(30), server_default=text("'driving_ban'"), default=RestrictionType.DRIVING_BAN.value
+    )
+    kind: Mapped[str] = mapped_column(String(20))
+    weekdays: Mapped[list[int]] = mapped_column(
+        ARRAY(SmallInteger), server_default=text("'{}'::smallint[]"), default=list
+    )
+    start_time: Mapped[time] = mapped_column(Time)
+    end_time: Mapped[time | None] = mapped_column(Time)  # NULL = until midnight
+    season_start: Mapped[int | None] = mapped_column(SmallInteger)  # MMDD
+    season_end: Mapped[int | None] = mapped_column(SmallInteger)
+    on_date: Mapped[date | None] = mapped_column(Date)  # kind 'date' only
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
