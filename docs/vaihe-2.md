@@ -58,7 +58,8 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
   `customs_declarations`, `customs_items` (D58), `customs_events`, `documents`
 - Kulut ja lavasaldot: `service_codes`, `costs`, `cost_allocations`, `invoices`, `invoice_lines`, `pallet_ledger` (D59)
 - Toteumatauluissa vain lisäys, `source` ja `reversal_of_id` (sääntö 9)
-- **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** Noden aikaikkunan ja orderin ajan suhde (varattu laituriaika vs. asiakkaalle luvattu aika); orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
+- Noden aikaikkuna = varattu aika ja ajanvarausnumero (D82)
+- **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
 - **Valmis kun:** D65:n skenaario (Jyväskylä–Vantaa–Lübeck) voidaan kirjata kantaan riveinä, ja liput täsmäävät alirivien kanssa
 
 ### Tilakoneet (R3, D50, D53) · tulossa
