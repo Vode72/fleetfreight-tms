@@ -139,6 +139,14 @@ def _bad(tmp_path: Path, change) -> Path:  # type: ignore[no-untyped-def]
         ),
         (lambda d: d["country_rules.json"][0].update(truck_speed_other_kmh=0), "1-200"),
         (lambda d: d["country_rules.json"][0].update(country="XX"), "unknown country"),
+        (
+            lambda d: d["country_rules.json"][0].update(
+                speed_over_gross_weight_kg=None, speed_weight_basis=None
+            ),
+            "vehicle class",
+        ),
+        (lambda d: d["country_rules.json"][0].update(speed_weight_basis=None), "both a weight"),
+        (lambda d: d["country_rules.json"][0].update(speed_weight_basis="axle"), "axle"),
         (lambda d: d["country_rules.json"][0].update(toll_system="bridge"), "bridge"),
         (lambda d: d["country_rules.json"][0].update(max_length_mm=-1), "positive"),
         (
@@ -383,6 +391,16 @@ def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engi
         rules = {r.country: r for r in session.scalars(select(CountryRule))}
         assert (rules["DE"].truck_speed_motorway_kmh, rules["DE"].truck_speed_other_kmh) == (80, 60)
         assert (rules["IT"].truck_speed_motorway_kmh, rules["IT"].truck_speed_other_kmh) == (80, 70)
+        # D87: the class the speeds apply to.
+        assert (rules["IT"].speed_over_gross_weight_kg, rules["IT"].speed_weight_basis) == (
+            12000,
+            "vehicle",
+        )
+        assert (rules["DE"].speed_over_gross_weight_kg, rules["DE"].speed_weight_basis) == (
+            7500,
+            "combination",
+        )
+        assert (rules["FI"].truck_speed_motorway_kmh, rules["FI"].truck_speed_other_kmh) == (80, 80)
         # Sweden's heavy vehicle season crosses the new year; car-page seasons are not recorded.
         assert (rules["SE"].winter_equipment_start, rules["SE"].winter_equipment_end) == (1110, 410)
         assert rules["LT"].winter_equipment_start is None
@@ -428,3 +446,73 @@ def test_toll_system_may_be_unrecorded_but_not_unknown(test_engine: Engine) -> N
         session.commit()  # NULL = not recorded
         with pytest.raises(IntegrityError):
             session.execute(text("UPDATE country_rules SET toll_system = 'bridge'"))
+
+
+def test_a_recorded_speed_needs_its_vehicle_class(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+        session.add(
+            CountryRule(
+                country="FI",
+                valid_from=date(2026, 1, 1),
+                truck_speed_other_kmh=80,
+                source_url="https://example.com",
+                checked_on=date(2026, 11, 19),
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
+
+
+def _windows(session, code: str) -> list[RoadRestrictionWindow]:  # type: ignore[no-untyped-def]
+    restriction = session.scalars(select(RoadRestriction).where(RoadRestriction.code == code)).one()
+    return list(
+        session.scalars(
+            select(RoadRestrictionWindow).where(
+                RoadRestrictionWindow.restriction_id == restriction.id
+            )
+        )
+    )
+
+
+def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
+    """Spot checks against the DGT 2026 Annex II (BOE-A-2026-1255) and its amendment."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        spain = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.country == "ES")
+        ).all()
+        assert len(spain) == 125  # 557 annex rows grouped by section and direction
+        assert all(r.over_gross_weight_kg == 7500 for r in spain)
+        # N-230 towards France: Fridays Jan-Mar and 4-18 Dec 17-24 h, plus dated bans.
+        n230 = _windows(session, "ES-N-230-64-1-149-2-D")
+        weekly = {
+            (tuple(w.weekdays), w.season_start, w.season_end, w.start_time, w.end_time)
+            for w in n230
+            if w.kind == "weekdays"
+        }
+        assert weekly == {((5,), 101, 331, time(17), None), ((5,), 1204, 1218, time(17), None)}
+        assert (date(2026, 4, 3), time(8), time(13)) in {
+            (w.on_date, w.start_time, w.end_time) for w in n230
+        }
+        # Two windows on one day (Easter Sunday on the AP-4 towards Seville).
+        ap4 = [w for w in _windows(session, "ES-AP-4-78-13-5-D") if w.on_date == date(2026, 4, 5)]
+        assert {(w.start_time, w.end_time) for w in ap4} == {
+            (time(10), time(13)),
+            (time(16), time(20)),
+        }
+        # A-8 in Cantabria: the region's 28 July holiday joins the weekend period.
+        assert date(2026, 7, 28) in {w.on_date for w in _windows(session, "ES-A-8-139-2-169-D")}
+        # The 28 June - 6 September Sunday and holiday period adds 15 August (a Saturday).
+        madrid = _windows(session, "ES-A-1-118-3-11-8-D")
+        assert (date(2026, 8, 15), time(21), time(23)) in {
+            (w.on_date, w.start_time, w.end_time) for w in madrid
+        }
+        # 00,00-24,00 is a whole day: from midnight with no end.
+        n631 = _windows(session, "ES-N-631-0-0-57-0-B")
+        assert (date(2026, 3, 27), time(0), None) in {
+            (w.on_date, w.start_time, w.end_time) for w in n631
+        }
+        # The Valencia Grand Prix moved from 20-22 to 27-29 November (BOE-A-2026-13892).
+        cheste = {w.on_date for w in _windows(session, "ES-CV-50-72-5-76-B")}
+        assert cheste == {date(2026, 11, 27), date(2026, 11, 28), date(2026, 11, 29)}

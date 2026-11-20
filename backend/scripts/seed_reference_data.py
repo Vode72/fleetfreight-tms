@@ -64,6 +64,8 @@ TABLES = (
 RULE_VALUES = (
     "truck_speed_motorway_kmh",
     "truck_speed_other_kmh",
+    "speed_over_gross_weight_kg",
+    "speed_weight_basis",
     "max_gross_weight_kg",
     "max_length_mm",
     "hct_allowed",
@@ -126,7 +128,17 @@ def _check_rule(r: dict[str, Any], codes: set[str], today: date) -> None:
     for key in ("truck_speed_motorway_kmh", "truck_speed_other_kmh"):
         if r.get(key) is not None and not 1 <= r[key] <= 200:
             raise ValueError(f"{what}: {key} must be 1-200 km/h")
-    for key in ("max_gross_weight_kg", "max_length_mm"):
+    over, basis = r.get("speed_over_gross_weight_kg"), r.get("speed_weight_basis")
+    if (over is None) != (basis is None):
+        raise ValueError(f"{what}: speed vehicle class needs both a weight and a basis")
+    if basis is not None:
+        WeightBasis(basis)
+    has_speed = any(
+        r.get(k) is not None for k in ("truck_speed_motorway_kmh", "truck_speed_other_kmh")
+    )
+    if has_speed and over is None:
+        raise ValueError(f"{what}: a recorded speed needs its vehicle class (D87)")
+    for key in ("speed_over_gross_weight_kg", "max_gross_weight_kg", "max_length_mm"):
         if r.get(key) is not None and r[key] <= 0:
             raise ValueError(f"{what}: {key} must be positive")
     start, end = r.get("winter_equipment_start"), r.get("winter_equipment_end")

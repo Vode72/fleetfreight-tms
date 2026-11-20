@@ -892,6 +892,15 @@ class CountryRule(Base):
             name="ck_country_rules_speeds",
         ),
         CheckConstraint(
+            "(speed_over_gross_weight_kg IS NULL) = (speed_weight_basis IS NULL)"
+            " AND (speed_over_gross_weight_kg IS NULL OR speed_over_gross_weight_kg > 0)"
+            " AND (speed_weight_basis IS NULL OR "
+            + in_list("speed_weight_basis", WeightBasis)
+            + ") AND ((truck_speed_motorway_kmh IS NULL AND truck_speed_other_kmh IS NULL)"
+            " OR speed_over_gross_weight_kg IS NOT NULL)",
+            name="ck_country_rules_speed_class",
+        ),
+        CheckConstraint(
             "(max_gross_weight_kg IS NULL OR max_gross_weight_kg > 0)"
             " AND (max_length_mm IS NULL OR max_length_mm > 0)",
             name="ck_country_rules_limits",
@@ -912,6 +921,10 @@ class CountryRule(Base):
     # Speed limits for heavy goods vehicles: motorways, and other roads outside built-up areas.
     truck_speed_motorway_kmh: Mapped[int | None] = mapped_column(SmallInteger)
     truck_speed_other_kmh: Mapped[int | None] = mapped_column(SmallInteger)
+    # D87: the vehicle class the speeds apply to (over this gross weight, of the vehicle or the
+    # combination). Required once a speed is recorded.
+    speed_over_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
+    speed_weight_basis: Mapped[str | None] = mapped_column(String(15))
     # Standard maximum gross weight and length of an articulated vehicle in national traffic.
     max_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
     max_length_mm: Mapped[int | None] = mapped_column(Integer)

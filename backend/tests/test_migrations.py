@@ -477,3 +477,34 @@ def test_toll_system_migration_allows_an_unrecorded_value(test_engine: Engine) -
         conn.execute(text("DELETE FROM country_rules"))
         conn.commit()
     command.upgrade(cfg, "head")
+
+
+def test_speed_class_migration_clears_unclassified_speeds(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.downgrade(cfg, "c3888037643f")
+    with test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO countries (code, name_en, name_fi, time_zone, currency, eu_member)"
+                " VALUES ('FI', 'Finland', 'Suomi', 'Europe/Helsinki', 'EUR', true)"
+                " ON CONFLICT DO NOTHING"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO country_rules (id, country, valid_from, truck_speed_other_kmh,"
+                " source_url, checked_on) VALUES (gen_random_uuid(), 'FI', '2026-01-01', 80,"
+                " 'https://example.com', '2026-11-19')"
+            )
+        )
+    command.upgrade(cfg, "47da3484520e")
+    with test_engine.begin() as conn:
+        # The class is unknown, so the speed becomes unrecorded for the loader to fill in.
+        assert (
+            conn.execute(text("SELECT truck_speed_other_kmh FROM country_rules")).scalar() is None
+        )
+        conn.execute(text("DELETE FROM country_rules"))
+    command.downgrade(cfg, "c3888037643f")
+    columns = {c["name"] for c in inspect(test_engine).get_columns("country_rules")}
+    assert "speed_weight_basis" not in columns
+    command.upgrade(cfg, "head")
