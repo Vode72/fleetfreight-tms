@@ -7934,5 +7934,3257 @@
         "on_date": "2026-11-29"
       }
     ]
+  },
+  {
+    "code": "ES-PV-A-8-119-5-139-21-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-8",
+    "section": "PK 119,5 – PK 139,21 Cantabria; direction Cantabria",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-03-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-03-19"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-06"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-13"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-20"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-06-26"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-11"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-24"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-08"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-22"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-29"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-12-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-12-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2027-01-02"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-8-139-21-119-5-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-8",
+    "section": "PK 139,21 Cantabria – PK 119,5; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-03-22"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "22:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-11-01"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-08"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2027-01-06"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-352-336-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 352 Enlace N-622 – PK 336 Treviño; direction Burgos",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-06"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-13"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-20"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-11"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-08"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-22"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-29"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-329-321-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 329 Treviño – PK 321 Burgos; direction Burgos",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-06"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-13"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-20"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-11"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-08"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-22"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-29"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-321-329-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 321 Burgos – PK 329 Treviño; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-336-352-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 336 Treviño – PK 352 Enlace N-622; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-07"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-14"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-21"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-06-28"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-05"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-19"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-07-26"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-02"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-09"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-16"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-23"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-30"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-09-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-634-107-120-690-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-634",
+    "section": "PK 107 – PK 120,690; direction Cantabria",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-03-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-03-19"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-06-26"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-24"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-12-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-12-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2027-01-02"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-BI-3724-120-690-128-120-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "BI-3724",
+    "section": "PK 120,690 – PK 128,120; direction Cantabria",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-03-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-03-19"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-06-26"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-24"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-12-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-12-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2027-01-02"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-BI-734-128-120-136-140-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "BI-734",
+    "section": "PK 128,120 – PK 136,140 Cantabria; direction Cantabria",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-03-18"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-03-19"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-06-26"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-06-27"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-24"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-07-25"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-12-04"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2026-12-05"
+      },
+      {
+        "kind": "date",
+        "start": "11:00",
+        "end": "14:00",
+        "on_date": "2027-01-02"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-BI-734-136-140-128-120-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "BI-734",
+    "section": "PK 136,140 Cantabria – PK 128,120; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-03-22"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-11-01"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-08"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2027-01-06"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-BI-3724-128-120-120-690-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "BI-3724",
+    "section": "PK 128,120 – PK 120,690; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-03-22"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-11-01"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-08"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2027-01-06"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-634-120-690-107-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-634",
+    "section": "PK 120,690 – PK 107; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-03-22"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-11-01"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-12-08"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2027-01-06"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-AP-1-83-20-77-20-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "AP-1",
+    "section": "PK 83,20 – PK 77,20; direction Burgos",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-AP-1-77-20-83-20-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "AP-1",
+    "section": "PK 77,20 – PK 83,20; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-240-BI-55-77-23-08-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-240",
+    "section": "PK 55,77 Bizkaia – PK 23,08 Bizkaia; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-240-AR-23-08-4-9-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-240",
+    "section": "PK 23,08 Araba – PK 4,9 Araba; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-04-01"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-04-02"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-08-14"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-15"
+      },
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-10-09"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-10-10"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-240-AR-23-08-10-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-240",
+    "section": "PK 23,08 Araba – PK 10 Araba; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-240-BI-23-08-55-77-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-240",
+    "section": "PK 23,08 Bizkaia – PK 55,77 Bizkaia; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-240-AR-4-9-23-08-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-240",
+    "section": "PK 4,9 Araba – PK 23,08 Araba; direction Bilbao",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-08-31"
+      },
+      {
+        "kind": "date",
+        "start": "16:00",
+        "end": "21:00",
+        "on_date": "2026-10-12"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-622-7-6-4-5-D",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-622",
+    "section": "PK 7,6 – PK 4,5; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "17:00",
+        "end": "21:00",
+        "on_date": "2026-07-31"
+      },
+      {
+        "kind": "date",
+        "start": "10:00",
+        "end": "15:00",
+        "on_date": "2026-08-01"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-AP-8-100-0-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "AP-8",
+    "section": "PK 100 Amorebieta – PK 0 Frontera Francia; direction Behobia",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-GI-20-15-572-0-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "GI-20",
+    "section": "PK 15,572 enlace AP-8 Aritzeta – PK 0 Enlace AP-8 Errenteria; direction Francia",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-15-139-7-156-560-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-15",
+    "section": "PK 139,7 Navarra – PK 156,560 Enlace N-I; direction Andoain",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-AP-1-102-700-146-150-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "AP-1",
+    "section": "PK 102,700 Peaje Etxabarri-Ibiña – PK 146,150 Enlace Maltzaga con AP-8; direction Irún",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-321-4-329-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 321,4 Burgos – PK 329 Treviño; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-A-1-336-352-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "A-1",
+    "section": "PK 336 Treviño – PK 352 Enlace N-622; direction Vitoria-Gasteiz",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-I-405-450-454-470-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-I",
+    "section": "PK 405,450 Navarra (Etzegarate) – PK 454,470 enlace AP-8/AP-1 Lasarte-Oria; direction Francia",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-GI-636-0-17-235-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "GI-636",
+    "section": "PK 0 enlace GI-20 Pasaia – PK 17,235 Behobia; direction Francia",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-GI-11-0-2-523-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "GI-11",
+    "section": "PK 0 enlace N-I – PK 2,523 enlace GI-20; direction Donostia-San Sebastián",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
+  },
+  {
+    "code": "ES-PV-N-121A-68-460-75-020-X",
+    "country": "ES",
+    "region": "ES-PV",
+    "road_ref": "N-121A",
+    "section": "PK 68,460 Navarra – PK 75,020 Behobia; direction Francia",
+    "restriction_type": "driving_ban",
+    "over_gross_weight_kg": 7500,
+    "weight_basis": "combination",
+    "with_trailer_any_weight": false,
+    "solo_tractor": null,
+    "adr_only": false,
+    "load_state": "any",
+    "exemptions": [
+      "perishable_goods",
+      "live_animals",
+      "empty_run",
+      "other"
+    ],
+    "note": "Basque Country, Resolution of 9 January 2026 of the Traffic Directorate (BOE-A-2026-2625), Annex II: vehicles and combinations over 7,500 kg (MMA or MMC). Summer period 6 June - 6 September 2026; holidays in the whole region in it per BOE-A-2025-21667 (25 July, 15 August). Exempt (Annex IV): live animals; perishable goods in ATP vehicles filling at least half the load capacity or volume; empty runs linked to the exempt transports; and others (fairs and events, press, mail, broadcast units, emergency and roadside assistance, utility repairs, road salt). Applies only to cross-border transport (from 22:00 on the eve to 22:00).",
+    "valid_from": "2026-02-17",
+    "valid_until": null,
+    "source_url": "https://www.boe.es/boe/dias/2026/02/05/pdfs/BOE-A-2026-2625.pdf",
+    "checked_on": "2026-11-20",
+    "windows": [
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-04-05"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-04-06"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-07"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-08"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-05-24"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-05-25"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-07-13"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-07-14"
+      },
+      {
+        "kind": "date",
+        "start": "22:00",
+        "end": null,
+        "on_date": "2026-11-10"
+      },
+      {
+        "kind": "date",
+        "start": "00:00",
+        "end": "22:00",
+        "on_date": "2026-11-11"
+      }
+    ]
   }
 ]

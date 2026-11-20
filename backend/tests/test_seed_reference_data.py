@@ -480,7 +480,9 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
     with _session(test_engine) as session:
         seed_reference_data(session)
         spain = session.scalars(
-            select(RoadRestriction).where(RoadRestriction.country == "ES")
+            select(RoadRestriction).where(
+                RoadRestriction.country == "ES", RoadRestriction.region.is_(None)
+            )
         ).all()
         assert len(spain) == 125  # 557 annex rows grouped by section and direction
         assert all(r.over_gross_weight_kg == 7500 for r in spain)
@@ -516,3 +518,30 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
         # The Valencia Grand Prix moved from 20-22 to 27-29 November (BOE-A-2026-13892).
         cheste = {w.on_date for w in _windows(session, "ES-CV-50-72-5-76-B")}
         assert cheste == {date(2026, 11, 27), date(2026, 11, 28), date(2026, 11, 29)}
+
+
+def test_basque_country_bans_follow_its_resolution(test_engine: Engine) -> None:
+    """Spot checks against BOE-A-2026-2625, Annex II."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        basque = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.region == "ES-PV")
+        ).all()
+        assert len(basque) == 30
+        # Cross-border group: from 22:00 on the eve to 22:00 on the day, e.g. 14 July.
+        ap8 = {
+            (w.on_date, w.start_time, w.end_time) for w in _windows(session, "ES-PV-AP-8-100-0-X")
+        }
+        assert {(date(2026, 7, 13), time(22), None), (date(2026, 7, 14), time(0), time(22))} <= ap8
+        # Summer period: Sundays and holidays (25 July, a Saturday) 16-22 h towards Bilbao.
+        a8 = {
+            (w.on_date, w.start_time, w.end_time)
+            for w in _windows(session, "ES-PV-A-8-139-21-119-5-D")
+        }
+        assert (date(2026, 7, 25), time(16), time(22)) in a8
+        assert (date(2026, 9, 6), time(16), time(22)) in a8
+        assert (date(2026, 9, 13), time(16), time(22)) not in a8
+        # A date in January 2027 listed by the 2026 resolution.
+        assert date(2027, 1, 6) in {
+            w.on_date for w in _windows(session, "ES-PV-N-634-120-690-107-D")
+        }
