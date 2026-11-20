@@ -503,6 +503,16 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
         }
         # A-8 in Cantabria: the region's 28 July holiday joins the weekend period.
         assert date(2026, 7, 28) in {w.on_date for w in _windows(session, "ES-A-8-139-2-169-D")}
+        # The 28 June - 6 September Sunday and holiday period adds 15 August (a Saturday).
+        madrid = _windows(session, "ES-A-1-118-3-11-8-D")
+        assert (date(2026, 8, 15), time(21), time(23)) in {
+            (w.on_date, w.start_time, w.end_time) for w in madrid
+        }
+        # 00,00-24,00 is a whole day: from midnight with no end.
+        n631 = _windows(session, "ES-N-631-0-0-57-0-B")
+        assert (date(2026, 3, 27), time(0), None) in {
+            (w.on_date, w.start_time, w.end_time) for w in n631
+        }
         # The Valencia Grand Prix moved from 20-22 to 27-29 November (BOE-A-2026-13892).
         cheste = {w.on_date for w in _windows(session, "ES-CV-50-72-5-76-B")}
         assert cheste == {date(2026, 11, 27), date(2026, 11, 28), date(2026, 11, 29)}
