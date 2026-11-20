@@ -67,6 +67,14 @@ class WeightBasis(StrEnum):
     COMBINATION = "combination"  # the vehicle or the whole combination (e.g. Poland over 12 t)
 
 
+class SoloTractor(StrEnum):
+    """Whether a tractor unit driving without a trailer falls under a driving ban (D85)."""
+
+    EXEMPT = "exempt"  # e.g. Germany: a tractor without a semi-trailer is not a truck under the ban
+    CONDITIONAL = "conditional"  # e.g. Italy: on the return trip or when collecting a trailer
+    NOT_EXEMPT = "not_exempt"  # e.g. Poland: the tractor's own permissible weight counts
+
+
 class Exemption(StrEnum):
     PERISHABLE_GOODS = "perishable_goods"
     LIVE_ANIMALS = "live_animals"
