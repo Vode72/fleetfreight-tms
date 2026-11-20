@@ -462,3 +462,47 @@ def test_a_recorded_speed_needs_its_vehicle_class(test_engine: Engine) -> None:
         )
         with pytest.raises(IntegrityError):
             session.commit()
+
+
+def _windows(session, code: str) -> list[RoadRestrictionWindow]:  # type: ignore[no-untyped-def]
+    restriction = session.scalars(select(RoadRestriction).where(RoadRestriction.code == code)).one()
+    return list(
+        session.scalars(
+            select(RoadRestrictionWindow).where(
+                RoadRestrictionWindow.restriction_id == restriction.id
+            )
+        )
+    )
+
+
+def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
+    """Spot checks against the DGT 2026 Annex II (BOE-A-2026-1255) and its amendment."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        spain = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.country == "ES")
+        ).all()
+        assert len(spain) == 125  # 557 annex rows grouped by section and direction
+        assert all(r.over_gross_weight_kg == 7500 for r in spain)
+        # N-230 towards France: Fridays Jan-Mar and 4-18 Dec 17-24 h, plus dated bans.
+        n230 = _windows(session, "ES-N-230-64-1-149-2-D")
+        weekly = {
+            (tuple(w.weekdays), w.season_start, w.season_end, w.start_time, w.end_time)
+            for w in n230
+            if w.kind == "weekdays"
+        }
+        assert weekly == {((5,), 101, 331, time(17), None), ((5,), 1204, 1218, time(17), None)}
+        assert (date(2026, 4, 3), time(8), time(13)) in {
+            (w.on_date, w.start_time, w.end_time) for w in n230
+        }
+        # Two windows on one day (Easter Sunday on the AP-4 towards Seville).
+        ap4 = [w for w in _windows(session, "ES-AP-4-78-13-5-D") if w.on_date == date(2026, 4, 5)]
+        assert {(w.start_time, w.end_time) for w in ap4} == {
+            (time(10), time(13)),
+            (time(16), time(20)),
+        }
+        # A-8 in Cantabria: the region's 28 July holiday joins the weekend period.
+        assert date(2026, 7, 28) in {w.on_date for w in _windows(session, "ES-A-8-139-2-169-D")}
+        # The Valencia Grand Prix moved from 20-22 to 27-29 November (BOE-A-2026-13892).
+        cheste = {w.on_date for w in _windows(session, "ES-CV-50-72-5-76-B")}
+        assert cheste == {date(2026, 11, 27), date(2026, 11, 28), date(2026, 11, 29)}
