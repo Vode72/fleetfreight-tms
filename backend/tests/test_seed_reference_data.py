@@ -139,6 +139,14 @@ def _bad(tmp_path: Path, change) -> Path:  # type: ignore[no-untyped-def]
         ),
         (lambda d: d["country_rules.json"][0].update(truck_speed_other_kmh=0), "1-200"),
         (lambda d: d["country_rules.json"][0].update(country="XX"), "unknown country"),
+        (
+            lambda d: d["country_rules.json"][0].update(
+                speed_over_gross_weight_kg=None, speed_weight_basis=None
+            ),
+            "vehicle class",
+        ),
+        (lambda d: d["country_rules.json"][0].update(speed_weight_basis=None), "both a weight"),
+        (lambda d: d["country_rules.json"][0].update(speed_weight_basis="axle"), "axle"),
         (lambda d: d["country_rules.json"][0].update(toll_system="bridge"), "bridge"),
         (lambda d: d["country_rules.json"][0].update(max_length_mm=-1), "positive"),
         (
@@ -383,6 +391,16 @@ def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engi
         rules = {r.country: r for r in session.scalars(select(CountryRule))}
         assert (rules["DE"].truck_speed_motorway_kmh, rules["DE"].truck_speed_other_kmh) == (80, 60)
         assert (rules["IT"].truck_speed_motorway_kmh, rules["IT"].truck_speed_other_kmh) == (80, 70)
+        # D87: the class the speeds apply to.
+        assert (rules["IT"].speed_over_gross_weight_kg, rules["IT"].speed_weight_basis) == (
+            12000,
+            "vehicle",
+        )
+        assert (rules["DE"].speed_over_gross_weight_kg, rules["DE"].speed_weight_basis) == (
+            7500,
+            "combination",
+        )
+        assert (rules["FI"].truck_speed_motorway_kmh, rules["FI"].truck_speed_other_kmh) == (80, 80)
         # Sweden's heavy vehicle season crosses the new year; car-page seasons are not recorded.
         assert (rules["SE"].winter_equipment_start, rules["SE"].winter_equipment_end) == (1110, 410)
         assert rules["LT"].winter_equipment_start is None
@@ -428,3 +446,19 @@ def test_toll_system_may_be_unrecorded_but_not_unknown(test_engine: Engine) -> N
         session.commit()  # NULL = not recorded
         with pytest.raises(IntegrityError):
             session.execute(text("UPDATE country_rules SET toll_system = 'bridge'"))
+
+
+def test_a_recorded_speed_needs_its_vehicle_class(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session, ReferenceData(load_files().countries, [], []))
+        session.add(
+            CountryRule(
+                country="FI",
+                valid_from=date(2026, 1, 1),
+                truck_speed_other_kmh=80,
+                source_url="https://example.com",
+                checked_on=date(2026, 11, 19),
+            )
+        )
+        with pytest.raises(IntegrityError):
+            session.commit()
