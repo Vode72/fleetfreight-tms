@@ -528,6 +528,10 @@ def test_basque_country_bans_follow_its_resolution(test_engine: Engine) -> None:
             select(RoadRestriction).where(RoadRestriction.region == "ES-PV")
         ).all()
         assert len(basque) == 30
+        counts = {r.code: len(_windows(session, r.code)) for r in basque}
+        assert sum(counts.values()) == 407
+        assert counts["ES-PV-A-1-352-336-D"] == 36  # 28 summer weekend days + groups 3 (6) and 4 (2)
+        assert counts["ES-PV-N-622-7-6-4-5-D"] == 2  # group 4 only: 31 July and 1 August
         # Cross-border group: from 22:00 on the eve to 22:00 on the day, e.g. 14 July.
         ap8 = {
             (w.on_date, w.start_time, w.end_time) for w in _windows(session, "ES-PV-AP-8-100-0-X")
