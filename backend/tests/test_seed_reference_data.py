@@ -551,3 +551,40 @@ def test_basque_country_bans_follow_its_resolution(test_engine: Engine) -> None:
         assert date(2027, 1, 6) in {
             w.on_date for w in _windows(session, "ES-PV-N-634-120-690-107-D")
         }
+
+
+def test_catalonia_bans_follow_its_resolution(test_engine: Engine) -> None:
+    """Spot checks against Resolution ISP/300/2026 (BOE-A-2026-6095)."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        catalonia = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.region == "ES-CT")
+        ).all()
+        assert len(catalonia) == 36
+        # Section 8: N-II at La Jonquera closed permanently to combinations over 26 t.
+        n2 = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.code == "ES-CT-N-II-773-5-709-0-P")
+        ).one()
+        assert n2.over_gross_weight_kg == 26000
+        (always,) = _windows(session, n2.code)
+        assert (tuple(always.weekdays), always.start_time, always.end_time) == (
+            (1, 2, 3, 4, 5, 6, 7),
+            time(0),
+            None,
+        )
+        # Annex A: AP-7 on Easter Monday 10-22 h (D) and Maundy Thursday 17-22 h (T).
+        ap7 = {
+            (w.on_date, w.start_time, w.end_time)
+            for w in _windows(session, "ES-CT-AP-7-84-5-281-B")
+        }
+        assert {
+            (date(2026, 4, 6), time(10), time(22)),
+            (date(2026, 4, 2), time(17), time(22)),
+        } <= ap7
+        # A-2 direction marks: towards Lleida on Good Friday, towards Barcelona on Easter Sunday.
+        towards_lleida = {w.on_date for w in _windows(session, "ES-CT-A-2-520-585-D")}
+        assert date(2026, 4, 3) in towards_lleida
+        assert date(2026, 4, 5) not in towards_lleida
+        # Costa Brava summer: Sundays plus the Catalan holidays (24 June, 11 September).
+        c63 = {w.on_date for w in _windows(session, "ES-CT-C-63-0-13-B") if w.on_date}
+        assert {date(2026, 6, 24), date(2026, 9, 11)} <= c63
