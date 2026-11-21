@@ -480,7 +480,9 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
         seed_reference_data(session)
         spain = session.scalars(
             select(RoadRestriction).where(
-                RoadRestriction.country == "ES", RoadRestriction.region.is_(None)
+                RoadRestriction.country == "ES",
+                RoadRestriction.region.is_(None),
+                RoadRestriction.restriction_type == "driving_ban",
             )
         ).all()
         assert len(spain) == 125  # 557 annex rows grouped by section and direction
@@ -647,3 +649,107 @@ def test_toll_system_change_closes_the_open_period(test_engine: Engine) -> None:
         ]
         tolls = {r.country: r.toll_system for r in session.scalars(select(CountryRule))}
         assert (tolls["FI"], tolls["DE"], tolls["SE"]) == ("none", "distance_based", "time_based")
+
+
+# D89: semi-trailer combination limits, HCT networks and ADR tunnel examples.
+SEMI_TRAILER_LIMITS = {
+    # country: (max_gross_weight_kg, max_length_mm, hct_allowed); None = not recorded
+    "FI": (44_000, 23_000, True),
+    "SE": (None, 24_000, True),  # gross weight set by the bearing class table
+    "EE": (None, 16_500, None),
+    "LV": (40_000, 16_500, None),
+    "LT": (40_000, 16_500, None),
+    "PL": (40_000, 16_500, None),
+    "DE": (40_000, 16_500, True),
+    "NL": (None, 16_500, True),  # 50 t is a cap with axle and engine conditions
+    "BE": (44_000, 16_500, True),
+    "DK": (None, 17_880, True),  # five-axle semi-trailer value not confirmed
+    "FR": (44_000, 16_500, None),
+    "ES": (44_000, 16_500, True),
+    "IT": (44_000, 16_500, None),
+}
+
+
+def test_semi_trailer_limits_follow_national_sources(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        rules = session.scalars(select(CountryRule)).all()
+        assert len(rules) == 15
+        for r in rules:  # both NL and LT periods carry the values
+            assert (r.max_gross_weight_kg, r.max_length_mm, r.hct_allowed) == SEMI_TRAILER_LIMITS[
+                r.country
+            ], r.country
+            assert r.note is not None and "Weights and lengths (D89)" in r.note
+            assert "not recorded yet (no official source checked)" not in r.note
+
+
+def test_semi_trailer_limits_are_filled_into_older_rows(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        session.execute(
+            text(
+                "UPDATE country_rules SET max_gross_weight_kg = NULL, max_length_mm = NULL,"
+                " hct_allowed = NULL, note = 'old', source_url = 'https://old.example.com'"
+                " WHERE country = 'FI'"
+            )
+        )
+        session.commit()
+        assert seed_reference_data(session)["filled_values"] == 3
+        session.expire_all()
+        fi = session.scalars(select(CountryRule).where(CountryRule.country == "FI")).one()
+        assert (fi.max_gross_weight_kg, fi.max_length_mm, fi.hct_allowed) == (44_000, 23_000, True)
+        # The filled row cites the file row: its note carries the D89 sources.
+        assert fi.note is not None and "Weights and lengths (D89)" in fi.note
+        assert fi.source_url.startswith("https://data.finlex.fi/")
+
+
+def test_eu_limit_is_recorded_once_and_the_strictest_value_wins() -> None:
+    from domain.eu_limits import (
+        EU_SEMI_TRAILER_MAX_GROSS_WEIGHT_KG,
+        EU_SEMI_TRAILER_MAX_LENGTH_MM,
+        EU_SOURCE_URL,
+        strictest,
+    )
+
+    assert (EU_SEMI_TRAILER_MAX_GROSS_WEIGHT_KG, EU_SEMI_TRAILER_MAX_LENGTH_MM) == (40_000, 16_500)
+    assert EU_SOURCE_URL.startswith("https://")
+    assert strictest(44_000, None, EU_SEMI_TRAILER_MAX_GROSS_WEIGHT_KG) == 40_000
+    assert strictest(None, None) is None
+
+
+def test_hct_networks_and_adr_tunnels(test_engine: Engine) -> None:
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        hct = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.restriction_type == "hct_route")
+        ).all()
+        assert {r.code for r in hct} == {
+            "FI-HCT-GENERAL-NETWORK",
+            "SE-HCT-NETWORK",
+            "DE-LANG-LKW-POSITIVNETZ",
+            "NL-LZV-NETWORK",
+            "BE-VLG-LZV-NETWORK",
+            "DK-MODULVOGNTOG-NETWORK",
+            "ES-EUROMODULAR",
+        }
+        assert all(r.limit_value is None and r.tunnel_category is None for r in hct)
+        assert {r.code: r.region for r in hct}["BE-VLG-LZV-NETWORK"] == "BE-VLG"
+        # Every country that allows HCT has its network recorded (Finland: the general road
+        # network), so "allowed" never means an unknown network.
+        allowed = {c for c, (_, _, h) in SEMI_TRAILER_LIMITS.items() if h}
+        assert {r.country for r in hct} == allowed
+        tunnels = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.restriction_type == "adr_tunnel")
+        ).all()
+        assert {(r.code, r.road_ref, r.tunnel_category) for r in tunnels} == {
+            ("NL-HEINENOORDTUNNEL-ADR", "A29", "C"),
+            ("NL-BENELUXTUNNEL-ADR", None, "C"),
+            ("NL-STADSBAANTUNNEL-ADR", None, "E"),
+        }
+        assert all(r.adr_only for r in tunnels)
+        windows = session.scalars(
+            select(RoadRestrictionWindow).where(
+                RoadRestrictionWindow.restriction_id.in_([r.id for r in hct + tunnels])
+            )
+        ).all()
+        assert windows == []
