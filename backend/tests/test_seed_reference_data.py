@@ -43,7 +43,7 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
     with _session(test_engine) as session:
         second = seed_reference_data(session)
     assert first["countries"] == 13
-    assert first["country_rules"] == 13
+    assert first["country_rules"] == 15  # NL and LT change toll system mid-way
     assert first["road_restrictions"] == len(load_files().restrictions)
     assert first["road_restriction_windows"] > 0
     assert sum(second.values()) == 0  # nothing created, nothing filled
@@ -405,7 +405,6 @@ def test_country_rules_are_recorded_and_filled_into_older_rows(test_engine: Engi
         assert (rules["SE"].winter_equipment_start, rules["SE"].winter_equipment_end) == (1110, 410)
         assert rules["LT"].winter_equipment_start is None
         assert rules["NL"].truck_speed_motorway_kmh is None  # not recorded
-        assert all(r.toll_system is None for r in rules.values())  # no official source yet
         assert all(r.posted_worker_declaration and r.cabotage_note for r in rules.values())
         # Unrecorded values are filled, recorded ones are never overwritten.
         session.execute(
@@ -616,3 +615,35 @@ def test_catalonia_bans_follow_its_resolution(test_engine: Engine) -> None:
             select(RoadRestriction).where(RoadRestriction.code == "ES-CT-C-153-60-9-61-9-P")
         ).one()
         assert c153.over_gross_weight_kg == 7500
+
+
+def test_toll_system_change_closes_the_open_period(test_engine: Engine) -> None:
+    """A database loaded before the toll data has one open NL row; the loader closes it."""
+    with _session(test_engine) as session:
+        data = load_files()
+        older = [
+            dict(r, valid_until=None, toll_system=None) for r in data.rules if r["country"] == "NL"
+        ][:1]
+        seed_reference_data(session, ReferenceData(data.countries, [], [], older))
+        created = seed_reference_data(session)
+        assert created["country_rules"] == 14  # everything but the first NL row
+        session.expire_all()
+        nl = session.scalars(
+            select(CountryRule).where(CountryRule.country == "NL").order_by(CountryRule.valid_from)
+        ).all()
+        assert [(r.valid_from, r.valid_until, r.toll_system) for r in nl] == [
+            (date(2026, 1, 1), date(2026, 6, 30), "time_based"),
+            (date(2026, 7, 1), None, "distance_based"),
+        ]
+        # A second run changes nothing; Lithuania's two periods are in place too.
+        again = seed_reference_data(session)
+        assert again["country_rules"] == 0 and again["filled_values"] == 0
+        lt = session.scalars(
+            select(CountryRule).where(CountryRule.country == "LT").order_by(CountryRule.valid_from)
+        ).all()
+        assert [(r.valid_until, r.toll_system) for r in lt] == [
+            (date(2026, 12, 31), "time_based"),
+            (None, "distance_based"),
+        ]
+        tolls = {r.country: r.toll_system for r in session.scalars(select(CountryRule))}
+        assert (tolls["FI"], tolls["DE"], tolls["SE"]) == ("none", "distance_based", "time_based")
