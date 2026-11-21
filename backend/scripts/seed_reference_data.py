@@ -11,8 +11,9 @@ values are never written from memory (CLAUDE.md, D84).
 Idempotent: countries are matched by code, country rules by country and validity start,
 holidays by country, region and date, restrictions by their code. Only missing rows are created;
 existing rows are left as they are, except that a value not recorded yet (NULL, e.g. a
-restriction's solo tractor rule, D85, or a country's speed limit) is filled in. A rule that
-changes gets a new row with its own validity period (D67), not an edit. A restriction's windows
+restriction's solo tractor rule, D85, or a country's speed limit) is filled in, and an open
+country rule period is closed when the file gives it an end (a later period follows, D67). A
+rule that changes gets a new row with its own validity period, not an edit. A restriction's windows
 are created with the restriction.
 
 Every row is checked against the domain rules (domain/restrictions.py) before anything is
@@ -263,9 +264,14 @@ def seed_reference_data(session: Session, data: ReferenceData | None = None) -> 
             filled = [n for n in RULE_VALUES if getattr(rule, n) is None and r.get(n) is not None]
             for name in filled:
                 setattr(rule, name, r[name])
+            if rule.valid_until is None and r["valid_until"]:
+                # An open period is closed when a later period starts (D67).
+                rule.valid_until = date.fromisoformat(r["valid_until"])
+                filled.append("valid_until")
             if filled:
                 _take_source(rule, r)
                 created[FILLED] += len(filled)
+                session.flush()  # a closed period must be stored before the next one is added
             continue
         session.add(
             CountryRule(
