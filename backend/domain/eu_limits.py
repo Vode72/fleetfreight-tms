@@ -7,6 +7,7 @@ traffic. The value is recorded once here, not per country; national limits are i
 
 Source: Commission impact assessment SWD(2023) 445 final, which states the limits in force
 ("16.50 m and 40 tonnes for articulated vehicles with 5 or 6 axles"), checked 2026-11-21.
+D89 excludes the report's country table as a source; this is its statement of the EU law.
 The directive is being revised (COM(2023) 445); new values are a new decision, not an edit.
 """
 

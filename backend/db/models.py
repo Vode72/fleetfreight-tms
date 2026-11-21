@@ -931,8 +931,9 @@ class CountryRule(Base):
     # traffic is domain.eu_limits; Plan Check uses the strictest value along the route.
     max_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
     max_length_mm: Mapped[int | None] = mapped_column(Integer)
-    # D89: only whether HCT/EMS combinations are allowed in the country at all; their limits
-    # and networks are road_restrictions rows of type hct_route.
+    # D89: only whether HCT/EMS combinations are allowed in the country at all (possibly in one
+    # region only, see the note); their limits and networks are road_restrictions rows of type
+    # hct_route, with a region where they apply only there.
     hct_allowed: Mapped[bool | None] = mapped_column(Boolean)
     # Season of winter equipment requirements, MMDD (may run over the new year).
     winter_equipment_start: Mapped[int | None] = mapped_column(SmallInteger)
