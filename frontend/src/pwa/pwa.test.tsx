@@ -1,12 +1,41 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { MemoryRouter, useNavigate } from "react-router";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import en from "../i18n/en.json";
 import { registered } from "../test/pwaRegisterStub";
 import { InstallApp } from "./InstallApp";
 import { PwaNotices } from "./PwaNotices";
 import { startServiceWorker } from "./serviceWorker";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  Reflect.deleteProperty(navigator, "serviceWorker");
+});
+
+function GoTo({ path }: { path: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigate(path);
+      }}
+    >
+      go
+    </button>
+  );
+}
+
+function renderNotices() {
+  return render(
+    <MemoryRouter initialEntries={["/orders"]}>
+      <PwaNotices />
+      <GoTo path="/trips" />
+    </MemoryRouter>,
+  );
+}
 
 describe("install (D88)", () => {
   it("shows the browser-menu hint where no install prompt exists (Firefox, Safari)", () => {
@@ -33,6 +62,14 @@ describe("install (D88)", () => {
     expect(screen.queryByRole("button", { name: en.pwa.install })).not.toBeInTheDocument();
   });
 
+  it("hides everything once the app is installed", () => {
+    const { container } = render(<InstallApp />);
+    act(() => {
+      window.dispatchEvent(new Event("appinstalled"));
+    });
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("shows nothing when running as an installed app", () => {
     vi.stubGlobal(
       "matchMedia",
@@ -45,7 +82,7 @@ describe("install (D88)", () => {
 
 describe("connection and update notices (D88)", () => {
   it("shows the offline banner only while there is no connection", () => {
-    render(<PwaNotices />);
+    renderNotices();
     expect(screen.queryByText(en.pwa.offline)).not.toBeInTheDocument();
 
     vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
@@ -64,7 +101,7 @@ describe("connection and update notices (D88)", () => {
   it("asks before taking a new version into use", async () => {
     Object.defineProperty(navigator, "serviceWorker", { value: {}, configurable: true });
     startServiceWorker();
-    render(<PwaNotices />);
+    renderNotices();
     expect(screen.queryByText(en.pwa.updateAvailable)).not.toBeInTheDocument();
 
     act(() => {
@@ -73,8 +110,21 @@ describe("connection and update notices (D88)", () => {
     expect(screen.getByText(en.pwa.updateAvailable)).toBeInTheDocument();
     expect(registered.reloads).toBe(0); // nothing reloads on its own
 
+    // "Later" hides the prompt until the user moves to another page.
+    await userEvent.click(screen.getByRole("button", { name: en.pwa.later }));
+    expect(screen.queryByText(en.pwa.updateAvailable)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "go" }));
+    expect(screen.getByText(en.pwa.updateAvailable)).toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", { name: en.pwa.reload }));
     expect(registered.reloads).toBe(1);
+  });
+
+  it("keeps the live region in the page so notices are announced", () => {
+    renderNotices();
+    const region = screen.getByRole("status");
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).not.toHaveTextContent(en.pwa.offline);
   });
 });
 
