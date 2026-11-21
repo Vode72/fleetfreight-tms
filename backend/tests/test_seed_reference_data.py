@@ -480,7 +480,9 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
     with _session(test_engine) as session:
         seed_reference_data(session)
         spain = session.scalars(
-            select(RoadRestriction).where(RoadRestriction.country == "ES")
+            select(RoadRestriction).where(
+                RoadRestriction.country == "ES", RoadRestriction.region.is_(None)
+            )
         ).all()
         assert len(spain) == 125  # 557 annex rows grouped by section and direction
         assert all(r.over_gross_weight_kg == 7500 for r in spain)
@@ -516,3 +518,101 @@ def test_spain_section_bans_follow_the_dgt_annex(test_engine: Engine) -> None:
         # The Valencia Grand Prix moved from 20-22 to 27-29 November (BOE-A-2026-13892).
         cheste = {w.on_date for w in _windows(session, "ES-CV-50-72-5-76-B")}
         assert cheste == {date(2026, 11, 27), date(2026, 11, 28), date(2026, 11, 29)}
+
+
+def test_basque_country_bans_follow_its_resolution(test_engine: Engine) -> None:
+    """Spot checks against BOE-A-2026-2625, Annex II."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        basque = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.region == "ES-PV")
+        ).all()
+        assert len(basque) == 30
+        counts = {r.code: len(_windows(session, r.code)) for r in basque}
+        assert sum(counts.values()) == 407
+        assert (
+            counts["ES-PV-A-1-352-336-D"] == 36
+        )  # 28 summer weekend days + groups 3 (6) and 4 (2)
+        assert counts["ES-PV-N-622-7-6-4-5-D"] == 2  # group 4 only: 31 July and 1 August
+        # Cross-border group: from 22:00 on the eve to 22:00 on the day, e.g. 14 July.
+        ap8 = {
+            (w.on_date, w.start_time, w.end_time) for w in _windows(session, "ES-PV-AP-8-100-0-X")
+        }
+        assert {(date(2026, 7, 13), time(22), None), (date(2026, 7, 14), time(0), time(22))} <= ap8
+        # Summer period: Sundays and holidays (25 July, a Saturday) 16-22 h towards Bilbao.
+        a8 = {
+            (w.on_date, w.start_time, w.end_time)
+            for w in _windows(session, "ES-PV-A-8-139-21-119-5-D")
+        }
+        assert (date(2026, 7, 25), time(16), time(22)) in a8
+        assert (date(2026, 9, 6), time(16), time(22)) in a8
+        assert (date(2026, 9, 13), time(16), time(22)) not in a8
+        # A date in January 2027 listed by the 2026 resolution.
+        assert date(2027, 1, 6) in {
+            w.on_date for w in _windows(session, "ES-PV-N-634-120-690-107-D")
+        }
+
+
+def test_catalonia_bans_follow_its_resolution(test_engine: Engine) -> None:
+    """Spot checks against Resolution ISP/300/2026 (BOE-A-2026-6095)."""
+    with _session(test_engine) as session:
+        seed_reference_data(session)
+        catalonia = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.region == "ES-CT")
+        ).all()
+        assert len(catalonia) == 35
+        assert sum(len(_windows(session, r.code)) for r in catalonia) == 196
+        assert {r.valid_from for r in catalonia} == {date(2026, 2, 19)}
+        # Section 8: N-II at La Jonquera closed permanently to combinations over 26 t.
+        n2 = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.code == "ES-CT-N-II-773-5-709-0-P")
+        ).one()
+        assert n2.over_gross_weight_kg == 26000
+        (always,) = _windows(session, n2.code)
+        assert (tuple(always.weekdays), always.start_time, always.end_time) == (
+            (1, 2, 3, 4, 5, 6, 7),
+            time(0),
+            None,
+        )
+        # Annex A: AP-7 on Easter Monday 10-22 h (D) and Maundy Thursday 17-22 h (T).
+        ap7 = {
+            (w.on_date, w.start_time, w.end_time)
+            for w in _windows(session, "ES-CT-AP-7-84-5-281-B")
+        }
+        assert {
+            (date(2026, 4, 6), time(10), time(22)),
+            (date(2026, 4, 2), time(17), time(22)),
+        } <= ap7
+        # A-2 direction marks: towards Lleida on Good Friday, towards Barcelona on Easter Sunday.
+        towards_lleida = {w.on_date for w in _windows(session, "ES-CT-A-2-585-520-D")}
+        assert date(2026, 4, 3) in towards_lleida
+        assert date(2026, 4, 5) not in towards_lleida
+        # Costa Brava summer: Sundays plus the Catalan holidays (24 June, 11 September).
+        c63 = {w.on_date for w in _windows(session, "ES-CT-C-63-0-13-B") if w.on_date}
+        assert {date(2026, 6, 24), date(2026, 9, 11)} <= c63
+
+        # Footnote sections keep their own hours: AP-7 PK 84-149 9-17 h, C-35 PK 28-32 6-20 h.
+        assert {
+            (w.on_date, w.start_time, w.end_time) for w in _windows(session, "ES-CT-AP-7-84-149-B")
+        } == {
+            (date(2026, 5, 17), time(9), time(17)),
+            (date(2026, 6, 14), time(9), time(17)),
+        }
+        assert len(_windows(session, "ES-CT-C-35-28-32-B")) == 6
+        # Arán: N-230 towards France on winter Fridays from 17 h to midnight.
+        aran = _windows(session, "ES-CT-N-230-116-187-D")
+        assert ((5,), 101, 331, time(17), None) in {
+            (tuple(w.weekdays), w.season_start, w.season_end, w.start_time, w.end_time)
+            for w in aran
+            if w.kind == "weekdays"
+        }
+        # Pyrenees winter: Saturdays 10-14 h, plus the 26 December holiday 17-22 h.
+        n145 = _windows(session, "ES-CT-N-145-0-10-B")
+        assert (date(2026, 12, 26), time(17), time(22)) in {
+            (w.on_date, w.start_time, w.end_time) for w in n145
+        }
+        # Section 9: the C-153 in Olot closed permanently over 7.5 t.
+        c153 = session.scalars(
+            select(RoadRestriction).where(RoadRestriction.code == "ES-CT-C-153-60-9-61-9-P")
+        ).one()
+        assert c153.over_gross_weight_kg == 7500
