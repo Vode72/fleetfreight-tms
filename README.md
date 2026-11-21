@@ -24,6 +24,14 @@ The new system is designed from what both prototypes taught, built by a traffic 
 - **Feasibility first:** the system calculates, checks and suggests; the traffic coordinator decides
 - Accompanied and unaccompanied ferries, ADR, GDP, temperature-controlled and curtain-side transport, trailer pool, port handling
 
+## Concept: load planning (planned)
+
+Load planning in 2D and 3D is a planned module (proposal D91). An algorithm proposes where each item goes, and the traffic coordinator drags items and approves the plan. Fit, stacking, height and the weight on the kingpin and trailer axles are checked after every move, and a move that would make the load unsafe is blocked. The images are concept mockups with demo data.
+
+![Load planning, top and side view](docs/images/load-planning-2d.png)
+
+![Load planning in 3D](docs/images/load-planning-3d.png)
+
 ## Stack
 
 React · TypeScript · Vite · Python · FastAPI · PostgreSQL · Alembic · pytest · Vitest
