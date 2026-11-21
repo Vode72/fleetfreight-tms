@@ -26,11 +26,13 @@ The new system is designed from what both prototypes taught, built by a traffic 
 
 ## Concept: load planning (planned)
 
-Load planning in 2D and 3D is a planned module (proposal D91). An algorithm proposes where each item goes, and the traffic coordinator drags items and approves the plan. Fit, stacking, height and the weight on the kingpin and trailer axles are checked after every move, and a move that would make the load unsafe is blocked. The images are concept mockups with demo data.
+Load planning in 2D and 3D is a planned module (proposal D91). An algorithm proposes where each item goes, and the traffic coordinator drags items and approves the plan. Fit, stacking, height and weight distribution (centre of gravity against the trailer's load distribution diagram, for every leg after unloading) are checked after every move, and a move that would make the load unsafe is blocked. The images are concept mockups with demo data.
 
 ![Load planning, top and side view](docs/images/load-planning-2d.png)
 
 ![Load planning in 3D](docs/images/load-planning-3d.png)
+
+![Weight distribution and load distribution diagram](docs/images/load-planning-weight.png)
 
 ## Stack
 

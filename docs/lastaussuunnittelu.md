@@ -132,6 +132,8 @@ jokaisen pudotuksen jälkeen. Säännöt ovat vain backendissä, ja vastaus tule
 
 ![3D-näkymä](images/load-planning-3d.png)
 
+![Painojakauma ja kuormanjakokaavio](images/load-planning-weight.png)
+
 Kuvat ovat konseptiluonnoksia demodatalla (englanninkieliset tekstit README:tä varten); IBC:n ja häkkilavan
 mitat ovat tyyppimittoja, painorajat demoarvoja. Kuorma on etuseinää vasten, IBC:t ja häkkilavat tiiviisti;
 jäljelle jäävä väli tuetaan ja kuorman takapinta varmistetaan (lastaustuki tai sidonta). Siksi suurin osa
