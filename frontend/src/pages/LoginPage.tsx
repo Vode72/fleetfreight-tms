@@ -8,6 +8,7 @@ import { useAuth } from "../auth/useAuth";
 import { LoginForm } from "../features/auth/LoginForm";
 import "../features/auth/auth.css";
 import { LanguageSelect } from "../layout/LanguageSelect";
+import { InstallApp } from "../pwa/InstallApp";
 import "../layout/layout.css";
 import { ThemeSelect } from "../layout/ThemeSelect";
 
@@ -44,6 +45,7 @@ export function LoginPage() {
             </p>
           )}
           <LoginForm />
+          <InstallApp />
         </section>
       </main>
     </div>

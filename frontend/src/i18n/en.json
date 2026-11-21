@@ -138,5 +138,13 @@
   "preferences": {
     "saveFailed": "Could not save your preference to your account. It stays in this browser.",
     "dismiss": "Dismiss"
+  },
+  "pwa": {
+    "offline": "No connection. Data will update when the connection returns.",
+    "updateAvailable": "A new version is available.",
+    "reload": "Update now",
+    "later": "Later",
+    "install": "Install app",
+    "installHelp": "To install, use your browser's menu (for example Firefox: open the menu and choose to add the site as an app, where available)."
   }
 }
