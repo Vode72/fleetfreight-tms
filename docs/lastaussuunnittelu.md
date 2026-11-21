@@ -95,7 +95,7 @@ Rajat kirjataan lähteistä kuten maiden painorajat (D89, D90).
 
 ![3D-näkymä](images/load-planning-3d.png)
 
-Kuvat ovat konseptiluonnoksia demodatalla (englanninkieliset tekstit README:tä varten); IBC:n ja häkkilavan mitat ovat tyyppimittoja, painorajat demoarvoja.
+Kuvat ovat konseptiluonnoksia demodatalla (englanninkieliset tekstit README:tä varten); IBC:n ja häkkilavan mitat ovat tyyppimittoja, painorajat demoarvoja. Kuorma on etuseinää vasten, IBC:t ja häkkilavat tiiviisti; jäljelle jäävä väli tuetaan ja kuorman takapinta varmistetaan (lastaustuki tai sidonta). Siksi suurin osa painosta on vetotapilla.
 
 
 Chatissa 21.11.2026 tehdyt luonnokset: ylänäkymä legivalitsimella ja LIFO-tarkistuksella, sekakuorma
