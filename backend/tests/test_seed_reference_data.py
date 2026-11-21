@@ -635,5 +635,15 @@ def test_toll_system_change_closes_the_open_period(test_engine: Engine) -> None:
             (date(2026, 1, 1), date(2026, 6, 30), "time_based"),
             (date(2026, 7, 1), None, "distance_based"),
         ]
+        # A second run changes nothing; Lithuania's two periods are in place too.
+        again = seed_reference_data(session)
+        assert again["country_rules"] == 0 and again["filled_values"] == 0
+        lt = session.scalars(
+            select(CountryRule).where(CountryRule.country == "LT").order_by(CountryRule.valid_from)
+        ).all()
+        assert [(r.valid_until, r.toll_system) for r in lt] == [
+            (date(2026, 12, 31), "time_based"),
+            (None, "distance_based"),
+        ]
         tolls = {r.country: r.toll_system for r in session.scalars(select(CountryRule))}
         assert (tolls["FI"], tolls["DE"], tolls["SE"]) == ("none", "distance_based", "time_based")
