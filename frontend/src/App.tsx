@@ -10,6 +10,7 @@ import { ForbiddenPage } from "./pages/ForbiddenPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { PwaNotices } from "./pwa/PwaNotices";
 
 /** Routes only. The router itself is provided by main.tsx (or by tests). `/login` is the only public route. */
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
           </Route>
         </Route>
       </Routes>
+      <PwaNotices />
     </AuthProvider>
   );
 }

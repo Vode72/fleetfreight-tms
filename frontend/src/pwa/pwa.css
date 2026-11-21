@@ -1,0 +1,46 @@
+.pwa-notices {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  max-height: 50vh;
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.pwa-notices:empty {
+  padding: 0;
+}
+
+.pwa-notice {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 auto;
+  max-width: 40rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--panel-bg);
+  color: var(--text-main);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-md);
+}
+
+.pwa-notice button,
+.pwa-install {
+  min-height: var(--touch-target); /* D81 */
+}
+
+.pwa-install-help {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted-strong);
+}

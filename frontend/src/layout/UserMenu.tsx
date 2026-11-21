@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../auth/useAuth";
+import { InstallApp } from "../pwa/InstallApp";
 
 /** Signed-in user (email and role) plus the sign-out button. */
 export function UserMenu() {
@@ -31,6 +32,7 @@ export function UserMenu() {
           {t("auth.logoutFailed")}
         </span>
       )}
+      <InstallApp />
       <button
         type="button"
         disabled={busy}

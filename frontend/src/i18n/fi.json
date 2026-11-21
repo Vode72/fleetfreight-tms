@@ -138,5 +138,13 @@
   "preferences": {
     "saveFailed": "Valinnan tallennus tilille epäonnistui. Valinta säilyy tässä selaimessa.",
     "dismiss": "Sulje"
+  },
+  "pwa": {
+    "offline": "Ei yhteyttä. Tiedot päivittyvät, kun yhteys palaa.",
+    "updateAvailable": "Uusi versio on saatavilla.",
+    "reload": "Päivitä nyt",
+    "later": "Myöhemmin",
+    "install": "Asenna sovellus",
+    "installHelp": "Asenna selaimen valikosta (esimerkiksi Firefoxissa valikon kautta lisäämällä sivusto sovelluksena, jos toiminto on käytettävissä)."
   }
 }
