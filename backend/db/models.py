@@ -925,9 +925,14 @@ class CountryRule(Base):
     # combination). Required once a speed is recorded.
     speed_over_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
     speed_weight_basis: Mapped[str | None] = mapped_column(String(15))
-    # Standard maximum gross weight and length of an articulated vehicle in national traffic.
+    # D89: maximum gross weight and length of a semi-trailer combination (tractor and
+    # semi-trailer, five axles) in national traffic on the general road network. Other axle
+    # counts and full-trailer combinations are in the note. The EU limit for international
+    # traffic is domain.eu_limits; Plan Check uses the strictest value along the route.
     max_gross_weight_kg: Mapped[int | None] = mapped_column(Integer)
     max_length_mm: Mapped[int | None] = mapped_column(Integer)
+    # D89: only whether HCT/EMS combinations are allowed in the country at all; their limits
+    # and networks are road_restrictions rows of type hct_route.
     hct_allowed: Mapped[bool | None] = mapped_column(Boolean)
     # Season of winter equipment requirements, MMDD (may run over the new year).
     winter_equipment_start: Mapped[int | None] = mapped_column(SmallInteger)
