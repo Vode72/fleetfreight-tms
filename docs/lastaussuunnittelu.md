@@ -91,6 +91,13 @@ Rajat kirjataan lähteistä kuten maiden painorajat (D89, D90).
 
 ## 9. Luonnokset
 
+![Ylä- ja sivunäkymä](images/load-planning-2d.png)
+
+![3D-näkymä](images/load-planning-3d.png)
+
+Kuvat ovat konseptiluonnoksia demodatalla (englanninkieliset tekstit README:tä varten); IBC:n ja häkkilavan mitat ovat tyyppimittoja, painorajat demoarvoja.
+
+
 Chatissa 21.11.2026 tehdyt luonnokset: ylänäkymä legivalitsimella ja LIFO-tarkistuksella, sekakuorma
 (pitkä tavara pinottuna, EUR-lavat, IBC-kontit ja häkkilavat) ylä-, sivu- ja 3D-näkymänä sekä siirtäminen
 imulla, palautuksella ja painonjaon estolla.
