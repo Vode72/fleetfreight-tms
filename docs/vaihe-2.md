@@ -1,6 +1,6 @@
 # Vaihe 2: tietomalli
 
-Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2 ja 2B-3a valmiit; seuraavaksi 2B-3b) · Päivitetty 21.11.2026
+Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2 ja 2B-3a valmiit; 2B-3b osa a tehty, seuraavaksi osa b) · Päivitetty 22.11.2026
 
 Tavoite: koko tietomalli v1 (`suunnitelma.md` luku 3) Alembic-revisioina, tilakoneet testeineen ja
 yhdistetty demodata, jonka päälle vaiheen 4 läpimenevä polku rakennetaan. Taulut luodaan luvun 3
@@ -43,7 +43,7 @@ Jokainen on oma haaransa ja PR:nsä. ff-reviewer katselmoi jokaisen, eikä mitä
 - Demodata: kalusto kuljetusliikkeittäin, thermo-kuormatilat lohkoineen, junakelpoiset kuormatilat (D63), HCT-yhdistelmä dollyineen
 - **Valmis kun:** kuormatila voidaan kuvata trailerina tai kiinteänä korina, ja kelpoisuuksien historia säilyy
 
-### 2B-3 Asetustaulut (laajennettu D84) · tulossa
+### 2B-3 Asetustaulut (laajennettu D84) · käynnissä
 
 Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demodatansa ja testinsä. Demomaat: FI, SE, EE, LV, LT, PL, DE, NL, BE, DK, FR, ES ja IT.
 **Säädösten ja viranomaisten raja-arvot** (painot, mitat, nopeudet, ajokiellot, pyhät, tiemaksut) haetaan virallisista lähteistä ennen kirjausta, ja jokaisella rivillä on lähdelinkki ja tarkistuspäivä. Mitään ei kirjoiteta muistista. Plan Check -tarkistukset tehdään vaiheessa 5.
@@ -60,12 +60,9 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 - **Osa 2c, PR (2B-3a-6, D89):** `country_rules`: puoliperävaunuyhdistelmän (5 akselia) paino ja pituus kotimaan liikenteessä ja `hct_allowed`-lippu 13 maalle kansallisista säädösteksteistä (tarkistettu 21.11.2026; lähde ja muut akselimäärät sekä täysperävaunuyhdistelmä maan rivin huomautuksessa). Paino: FI 44 t, LV, LT, PL ja DE 40 t, BE, FR, ES ja IT 44 t; ei kirjattu NL (50 t on yläraja, jota rajaavat myös vetoakselikuorma ja moottoriteho), SE (paino bruttopainotaulukosta kantavuusluokan ja akselivälin mukaan), EE (akselikohtaista lukua ei tarkistettu) ja DK (puoliperävaunuyhdistelmään sovelletaan yhdistelmien painoja, 5 akselia 47 t tai 44 t; tulkinta vahvistamatta). Pituus: 16,50 m, paitsi FI 23,00 m, SE 24,0 m ja DK 17,88 m. EU:n kansainvälinen raja (40 t, 16,50 m) kerran: `domain/eu_limits.py` (SWD(2023) 445) ja `strictest()`. HCT sallittu FI, SE, DE, NL, BE (vain Flanderi), DK ja ES; muut NULL. HCT-verkot `road_restrictions`-riveinä (tyyppi `hct_route`, rajat huomautuksessa): FI, SE (34,5 m nimetyillä teillä, BK4 74 t), DE (Lang-Lkw Positivnetz), NL (LZV), BE-VLG (LZV), DK (modulvogntog, BEK 1491/2025) ja ES (euromodulaarinen). Suomessa 34,5 m ja 76 t ovat yleisen tieverkon rajoja (rivi FI-HCT-GENERAL-NETWORK: yleinen tieverkko). Sallittu HCT-lippu tarkoittaa aina, että verkko on kirjattu. ADR-tunneliesimerkit Alankomaista Staatscourantista: Heinenoordtunnel A29 (C), Beneluxtunnel (C), Stadsbaantunnel Utrecht (E). Italian teksti luettu toisen käden julkaisusta (virallinen Normattiva), Belgian painot alueellisia (Flanderi uudistamassa).
 - **Valmis kun:** demomaiden yleissäännöt, pyhät, keskeiset ajokiellot ja puoliperävaunuyhdistelmän painorajat (D89) ovat kannassa lähteineen; arvo, jolle virallista lähdettä ei tarkistettu, on NULL ja syy maan rivin huomautuksessa ✓
 
-#### 2B-3b Paikat
-- Turvaparkit: `parking_details` paikoille (tyyppi parking): sertifiointitaso alan yleisten standardien mukaan, paikkamäärä, varauspakko, yöhinta `*_cents`, sähkö thermotrailerille, palvelut, aukiolo
-- Rajanylityspaikat: uusi paikkatyyppi *border_crossing* ja lisätiedot: maat, EU:n ulkoraja, linkki tullitoimipaikkaan (D48), aukioloajat, raskas liikenne sallittu, tila (auki / kiinni), arvioitu odotusaika
-- Lastaus- ja purkupaikan ominaisuudet: laituri / maataso, sivulastaus, trukki, perälautavaatimus, ajoneuvon enimmäispituus (HCT), ajanvarauspakko (D82)
-- Satamien säilytysasetukset (D83): ilmaiset päivät (oletus 3) ja päivämaksu `*_cents`; demossa keksityt summat
-- Pesupaikat ja pesutodistus (European Cleaning Document) elintarvike- ja kemikaalikuljetuksiin (D56)
+#### 2B-3b Paikat · osa a tehty (turvaparkit ja rajanylitykset; D92)
+- **Osa a, PR (2B-3b-1, D92):** turvaparkit `parking_details` (paikat, yöhinta `*_cents` omassa valuutassaan, thermotrailerin sähköpistokkeet, varattavissa, ADR sallittu, palvelut; aukiolo ja varauspakko paikan kentissä) ja sertifikaatit `parking_certifications` voimassaolojaksoina (EU 2022/1012: pronssi–platina; TAPA PSR: tasot 1–3). Uusi paikkatyyppi `border_crossing` ja `border_crossing_details` (toinen maa, kummankin puolen tullitoimipaikka D48, raskas liikenne, tyypillinen odotus asetuksena) sekä tila `border_crossing_status_periods` (auki / kiinni / rajoitettu kellonaikajaksoina, lähde ja tarkistuspäivä). Lisätaulut sidotaan paikkatyyppiin yhdistelmä-FK:lla (revisio 988966e62624). Demo: neljä keksittyä turvaparkkia (Lübeck: molemmat sertifikaatit; Gdańsk: vanhentunut TAPA ja uusittu; hinnat EUR, PLN ja SEK), rajanylitykset Tornio–Haaparanta (sisäraja), Vaalimaa (suljettu 18.11.2023, auki 14.12.2023, suljettu 15.12.2023 klo 20 alkaen toistaiseksi; Tulli ja valtioneuvosto, tarkistettu 22.11.2026) ja Svinesund (Ruotsin ja Norjan tullitoimipaikat; auki tarkistuspäivänä, toll.no). Odotusajat tyhjiä.
+- **Osa b, PR (2B-3b-2):** lastaus- ja purkupaikan ominaisuudet (trukki, perälautavaatimus; laituri, sivulastaus, enimmäispituus ja ajanvarauspakko ovat jo `locations`-taulussa), satamien säilytysasetukset (D83: ilmaiset päivät, oletus 3, ja päivämaksu `*_cents`; demossa keksityt summat) ja pesupaikat (`wash_details`: pesutyypit, pesutodistuksen myöntäminen). Pesutodistus kuormatilan tapahtumana 2C:ssä tai myöhemmin (D56)
 - **Valmis kun:** demon turvaparkit, rajanylitykset ja satamat asetuksineen ovat kannassa
 
 #### 2B-3c Linjat ja reititys
@@ -89,6 +86,7 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 - Toteumatauluissa vain lisäys, `source` ja `reversal_of_id` (sääntö 9)
 - Poikkeusluvat (D85): `exemption_permits` (maa, rajoitus tai rajoitustyyppi, ajoneuvo tai trippi, lupanumero, voimassaolojakso D67, liitedokumentti)
 - Noden aikaikkuna = varattu aika ja ajanvarausnumero (D82)
+- **Rajanylitys legillä (D92):** valinnainen "kautta"-rajanylityspaikka legille tai Node, kun rajalla on tullipysähdys (D48), jotta Plan Check voi käyttää rajan tilaa
 - **Avoimet ennen 2C:tä (ff-logistiikka 19.11.2026, D80):** orderin ajan muutoshistoria täsmällisyys-KPI:tä varten; aukioloajat viikonpäivittäin ja poikkeuspäivät `locations`-tauluun; jaetussa orderissa (D22) ajat molempiin osiin
 - **Valmis kun:** D65:n skenaario (Jyväskylä–Vantaa–Lübeck) voidaan kirjata kantaan riveinä, ja liput täsmäävät alirivien kanssa
 

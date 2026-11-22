@@ -40,7 +40,13 @@ from domain.equipment import (
     PowerSource,
     TruckType,
 )
-from domain.locations import LocationType
+from domain.locations import (
+    LEVELS_BY_SCHEME,
+    BorderCrossingStatus,
+    LocationType,
+    ParkingCertificationScheme,
+    ParkingService,
+)
 from domain.parties import CarrierType, CustomerType, DriverEmployment
 from domain.qualifications import DriverQualificationType
 from domain.restrictions import (
@@ -90,6 +96,23 @@ def _fk(column: str, name: str) -> ForeignKey:
 
 
 _COUNTRY_CHECK = "country ~ '^[A-Z]{2}$'"
+
+# Reference rows carry their official source (D84, D92).
+_SOURCE_CHECKS = (
+    "source_url ~ '^https://'",
+    "checked_on >= DATE '2026-01-01'",
+)
+
+
+def _source_checks(table: str) -> tuple[CheckConstraint, CheckConstraint]:
+    return (
+        CheckConstraint(_SOURCE_CHECKS[0], name=f"ck_{table}_source_url"),
+        CheckConstraint(_SOURCE_CHECKS[1], name=f"ck_{table}_checked_on"),
+    )
+
+
+def _sql_list(values: list[str] | tuple[str, ...]) -> str:
+    return ", ".join(f"'{v}'" for v in sorted(values))
 
 
 class User(Base):
@@ -192,6 +215,8 @@ class Location(Base):
     __tablename__ = "locations"
     __table_args__ = (
         UniqueConstraint("name", name="uq_locations_name"),
+        # Target of the composite foreign keys that tie a detail row to one location type (D92).
+        UniqueConstraint("id", "type", name="uq_locations_id_type"),
         CheckConstraint(in_list("type", LocationType), name="ck_locations_type"),
         CheckConstraint(_COUNTRY_CHECK, name="ck_locations_country"),
         CheckConstraint("btrim(name) <> ''", name="ck_locations_name_not_blank"),
@@ -277,6 +302,225 @@ class Location(Base):
     # Customer sites only: does the site have a loading dock? NULL = unknown.
     has_loading_dock: Mapped[bool | None] = mapped_column(Boolean)
     archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+def _location_type_fk(column: str, table: str, location_type: LocationType) -> tuple[Any, ...]:
+    """Ties a detail column to a location of one type: (column, type) -> locations(id, type).
+
+    The type column is fixed by a CHECK, so changing the location's type is refused while the
+    detail row exists (D92), the same way as road_restriction_windows (D85).
+    """
+    type_column = f"{column.removesuffix('_id')}_type"
+    return (
+        ForeignKeyConstraint(
+            [column, type_column],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name=f"fk_{table}_{column}",
+        ),
+        CheckConstraint(
+            f"{type_column} = '{location_type.value}'", name=f"ck_{table}_{type_column}"
+        ),
+    )
+
+
+def _location_type_column(location_type: LocationType) -> Mapped[str]:
+    return mapped_column(
+        String(20), server_default=text(f"'{location_type.value}'"), default=location_type.value
+    )
+
+
+class ParkingDetails(Base):
+    """Secure truck parking (2B-3b, D92): one row per location of type parking.
+
+    Opening hours and the booking requirement are the location's own fields; certificates are
+    periods in parking_certifications.
+    """
+
+    __tablename__ = "parking_details"
+    __table_args__ = (
+        *_location_type_fk("location_id", "parking_details", LocationType.PARKING),
+        CheckConstraint("spaces IS NULL OR spaces >= 1", name="ck_parking_details_spaces"),
+        CheckConstraint(
+            "(night_price_cents IS NULL) = (price_currency IS NULL)"
+            " AND (night_price_cents IS NULL OR night_price_cents >= 0)"
+            " AND (price_currency IS NULL OR price_currency ~ '^[A-Z]{3}$')",
+            name="ck_parking_details_night_price",
+        ),
+        CheckConstraint(
+            "reefer_plug_count IS NULL OR reefer_plug_count >= 0",
+            name="ck_parking_details_reefer_plug_count",
+        ),
+        CheckConstraint(
+            f"services <@ ARRAY[{_sql_list([s.value for s in ParkingService])}]::varchar[]",
+            name="ck_parking_details_services",
+        ),
+    )
+
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    location_type: Mapped[str] = _location_type_column(LocationType.PARKING)
+    # Truck spaces; NULL = not recorded.
+    spaces: Mapped[int | None] = mapped_column(Integer)
+    # Price of one night for a truck (D28: cents) in its own currency (prices abroad are often
+    # not in euros; conversion comes with the currency tables in 2B-3d).
+    night_price_cents: Mapped[int | None] = mapped_column(Integer)
+    price_currency: Mapped[str | None] = mapped_column(String(3))
+    # Electric hook-ups for reefer units (thermo trailers); NULL = not recorded.
+    reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
+    # A space can be booked in advance (locations.booking_required: a booking is required).
+    booking_possible: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # Vehicles carrying dangerous goods may park here; NULL = not recorded.
+    adr_vehicles_allowed: Mapped[bool | None] = mapped_column(Boolean)
+    services: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), server_default=text("'{}'::varchar[]"), default=list
+    )
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class ParkingCertification(Base):
+    """A certificate of a parking area for one validity period (D67, D92).
+
+    An area may hold both schemes at once; periods of one scheme never overlap.
+    """
+
+    __tablename__ = "parking_certifications"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["location_id"],
+            ["parking_details.location_id"],
+            ondelete="RESTRICT",
+            name="fk_parking_certifications_location_id",
+        ),
+        CheckConstraint(
+            in_list("scheme", ParkingCertificationScheme),
+            name="ck_parking_certifications_scheme",
+        ),
+        # Built from domain.locations.LEVELS_BY_SCHEME.
+        CheckConstraint(
+            " OR ".join(
+                f"(scheme = '{scheme.value}' AND level IN ({_sql_list([v.value for v in levels])}))"
+                for scheme, levels in sorted(LEVELS_BY_SCHEME.items())
+            ),
+            name="ck_parking_certifications_level",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until",
+            name="ck_parking_certifications_period",
+        ),
+        ExcludeConstraint(
+            ("location_id", "="),
+            ("scheme", "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_parking_certifications_no_overlap",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    scheme: Mapped[str] = mapped_column(String(20))
+    level: Mapped[str] = mapped_column(String(20))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = end not recorded
+    document_ref: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class BorderCrossingDetails(Base):
+    """Road border crossing (2B-3b, D92): one row per location of type border_crossing.
+
+    The location lies in its own country; other_country is the country across the border.
+    Whether the border is a customs border comes from customs_areas (D48, 2B-3c), not from here.
+    Open, closed or restricted is history in border_crossing_status_periods (D67).
+    """
+
+    __tablename__ = "border_crossing_details"
+    __table_args__ = (
+        *_location_type_fk("location_id", "border_crossing_details", LocationType.BORDER_CROSSING),
+        *_location_type_fk(
+            "customs_office_id", "border_crossing_details", LocationType.CUSTOMS_OFFICE
+        ),
+        *_location_type_fk(
+            "other_customs_office_id", "border_crossing_details", LocationType.CUSTOMS_OFFICE
+        ),
+        CheckConstraint(
+            "other_country ~ '^[A-Z]{2}$'", name="ck_border_crossing_details_other_country"
+        ),
+        CheckConstraint(
+            "typical_wait_minutes IS NULL OR typical_wait_minutes >= 0",
+            name="ck_border_crossing_details_typical_wait",
+        ),
+        CheckConstraint(
+            "(customs_office_id IS NULL) = (customs_office_type IS NULL)"
+            " AND (other_customs_office_id IS NULL) = (other_customs_office_type IS NULL)",
+            name="ck_border_crossing_details_customs_office_pairs",
+        ),
+        Index("ix_border_crossing_details_customs_office_id", "customs_office_id"),
+        Index("ix_border_crossing_details_other_customs_office_id", "other_customs_office_id"),
+    )
+
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    location_type: Mapped[str] = _location_type_column(LocationType.BORDER_CROSSING)
+    # Checked against the location's country in domain.locations.validate_border_crossing.
+    other_country: Mapped[str] = mapped_column(String(2))
+    # Customs offices of this side and of the other side (D48), both optional.
+    customs_office_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    customs_office_type: Mapped[str | None] = mapped_column(String(20))
+    other_customs_office_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    other_customs_office_type: Mapped[str | None] = mapped_column(String(20))
+    # Limits on heavy traffic (weight, hours) go in the note.
+    heavy_traffic_allowed: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # A planning setting, not a measurement; live waiting times come later as an integration.
+    typical_wait_minutes: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class BorderCrossingStatusPeriod(Base):
+    """Open, closed or restricted over [starts_at, ends_at) (D67, D92).
+
+    Times, not days: a border may close in the evening. A change is a new row, so history is
+    kept. No row for a moment = status not recorded. Every row has its official source.
+    """
+
+    __tablename__ = "border_crossing_status_periods"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["location_id"],
+            ["border_crossing_details.location_id"],
+            ondelete="RESTRICT",
+            name="fk_border_crossing_status_periods_location_id",
+        ),
+        CheckConstraint(
+            in_list("status", BorderCrossingStatus),
+            name="ck_border_crossing_status_periods_status",
+        ),
+        CheckConstraint(
+            "ends_at IS NULL OR starts_at < ends_at",
+            name="ck_border_crossing_status_periods_period",
+        ),
+        ExcludeConstraint(
+            ("location_id", "="),
+            (text("tstzrange(starts_at, ends_at, '[)')"), "&&"),
+            using="gist",
+            name="ex_border_crossing_status_periods_no_overlap",
+        ),
+        *_source_checks("border_crossing_status_periods"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    status: Mapped[str] = mapped_column(String(10))
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # NULL = open-ended
+    note: Mapped[str | None] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 
@@ -817,10 +1061,6 @@ class EquipmentQualification(Base):
 # --- Countries and road restrictions (2B-3a, D84). Reference data with a source per row; the
 # legal values are never written from memory. Plan Check uses them in phase 5.
 
-_SOURCE_CHECKS = (
-    "source_url ~ '^https://'",
-    "checked_on >= DATE '2026-01-01'",
-)
 _REGION_CHECK = (
     "region IS NULL OR (region ~ '^[A-Z]{2}-[A-Z0-9]{1,3}$' AND left(region, 2) = country)"
 )
@@ -831,17 +1071,6 @@ _SEASON_CHECK = (
     " AND season_start % 100 BETWEEN 1 AND 31 AND season_end / 100 BETWEEN 1 AND 12"
     " AND season_end % 100 BETWEEN 1 AND 31))"
 )
-
-
-def _source_checks(table: str) -> tuple[CheckConstraint, CheckConstraint]:
-    return (
-        CheckConstraint(_SOURCE_CHECKS[0], name=f"ck_{table}_source_url"),
-        CheckConstraint(_SOURCE_CHECKS[1], name=f"ck_{table}_checked_on"),
-    )
-
-
-def _sql_list(values: list[str] | tuple[str, ...]) -> str:
-    return ", ".join(f"'{v}'" for v in sorted(values))
 
 
 _KG_TYPES = _sql_list([t.value for t, u in UNIT_BY_TYPE.items() if u is LimitUnit.KG])

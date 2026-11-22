@@ -4,8 +4,9 @@ Usage (from the backend directory):
     ENVIRONMENT=development uv run python -m scripts.seed_demo_data
 
 Contents: the own company, the terminal network (D31-D33), ports, rail terminals, customs
-offices, demo customers with sites, carriers, drivers and driver qualifications, and the fleet
-(2B-2): tractors and rigid trucks, a dolly, trailers and fixed bodies with temperature
+offices, secure truck parking areas with certificates and border crossings with their status
+history (2B-3b, D92), demo customers with sites, carriers, drivers and driver qualifications,
+and the fleet (2B-2): tractors and rigid trucks, a dolly, trailers and fixed bodies with temperature
 compartments and reefer units, and equipment qualification periods. All names contain "Demo";
 addresses and identifiers are invented; registrations look like DEMO-TRK-001 (never real plates).
 The own carrier is linked to the own company's customer row and has no name of its own (D73).
@@ -37,20 +38,28 @@ side-opening, XL with coil well, TIR cable, top loading, a two-compartment therm
 unit, one leased, one rented, one a partner's), some rail-craneable (D63). Equipment periods: ATP
 for both thermo load units (one expiring soon, the trailer's renewed so history shows), one
 expired inspection, a GDP temperature mapping and a tail lift inspection.
+Parking and border crossings (D92): parking areas have invented names, prices and certificates
+(Lübeck shows both schemes, Gdańsk an expired TAPA certificate and its renewal). Border crossings
+carry public place names; their status periods come from official sources (Vaalimaa: closed,
+reopened for one day and closed again in 2023; Svinesund: open on the check day). Typical waits
+are left unrecorded: an invented number at a real place would look like a fact.
 Refuses to run unless ENVIRONMENT=development.
 """
 
 import sys
 from collections import Counter
 from dataclasses import dataclass, replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 from db.models import (
+    BorderCrossingDetails,
+    BorderCrossingStatusPeriod,
     Carrier,
     Compartment,
     Customer,
@@ -60,6 +69,8 @@ from db.models import (
     EquipmentQualification,
     LoadUnit,
     Location,
+    ParkingCertification,
+    ParkingDetails,
     ReeferEvaporator,
     ReeferUnit,
     Truck,
@@ -94,9 +105,17 @@ from domain.equipment import (
     validate_zones,
 )
 from domain.locations import (
+    BorderCrossingStatus,
     LocationType,
+    ParkingCertificationLevel,
+    ParkingCertificationScheme,
+    ParkingService,
+    validate_border_crossing,
     validate_opening_hours,
+    validate_parking_certification,
+    validate_parking_details,
     validate_postal_code,
+    validate_status_periods,
     validate_terminal_fields,
     validate_timezone,
 )
@@ -218,6 +237,23 @@ def _customs(name: str, country: str, lat: str, lon: str, tz: str, hours: _Hours
     return _Place(name, LocationType.CUSTOMS_OFFICE, country, lat, lon, tz, hours=hours)
 
 
+def _parking(city: str, country: str, lat: str, lon: str, tz: str, **kw: object) -> _Place:
+    return _Place(f"Demo Truck Parking {city}", LocationType.PARKING, country, lat, lon, tz, **kw)  # type: ignore[arg-type]
+
+
+def _border(name: str, country: str, lat: str, lon: str, tz: str) -> _Place:
+    # Public place name (rule 5); open around the clock unless a status period says otherwise.
+    return _Place(
+        f"Demo Border Crossing {name}",
+        LocationType.BORDER_CROSSING,
+        country,
+        lat,
+        lon,
+        tz,
+        hours=HOURS_24_7,
+    )
+
+
 _LUBECK = "Demo Port Lübeck"
 # Terminal network (D31): all have loading docks (D32); cold storage and reefer plugs only in
 # Central, Tampere and Oulu (D33). Terminals sit at the general city centre.
@@ -264,6 +300,14 @@ _PLACES_WITHOUT_LOCALITY: tuple[_Place, ...] = (
         "11.250000",
         "Europe/Oslo",
         _hours(_WEEKDAYS, "06:00", "22:00"),
+    ),
+    _customs(
+        "Demo Customs Office Svinesund SE",  # border crossing, Swedish side
+        "SE",
+        "59.080000",
+        "11.260000",
+        "Europe/Stockholm",
+        HOURS_24_7,
     ),
     _customs(
         "Demo Customs Office Oslo",
@@ -368,6 +412,31 @@ _PLACES_WITHOUT_LOCALITY: tuple[_Place, ...] = (
         "25.650000",
         HOURS_INDUSTRY,
     ),
+    # Secure truck parking (D92): invented points near the ports and on main routes.
+    _parking(
+        "Lübeck",
+        "DE",
+        "53.920000",
+        "10.800000",
+        "Europe/Berlin",
+        hours=HOURS_24_7,
+        booking_required=False,
+    ),
+    _parking("Rostock", "DE", "54.120000", "12.150000", "Europe/Berlin", hours=HOURS_24_7),
+    _parking("Gdańsk", "PL", "54.340000", "18.600000", "Europe/Warsaw", hours=HOURS_24_7),
+    _parking(
+        "Jönköping",
+        "SE",
+        "57.760000",
+        "14.180000",
+        "Europe/Stockholm",
+        hours=HOURS_24_7,
+        booking_required=True,
+    ),
+    # Border crossings (D92): general points at the public crossings.
+    _border("Tornio\u2013Haaparanta", "FI", "65.844000", "24.150000", "Europe/Helsinki"),
+    _border("Vaalimaa", "FI", "60.580000", "27.830000", "Europe/Helsinki"),
+    _border("Svinesund", "SE", "59.090000", "11.270000", "Europe/Stockholm"),
 )
 
 # Postal code and city (D68). Real codes of the general city-centre area only; where a code is not
@@ -398,7 +467,15 @@ _LOCALITY: dict[str, tuple[str | None, str]] = {
     "Demo Rail Terminal Verona": ("37121", "Verona"),
     "Demo Customs Office Central": ("01510", "Vantaa"),
     "Demo Customs Office Svinesund": (None, "Svinesund"),
+    "Demo Customs Office Svinesund SE": (None, "Strömstad"),
     "Demo Customs Office Oslo": (None, "Oslo"),
+    "Demo Truck Parking Lübeck": (None, "Lübeck"),
+    "Demo Truck Parking Rostock": (None, "Rostock"),
+    "Demo Truck Parking Gdańsk": (None, "Gdańsk"),
+    "Demo Truck Parking Jönköping": (None, "Jönköping"),
+    "Demo Border Crossing Tornio\u2013Haaparanta": ("95400", "Tornio"),
+    "Demo Border Crossing Vaalimaa": ("49930", "Virolahti"),
+    "Demo Border Crossing Svinesund": (None, "Strömstad"),
     "Demo Paper Mill Site": ("70100", "Kuopio"),
     "Demo Paper Oy \u2013 Jyväskylä Site": ("40100", "Jyväskylä"),
     "Demo Dairy Plant Site": ("33100", "Tampere"),
@@ -416,6 +493,136 @@ PLACES: tuple[_Place, ...] = tuple(
     replace(p, postal_code=_LOCALITY[p.name][0], city=_LOCALITY[p.name][1])
     for p in _PLACES_WITHOUT_LOCALITY
 )
+
+_S = ParkingService
+
+
+@dataclass(frozen=True)
+class _ParkingSpec:
+    spaces: int | None
+    night_price_cents: int | None
+    price_currency: str | None
+    reefer_plugs: int | None
+    booking_possible: bool
+    adr_allowed: bool | None
+    services: tuple[ParkingService, ...]
+
+
+# Invented parking details (prices are demo values, D28 cents in the local currency).
+PARKING: dict[str, _ParkingSpec] = {
+    "Demo Truck Parking Lübeck": _ParkingSpec(
+        120, 2500, "EUR", 20, True, False, (_S.SHOWER, _S.TOILET, _S.RESTAURANT, _S.SECURITY_STAFF)
+    ),
+    "Demo Truck Parking Rostock": _ParkingSpec(40, None, None, None, False, None, (_S.TOILET,)),
+    "Demo Truck Parking Gdańsk": _ParkingSpec(
+        80, 6000, "PLN", 8, True, True, (_S.SHOWER, _S.TOILET, _S.FUEL, _S.SECURITY_STAFF)
+    ),
+    "Demo Truck Parking Jönköping": _ParkingSpec(
+        60,
+        25000,
+        "SEK",
+        12,
+        True,
+        False,
+        (_S.SHOWER, _S.TOILET, _S.RESTAURANT, _S.ACCOMMODATION, _S.SECURITY_STAFF),
+    ),
+}
+_CS = ParkingCertificationScheme
+_CL = ParkingCertificationLevel
+# Invented certificates: parking, scheme, level, start and end in days from the seed day,
+# document reference. Lübeck holds both schemes; Gdańsk shows an expired period and its renewal.
+PARKING_CERTIFICATIONS: tuple[
+    tuple[str, ParkingCertificationScheme, ParkingCertificationLevel, int, int, str], ...
+] = (
+    ("Demo Truck Parking Lübeck", _CS.EU_SSPA, _CL.GOLD, -200, 900, "DEMO-SSPA-001"),
+    ("Demo Truck Parking Lübeck", _CS.TAPA_PSR, _CL.LEVEL_2, -400, 700, "DEMO-PSR-001"),
+    ("Demo Truck Parking Gdańsk", _CS.TAPA_PSR, _CL.LEVEL_3, -1200, -105, "DEMO-PSR-002"),
+    ("Demo Truck Parking Gdańsk", _CS.TAPA_PSR, _CL.LEVEL_3, -100, 995, "DEMO-PSR-003"),
+    ("Demo Truck Parking Jönköping", _CS.EU_SSPA, _CL.BRONZE, -30, 1065, "DEMO-SSPA-002"),
+)
+
+
+@dataclass(frozen=True)
+class _BorderSpec:
+    other_country: str
+    customs_office: str | None
+    other_customs_office: str | None
+    note: str | None
+
+
+BORDER_CROSSINGS: dict[str, _BorderSpec] = {
+    "Demo Border Crossing Tornio\u2013Haaparanta": _BorderSpec(
+        "SE", None, None, "Internal EU border; no customs formalities."
+    ),
+    "Demo Border Crossing Vaalimaa": _BorderSpec("RU", None, None, None),
+    "Demo Border Crossing Svinesund": _BorderSpec(
+        "NO",
+        "Demo Customs Office Svinesund SE",
+        "Demo Customs Office Svinesund",
+        "Exports from Norway by road are declared on the Swedish side.",
+    ),
+}
+
+_HEL = ZoneInfo("Europe/Helsinki")
+_STO = ZoneInfo("Europe/Stockholm")
+_TULLI_CLOSED = "https://tulli.fi/en/-/border-crossing-points-on-the-eastern-border-remain-closed"
+_TULLI_OPEN = (
+    "https://tulli.fi/en/-/the-temporary-traffic-restrictions-at-the-eastern-border-to-continue"
+    "-vaalimaa-and-niirala-will-open-on-14-december-2023"
+)
+_TULLI_REOPEN_CLOSED = (
+    "https://tulli.fi/en/-/all-border-crossing-points-for-road-traffic-at-the-eastern-border"
+    "-closed-again-as-of-20.00-on-15-december"
+)
+_VN_STILL_CLOSED = (
+    "https://valtioneuvosto.fi/en/-/1410869/finland-s-eastern-border-to-remain-closed-until"
+    "-further-notice-2"
+)
+_TOLL_SVINESUND = (
+    "https://toll.no/en/about-norwegian-customs/contact-us/all-customs-offices/"
+    "svinesund-customs-office-e6"
+)
+_CHECKED = date(2026, 11, 22)
+_NO_TIME = "The source gives the day only; the period starts at 00:00 local time."
+# Official status history: crossing, status, starts_at, ends_at, note, source.
+BORDER_STATUS: tuple[
+    tuple[str, BorderCrossingStatus, datetime, datetime | None, str | None, str], ...
+] = (
+    (
+        "Demo Border Crossing Vaalimaa",
+        BorderCrossingStatus.CLOSED,
+        datetime(2023, 11, 18, tzinfo=_HEL),
+        datetime(2023, 12, 14, tzinfo=_HEL),
+        f"Government decision 16.11.2023. {_NO_TIME}",
+        _TULLI_CLOSED,
+    ),
+    (
+        "Demo Border Crossing Vaalimaa",
+        BorderCrossingStatus.OPEN,
+        datetime(2023, 12, 14, tzinfo=_HEL),
+        datetime(2023, 12, 15, 20, 0, tzinfo=_HEL),
+        f"Government decision 12.12.2023. {_NO_TIME}",
+        _TULLI_OPEN,
+    ),
+    (
+        "Demo Border Crossing Vaalimaa",
+        BorderCrossingStatus.CLOSED,
+        datetime(2023, 12, 15, 20, 0, tzinfo=_HEL),
+        None,
+        "Closed again from 20.00; kept closed until further notice (Government 4.6.2026).",
+        _TULLI_REOPEN_CLOSED,
+    ),
+    (
+        "Demo Border Crossing Svinesund",
+        BorderCrossingStatus.OPEN,
+        datetime(2026, 11, 22, tzinfo=_STO),
+        None,
+        "Open on the check day (Norwegian customs office open 24/7 for road traffic);"
+        " earlier history not recorded.",
+        _TOLL_SVINESUND,
+    ),
+)
+
 
 # name, type, country, business_id (invented), pallet_exchange_agreed
 CUSTOMERS: tuple[tuple[str, CustomerType, str, str | None, bool], ...] = (
@@ -1197,6 +1404,110 @@ def _document_ref(qtype: Q, driver_name: str, nth: int) -> str:
     return f"DEMO-{qtype.value.upper()}-{driver_name.rsplit(' ', 1)[-1].upper()}-{nth}"
 
 
+def _seed_places(
+    session: Session, locations: dict[str, Location], today: date, created: Counter[str]
+) -> None:
+    """Parking details, certificates, border crossings and status periods (2B-3b, D92)."""
+    for name, spec in PARKING.items():
+        location = locations[name]
+        if session.get(ParkingDetails, location.id) is None:
+            services = validate_parking_details(
+                spaces=spec.spaces,
+                night_price_cents=spec.night_price_cents,
+                price_currency=spec.price_currency,
+                reefer_plug_count=spec.reefer_plugs,
+                booking_possible=spec.booking_possible,
+                booking_required=location.booking_required,
+                services=[s.value for s in spec.services],
+            )
+            session.add(
+                ParkingDetails(
+                    location_id=location.id,
+                    spaces=spec.spaces,
+                    night_price_cents=spec.night_price_cents,
+                    price_currency=spec.price_currency,
+                    reefer_plug_count=spec.reefer_plugs,
+                    booking_possible=spec.booking_possible,
+                    adr_vehicles_allowed=spec.adr_allowed,
+                    services=services,
+                )
+            )
+            created["parking_details"] += 1
+    session.flush()
+    for name, scheme, level, start, end, ref in PARKING_CERTIFICATIONS:
+        location = locations[name]
+        exists = session.scalar(
+            select(ParkingCertification.id).where(
+                ParkingCertification.location_id == location.id,
+                ParkingCertification.document_ref == ref,
+            )
+        )
+        if exists is None:
+            valid_from, valid_until = today + timedelta(days=start), today + timedelta(days=end)
+            validate_parking_certification(scheme, level, valid_from, valid_until)
+            session.add(
+                ParkingCertification(
+                    location_id=location.id,
+                    scheme=scheme.value,
+                    level=level.value,
+                    valid_from=valid_from,
+                    valid_until=valid_until,
+                    document_ref=ref,
+                )
+            )
+            created["parking_certifications"] += 1
+
+    for name, border in BORDER_CROSSINGS.items():
+        location = locations[name]
+        if session.get(BorderCrossingDetails, location.id) is None:
+            office = locations[border.customs_office] if border.customs_office else None
+            other = locations[border.other_customs_office] if border.other_customs_office else None
+            validate_border_crossing(
+                location.country,
+                border.other_country,
+                typical_wait_minutes=None,
+                customs_office_country=office.country if office else None,
+                other_customs_office_country=other.country if other else None,
+            )
+            session.add(
+                BorderCrossingDetails(
+                    location_id=location.id,
+                    other_country=border.other_country,
+                    customs_office_id=office.id if office else None,
+                    customs_office_type=office.type if office else None,
+                    other_customs_office_id=other.id if other else None,
+                    other_customs_office_type=other.type if other else None,
+                    note=border.note,
+                )
+            )
+            created["border_crossing_details"] += 1
+    session.flush()
+    for name in BORDER_CROSSINGS:
+        validate_status_periods([(st, a, b) for n, st, a, b, _, _ in BORDER_STATUS if n == name])
+    for name, status, starts_at, ends_at, note, source in BORDER_STATUS:
+        location = locations[name]
+        exists = session.scalar(
+            select(BorderCrossingStatusPeriod.id).where(
+                BorderCrossingStatusPeriod.location_id == location.id,
+                BorderCrossingStatusPeriod.starts_at == starts_at,
+            )
+        )
+        if exists is None:
+            session.add(
+                BorderCrossingStatusPeriod(
+                    location_id=location.id,
+                    status=status.value,
+                    starts_at=starts_at,
+                    ends_at=ends_at,
+                    note=note,
+                    source_url=source,
+                    checked_on=_CHECKED,
+                )
+            )
+            created["border_crossing_status_periods"] += 1
+    session.flush()
+
+
 def seed_demo_data(
     session: Session, today: date | None = None, gdp_validity_months: int | None = None
 ) -> Counter[str]:
@@ -1352,6 +1663,7 @@ def seed_demo_data(
                 created["driver_qualifications"] += 1
     session.flush()
 
+    _seed_places(session, locations, today, created)
     _seed_fleet(session, carriers, locations, today, created)
     session.commit()
     return created
@@ -1367,6 +1679,10 @@ def main() -> int:
         "customers",
         "locations",
         "carriers",
+        "parking_details",
+        "parking_certifications",
+        "border_crossing_details",
+        "border_crossing_status_periods",
         "drivers",
         "driver_qualifications",
         "trucks",
