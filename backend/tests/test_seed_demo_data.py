@@ -56,6 +56,10 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "reefer_evaporators",
         "compartments",
         "equipment_qualifications",
+        "parking_details",
+        "parking_certifications",
+        "border_crossing_details",
+        "border_crossing_status_periods",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
@@ -377,6 +381,7 @@ def test_norway_customs_and_adr_consignor(test_engine: Engine) -> None:
         ("Demo Customs Office Central", "FI"),
         ("Demo Customs Office Oslo", "NO"),
         ("Demo Customs Office Svinesund", "NO"),
+        ("Demo Customs Office Svinesund SE", "SE"),
     ]
     assert (
         _count(
@@ -1189,3 +1194,104 @@ def test_seed_fleet_data_is_valid_by_the_domain_rules() -> None:
     trucks = {t.registration for t in seed.TRUCKS}
     assert all(u.truck in trucks for u in seed.LOAD_UNITS if u.type is LoadUnitType.FIXED_BODY)
     assert all(u.registration.startswith("DEMO-") for u in seed.LOAD_UNITS)
+
+
+def test_parking_areas_and_certificates(test_engine: Engine) -> None:
+    _run(test_engine)
+    assert _count(test_engine, "SELECT count(*) FROM locations WHERE type = 'parking'") == 4
+    # every parking location has its details; prices abroad in the local currency
+    assert _rows(
+        test_engine,
+        "SELECT l.name, d.price_currency FROM locations l"
+        " JOIN parking_details d ON d.location_id = l.id ORDER BY l.name",
+    ) == [
+        ("Demo Truck Parking Gdańsk", "PLN"),
+        ("Demo Truck Parking Jönköping", "SEK"),
+        ("Demo Truck Parking Lübeck", "EUR"),
+        ("Demo Truck Parking Rostock", None),
+    ]
+    # a required booking is always possible
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM locations l JOIN parking_details d ON d.location_id = l.id"
+            " WHERE l.booking_required AND NOT d.booking_possible",
+        )
+        == 0
+    )
+    # Lübeck holds both schemes on the seed day; Gdańsk shows an expired period and its renewal
+    valid_now = _rows(
+        test_engine,
+        "SELECT l.name, c.scheme FROM parking_certifications c"
+        " JOIN locations l ON l.id = c.location_id"
+        f" WHERE c.valid_from <= DATE '{TODAY}' AND (c.valid_until IS NULL"
+        f" OR c.valid_until >= DATE '{TODAY}') ORDER BY 1, 2",
+    )
+    assert valid_now == [
+        ("Demo Truck Parking Gdańsk", "tapa_psr"),
+        ("Demo Truck Parking Jönköping", "eu_sspa"),
+        ("Demo Truck Parking Lübeck", "eu_sspa"),
+        ("Demo Truck Parking Lübeck", "tapa_psr"),
+    ]
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM parking_certifications c JOIN locations l"
+            " ON l.id = c.location_id WHERE l.name = 'Demo Truck Parking Gdańsk'"
+            f" AND c.valid_until < DATE '{TODAY}'",
+        )
+        == 1
+    )
+
+
+def test_border_crossings_and_status_history(test_engine: Engine) -> None:
+    _run(test_engine)
+    assert _rows(
+        test_engine,
+        "SELECT l.name, l.country, d.other_country, d.typical_wait_minutes FROM locations l"
+        " JOIN border_crossing_details d ON d.location_id = l.id ORDER BY l.name",
+    ) == [
+        ("Demo Border Crossing Svinesund", "SE", "NO", None),
+        ("Demo Border Crossing Tornio\u2013Haaparanta", "FI", "SE", None),
+        ("Demo Border Crossing Vaalimaa", "FI", "RU", None),
+    ]
+    # Svinesund: the customs office of each side lies in that side's country (D48)
+    assert _rows(
+        test_engine,
+        "SELECT o.country, x.country FROM border_crossing_details d"
+        " JOIN locations o ON o.id = d.customs_office_id"
+        " JOIN locations x ON x.id = d.other_customs_office_id",
+    ) == [("SE", "NO")]
+
+    def status(moment: str) -> object:
+        rows = _rows(
+            test_engine,
+            "SELECT p.status FROM border_crossing_status_periods p"
+            " JOIN locations l ON l.id = p.location_id"
+            " WHERE l.name = 'Demo Border Crossing Vaalimaa'"
+            f" AND tstzrange(p.starts_at, p.ends_at, '[)') @> TIMESTAMPTZ '{moment}'",
+        )
+        return rows[0][0] if rows else None
+
+    assert status("2023-11-17 12:00+02") is None  # before the recorded history
+    assert status("2023-11-18 00:00+02") == "closed"
+    assert status("2023-12-15 19:59+02") == "open"  # reopened for one day
+    assert status("2023-12-15 20:00+02") == "closed"  # closed again from 20.00
+    assert status("2026-11-22 12:00+02") == "closed"  # until further notice
+    # official sources only
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM border_crossing_status_periods"
+            " WHERE source_url !~ '^https://(tulli\\.fi|toll\\.no)/'",
+        )
+        == 0
+    )
+
+
+def test_seed_parking_and_border_data_is_valid_by_the_domain_rules() -> None:
+    names = {p.name for p in seed.PLACES}
+    assert set(seed.PARKING) <= names
+    assert set(seed.BORDER_CROSSINGS) <= names
+    assert {c[0] for c in seed.PARKING_CERTIFICATIONS} <= set(seed.PARKING)
+    assert {s[0] for s in seed.BORDER_STATUS} <= set(seed.BORDER_CROSSINGS)

@@ -19,9 +19,12 @@ from domain.parties import (
 )
 from domain.qualifications import DriverQualificationType
 
-MIGRATION = (
-    Path(__file__).parents[1] / "migrations/versions/c52d8e3f1a47_create_parties_and_locations.py"
-)
+_VERSIONS = Path(__file__).parents[1] / "migrations/versions"
+MIGRATION = _VERSIONS / "c52d8e3f1a47_create_parties_and_locations.py"
+# CHECK lists redefined by a later revision: the latest one must match the domain.
+LATEST_MIGRATION = {
+    "ck_locations_type": _VERSIONS / "988966e62624_parking_and_border_crossing_details.py",
+}
 
 # (model, constraint name, column, domain enum)
 ENUM_CHECKS = [
@@ -49,6 +52,7 @@ def test_allowed_values() -> None:
         "rail_terminal",
         "fuel",
         "customs_office",
+        "border_crossing",
     }
     assert {v.value for v in DriverQualificationType} == {
         "adr_basic",
@@ -76,7 +80,8 @@ def test_model_and_migration_check_lists_match_domain(
     expected = in_list(column, enum)
     assert checks[name] == expected
     # The migration splits long strings over several lines; join them before comparing.
-    migration = re.sub(r'"\s*"', "", MIGRATION.read_text(encoding="utf-8"))
+    path = LATEST_MIGRATION.get(name, MIGRATION)
+    migration = re.sub(r'"\s*"', "", path.read_text(encoding="utf-8"))
     assert f'"{expected}"' in migration
     # Independent of in_list: every domain value appears in the CHECK as a quoted literal.
     for value in enum:

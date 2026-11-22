@@ -508,3 +508,75 @@ def test_speed_class_migration_clears_unclassified_speeds(test_engine: Engine) -
     columns = {c["name"] for c in inspect(test_engine).get_columns("country_rules")}
     assert "speed_weight_basis" not in columns
     command.upgrade(cfg, "head")
+
+
+PLACE_TABLES = {
+    "parking_details",
+    "parking_certifications",
+    "border_crossing_details",
+    "border_crossing_status_periods",
+}
+
+
+def test_places_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "988966e62624")
+    assert set(inspect(test_engine).get_table_names()) >= PLACE_TABLES
+    command.downgrade(cfg, "47da3484520e")
+    assert not PLACE_TABLES & set(inspect(test_engine).get_table_names())
+    # the old type list is back
+    with pytest.raises(IntegrityError), test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO locations (type, name, country, timezone)"
+                " VALUES ('border_crossing', 'Demo X', 'FI', 'Europe/Helsinki')"
+            )
+        )
+    command.upgrade(cfg, "head")
+
+
+def test_places_downgrade_drops_parking_rows_but_keeps_the_location(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "head")
+    with test_engine.begin() as conn:
+        location_id = conn.execute(
+            text(
+                "INSERT INTO locations (type, name, country, timezone)"
+                " VALUES ('parking', 'Demo Parking M', 'FI', 'Europe/Helsinki') RETURNING id"
+            )
+        ).scalar()
+        conn.execute(
+            text("INSERT INTO parking_details (location_id) VALUES (:id)"), {"id": location_id}
+        )
+    try:
+        command.downgrade(cfg, "47da3484520e")  # documented: detail rows go with their tables
+        with test_engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text("SELECT count(*) FROM locations WHERE id = :id"), {"id": location_id}
+                ).scalar()
+                == 1
+            )
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("DELETE FROM locations WHERE name = 'Demo Parking M'"))
+        command.upgrade(cfg, "head")
+
+
+def test_places_downgrade_stops_while_border_crossings_exist(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "head")
+    with test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO locations (type, name, country, timezone)"
+                " VALUES ('border_crossing', 'Demo Crossing M', 'FI', 'Europe/Helsinki')"
+            )
+        )
+    try:
+        with pytest.raises(IntegrityError):
+            command.downgrade(cfg, "47da3484520e")
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("DELETE FROM locations WHERE name = 'Demo Crossing M'"))
+        command.upgrade(cfg, "head")

@@ -1,4 +1,4 @@
-"""Locations (D13, D31-D33, D48). Pure domain module.
+"""Locations (D13, D31-D33, D48, D92). Pure domain module.
 
 The allowed values are stored in the database (see the CHECK constraints in db/models.py and the
 migration); tests/test_domain_locations.py keeps both in step.
@@ -6,6 +6,7 @@ migration); tests/test_domain_locations.py keeps both in step.
 
 import re
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any
@@ -25,6 +26,8 @@ class LocationType(StrEnum):
     RAIL_TERMINAL = "rail_terminal"
     FUEL = "fuel"
     CUSTOMS_OFFICE = "customs_office"
+    # Road border crossing between two countries (D92); its details are in border_crossing_details.
+    BORDER_CROSSING = "border_crossing"
 
 
 WEEKDAYS: tuple[str, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -148,3 +151,169 @@ def validate_terminal_fields(
         and temperature_min > temperature_max
     ):
         raise ValueError("temperature_min must not exceed temperature_max")
+
+
+# --- Secure truck parking (D92) ---------------------------------------------------------------
+
+
+class ParkingCertificationScheme(StrEnum):
+    """Certification schemes of truck parking areas (general industry standards)."""
+
+    # EU standard for safe and secure parking areas, Delegated Regulation (EU) 2022/1012.
+    EU_SSPA = "eu_sspa"
+    # TAPA EMEA Parking Security Requirements.
+    TAPA_PSR = "tapa_psr"
+
+
+class ParkingCertificationLevel(StrEnum):
+    # (EU) 2022/1012, Annex I B: four security levels.
+    BRONZE = "bronze"
+    SILVER = "silver"
+    GOLD = "gold"
+    PLATINUM = "platinum"
+    # TAPA PSR: level 1 is the highest, level 3 the baseline.
+    LEVEL_1 = "level_1"
+    LEVEL_2 = "level_2"
+    LEVEL_3 = "level_3"
+
+
+_L = ParkingCertificationLevel
+LEVELS_BY_SCHEME: dict[ParkingCertificationScheme, frozenset[ParkingCertificationLevel]] = {
+    ParkingCertificationScheme.EU_SSPA: frozenset({_L.BRONZE, _L.SILVER, _L.GOLD, _L.PLATINUM}),
+    ParkingCertificationScheme.TAPA_PSR: frozenset({_L.LEVEL_1, _L.LEVEL_2, _L.LEVEL_3}),
+}
+
+
+class ParkingService(StrEnum):
+    SHOWER = "shower"
+    TOILET = "toilet"
+    RESTAURANT = "restaurant"
+    FUEL = "fuel"
+    # Rooms for the driver: the regular weekly rest may not be taken in the cab (EU 561/2006).
+    ACCOMMODATION = "accommodation"
+    # Security staff on site (the certification tells the full security level).
+    SECURITY_STAFF = "security_staff"
+
+
+def validate_parking_certification(
+    scheme: ParkingCertificationScheme,
+    level: ParkingCertificationLevel,
+    valid_from: date,
+    valid_until: date | None,
+) -> None:
+    """A certificate has a level of its own scheme and a validity period (D67)."""
+    allowed = LEVELS_BY_SCHEME[scheme]
+    if level not in allowed:
+        names = ", ".join(sorted(v.value for v in allowed))
+        raise ValueError(f"certification level of {scheme.value} must be one of: {names}")
+    if valid_until is not None and valid_until < valid_from:
+        raise ValueError("valid_until must not be before valid_from")
+
+
+def validate_parking_details(
+    *,
+    spaces: int | None,
+    night_price_cents: int | None,
+    price_currency: str | None,
+    reefer_plug_count: int | None,
+    booking_possible: bool,
+    booking_required: bool,
+    services: Sequence[str],
+) -> list[str]:
+    """Checks a parking area and returns its services de-duplicated and sorted.
+
+    booking_required is the location's own field; a required booking must also be possible.
+    """
+    if spaces is not None and spaces < 1:
+        raise ValueError("spaces must be at least 1")
+    if night_price_cents is not None and night_price_cents < 0:
+        raise ValueError("night price must not be negative")
+    if (night_price_cents is None) != (price_currency is None):
+        raise ValueError("a night price needs its currency, and a currency needs a price")
+    if price_currency is not None and not _CURRENCY_RE.fullmatch(price_currency):
+        raise ValueError("currency must be an ISO 4217 code")
+    if reefer_plug_count is not None and reefer_plug_count < 0:
+        raise ValueError("reefer_plug_count must not be negative")
+    if booking_required and not booking_possible:
+        raise ValueError("a parking area that requires booking must allow booking")
+    known = {s.value for s in ParkingService}
+    unknown = sorted(set(services) - known)
+    if unknown:
+        raise ValueError(f"unknown parking services: {', '.join(unknown)}")
+    return sorted(set(services))
+
+
+# --- Border crossings (D92) -------------------------------------------------------------------
+
+
+class BorderCrossingStatus(StrEnum):
+    OPEN = "open"
+    CLOSED = "closed"
+    # Open with limits, e.g. goods traffic only or limited hours; the limit is in the note.
+    RESTRICTED = "restricted"
+
+
+_COUNTRY_RE = re.compile(r"[A-Z]{2}")
+_CURRENCY_RE = re.compile(r"[A-Z]{3}")
+
+
+def validate_border_crossing(
+    country: str,
+    other_country: str,
+    *,
+    typical_wait_minutes: int | None,
+    customs_office_country: str | None = None,
+    other_customs_office_country: str | None = None,
+) -> None:
+    """The crossing lies in `country` (the location's country) and leads to `other_country`.
+
+    The customs office of each side lies in that side's country (D48).
+    """
+    if not _COUNTRY_RE.fullmatch(other_country):
+        raise ValueError("other_country must be an ISO 3166-1 alpha-2 code")
+    if other_country == country:
+        raise ValueError("a border crossing leads to another country")
+    if typical_wait_minutes is not None and typical_wait_minutes < 0:
+        raise ValueError("typical wait must not be negative")
+    if customs_office_country is not None and customs_office_country != country:
+        raise ValueError("the customs office of this side must lie in the crossing's country")
+    if other_customs_office_country is not None and other_customs_office_country != other_country:
+        raise ValueError("the other side's customs office must lie in the other country")
+
+
+def validate_customs_office_pair(
+    customs_office_id: object | None, other_customs_office_id: object | None
+) -> None:
+    """The two sides need two different offices (mirrors ck_border_crossing_details_...)."""
+    if customs_office_id is not None and customs_office_id == other_customs_office_id:
+        raise ValueError("the customs offices of the two sides must differ")
+
+
+def validate_status_periods(
+    periods: Sequence[tuple[BorderCrossingStatus, datetime, datetime | None]],
+) -> None:
+    """Periods [starts_at, ends_at) must have a time zone, run forward and not overlap.
+
+    Mirrors the exclusion constraint; ends_at None = until further notice.
+    """
+    for _, starts_at, ends_at in periods:
+        if starts_at.tzinfo is None or (ends_at is not None and ends_at.tzinfo is None):
+            raise ValueError("status period times need a time zone")
+    ordered = sorted(periods, key=lambda p: p[1])
+    previous_end: datetime | None = None
+    for index, (_, starts_at, ends_at) in enumerate(ordered):
+        if ends_at is not None and ends_at <= starts_at:
+            raise ValueError("a status period must end after it starts")
+        if index and (previous_end is None or starts_at < previous_end):
+            raise ValueError("status periods must not overlap")
+        previous_end = ends_at
+
+
+def status_at(
+    periods: Sequence[tuple[BorderCrossingStatus, datetime, datetime | None]], moment: datetime
+) -> BorderCrossingStatus | None:
+    """The status at a moment; None = not recorded (Plan Check shows it as unknown, not OK)."""
+    for status, starts_at, ends_at in periods:
+        if starts_at <= moment and (ends_at is None or moment < ends_at):
+            return status
+    return None

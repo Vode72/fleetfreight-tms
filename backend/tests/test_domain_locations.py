@@ -1,19 +1,32 @@
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from domain.locations import (
+    LEVELS_BY_SCHEME,
+    BorderCrossingStatus,
     LocationType,
+    ParkingCertificationLevel,
+    status_at,
+    validate_border_crossing,
+    validate_customs_office_pair,
     validate_latitude,
     validate_longitude,
     validate_opening_hours,
+    validate_parking_certification,
+    validate_parking_details,
     validate_postal_code,
+    validate_status_periods,
     validate_terminal_fields,
     validate_timezone,
 )
+from domain.locations import ParkingCertificationScheme as S
 
 D = Decimal
+L = ParkingCertificationLevel
 
 
 @pytest.mark.parametrize(
@@ -161,3 +174,112 @@ def test_free_text_postal_code_is_still_bounded() -> None:
         validate_postal_code("DE", " ")
     with pytest.raises(ValueError):
         validate_postal_code("DE", "1" * 21)
+
+
+# --- D92: parking and border crossings
+
+
+def test_certification_levels_by_scheme() -> None:
+    validate_parking_certification(S.EU_SSPA, L.PLATINUM, date(2026, 1, 1), None)
+    validate_parking_certification(S.TAPA_PSR, L.LEVEL_1, date(2026, 1, 1), date(2026, 1, 1))
+    with pytest.raises(ValueError, match="level"):
+        validate_parking_certification(S.EU_SSPA, L.LEVEL_1, date(2026, 1, 1), None)
+    with pytest.raises(ValueError, match="level"):
+        validate_parking_certification(S.TAPA_PSR, L.GOLD, date(2026, 1, 1), None)
+    with pytest.raises(ValueError, match="before"):
+        validate_parking_certification(S.EU_SSPA, L.GOLD, date(2026, 2, 1), date(2026, 1, 31))
+    # every level belongs to exactly one scheme
+    levels = [lv for group in LEVELS_BY_SCHEME.values() for lv in group]
+    assert sorted(levels) == sorted(ParkingCertificationLevel)
+
+
+def _parking_kw(**kw: Any) -> dict[str, Any]:
+    values: dict[str, Any] = {
+        "spaces": 10,
+        "night_price_cents": 2500,
+        "price_currency": "EUR",
+        "reefer_plug_count": 4,
+        "booking_possible": True,
+        "booking_required": False,
+        "services": ["toilet", "shower", "toilet"],
+    }
+    return {**values, **kw}
+
+
+def test_parking_details() -> None:
+    assert validate_parking_details(**_parking_kw()) == ["shower", "toilet"]
+    assert validate_parking_details(**_parking_kw(night_price_cents=None, price_currency=None))
+    for bad in (
+        {"spaces": 0},
+        {"night_price_cents": -1},
+        {"price_currency": None},
+        {"night_price_cents": None},
+        {"price_currency": "euro"},
+        {"reefer_plug_count": -1},
+        {"booking_possible": False, "booking_required": True},
+        {"services": ["sauna"]},
+    ):
+        with pytest.raises(ValueError):
+            validate_parking_details(**_parking_kw(**bad))
+
+
+def test_border_crossing() -> None:
+    validate_border_crossing("SE", "NO", typical_wait_minutes=0)
+    validate_border_crossing(
+        "SE",
+        "NO",
+        typical_wait_minutes=None,
+        customs_office_country="SE",
+        other_customs_office_country="NO",
+    )
+    cases: list[tuple[str, str, dict[str, Any]]] = [
+        ("FI", "FI", {}),
+        ("FI", "se", {}),
+        ("FI", "SE", {"typical_wait_minutes": -1}),
+        ("SE", "NO", {"customs_office_country": "NO"}),
+        ("SE", "NO", {"other_customs_office_country": "SE"}),
+    ]
+    for country, other, kw in cases:
+        with pytest.raises(ValueError):
+            validate_border_crossing(country, other, **{"typical_wait_minutes": None, **kw})
+
+
+HEL = ZoneInfo("Europe/Helsinki")
+OPEN, CLOSED = BorderCrossingStatus.OPEN, BorderCrossingStatus.CLOSED
+
+
+def test_status_periods_meet_but_do_not_overlap() -> None:
+    evening = datetime(2023, 12, 15, 20, 0, tzinfo=HEL)
+    periods = [
+        (CLOSED, evening, None),
+        (OPEN, datetime(2023, 12, 14, tzinfo=HEL), evening),
+    ]
+    validate_status_periods(periods)
+    assert status_at(periods, datetime(2023, 12, 15, 19, 59, tzinfo=HEL)) is OPEN
+    assert status_at(periods, evening) is CLOSED
+    assert status_at(periods, datetime(2030, 1, 1, tzinfo=HEL)) is CLOSED
+    # before the first row: not recorded (shown as unknown, not as OK)
+    assert status_at(periods, datetime(2023, 1, 1, tzinfo=HEL)) is None
+
+
+def test_status_periods_rejected() -> None:
+    a = datetime(2024, 1, 1, tzinfo=HEL)
+    b = datetime(2024, 2, 1, tzinfo=HEL)
+    for periods in (
+        [(OPEN, a, None), (CLOSED, b, None)],  # open-ended row overlaps the next
+        [(OPEN, a, b), (CLOSED, datetime(2024, 1, 15, tzinfo=HEL), None)],
+        [(OPEN, b, a)],
+        [(OPEN, a, a)],
+        [(OPEN, datetime(2024, 1, 1), None)],  # no time zone
+        [(OPEN, a, None), (CLOSED, datetime(2024, 3, 1), None)],  # mixed: no TypeError
+    ):
+        with pytest.raises(ValueError):
+            validate_status_periods(periods)
+
+
+def test_customs_offices_of_the_two_sides_differ() -> None:
+    validate_customs_office_pair(None, None)
+    validate_customs_office_pair(1, None)
+    validate_customs_office_pair(1, 2)
+    with pytest.raises(ValueError):
+        validate_customs_office_pair(1, 1)
