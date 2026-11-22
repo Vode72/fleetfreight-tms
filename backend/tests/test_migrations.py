@@ -611,7 +611,7 @@ LINE_TABLES = {
 
 def test_lines_migration_creates_and_removes_tables(test_engine: Engine) -> None:
     cfg = _config(test_engine)
-    command.upgrade(cfg, "f1f1b6c62fc0")
+    command.upgrade(cfg, "8df1bdeac8a3")
     assert set(inspect(test_engine).get_table_names()) >= LINE_TABLES
     command.downgrade(cfg, "4523ff2f5448")
     assert not LINE_TABLES & set(inspect(test_engine).get_table_names())

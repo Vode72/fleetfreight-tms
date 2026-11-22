@@ -17,6 +17,7 @@ from domain.combinations import (
     validate_combination_structure,
 )
 from domain.equipment import CouplingType, EquipmentQualificationType, TruckType
+from domain.lines import vessel_overlaps
 from domain.locations import validate_opening_hours, validate_postal_code, validate_timezone
 from domain.qualifications import (
     DriverQualificationType,
@@ -1432,15 +1433,27 @@ def test_lines_routes_and_departures(test_engine: Engine) -> None:
         )
         == 0
     )
-    # vessels only on ferry departures; demo notes on every schedule
+    # no vessel on rail; a vessel never sails two departures at once
     assert (
         _count(
             test_engine,
-            "SELECT count(*) FROM line_departures WHERE (route_mode = 'ferry')"
-            " <> (vessel_id IS NOT NULL)",
+            "SELECT count(*) FROM line_departures WHERE route_mode = 'rail'"
+            " AND vessel_id IS NOT NULL",
         )
         == 0
     )
+    voyages = _rows(
+        test_engine,
+        "SELECT d.vessel_id, d.id, min(c.departs_at), max(c.arrives_at) FROM line_departures d"
+        " JOIN line_departure_calls c ON c.departure_id = d.id WHERE d.vessel_id IS NOT NULL"
+        " GROUP BY d.vessel_id, d.id",
+    )
+    by_vessel: dict[object, list[tuple[str, Any, Any]]] = defaultdict(list)
+    for vessel_id, dep_id, start, end in voyages:
+        by_vessel[vessel_id].append((str(dep_id), start, end))
+    assert len(by_vessel) >= 6
+    for vessel_voyages in by_vessel.values():
+        assert vessel_overlaps(vessel_voyages) == []
     assert (
         _count(
             test_engine,

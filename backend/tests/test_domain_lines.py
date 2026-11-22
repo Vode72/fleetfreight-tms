@@ -10,11 +10,15 @@ from domain.lines import (
     Stop,
     dates_to_generate,
     departure_times,
+    departures_to_add,
+    plan_departure,
     service_dates,
     validate_calls,
     validate_route,
+    validate_schedule_periods,
     validate_stops,
     validate_vessel,
+    vessel_overlaps,
 )
 
 T = time.fromisoformat
@@ -150,6 +154,14 @@ def test_only_missing_departures_are_generated() -> None:
 
 
 def test_vessel() -> None:
+    validate_vessel(  # short crossing: drivers travel without cabins
+        lane_metres=1900,
+        deck_height_mm=None,
+        reefer_plug_count=None,
+        accompanied=True,
+        unaccompanied=True,
+        driver_cabins=False,
+    )
     validate_vessel(
         lane_metres=3000,
         deck_height_mm=None,
@@ -163,7 +175,7 @@ def test_vessel() -> None:
         {"deck_height_mm": -1},
         {"reefer_plug_count": -1},
         {"accompanied": False, "unaccompanied": False},
-        {"accompanied": True, "driver_cabins": False},
+        {"accompanied": False, "driver_cabins": True},
     ):
         values: dict[str, object] = {
             "lane_metres": 3000,
@@ -180,3 +192,87 @@ def test_vessel() -> None:
 
 def test_adr_classes_are_the_thirteen_classes() -> None:
     assert len(ADR_CLASSES) == 13 and len(set(ADR_CLASSES)) == 13
+
+
+def test_autumn_repeated_hour_takes_the_first_occurrence_and_compares_in_utc() -> None:
+    # 25.10.2026 in Helsinki: 03:00-04:00 occurs twice
+    calls = [Call(1, None, None, 0, T("03:30")), Call(2, 0, T("03:10"), None, None)]
+    with pytest.raises(ValueError, match="forward"):
+        # 03:10 (first occurrence) is before 03:30 (first occurrence)
+        departure_times(date(2026, 10, 25), calls, [HEL, HEL])
+    times = departure_times(
+        date(2026, 10, 25),
+        [Call(1, None, None, 0, T("03:30")), Call(2, 0, T("02:40"), None, None)],
+        [HEL, BER],  # 02:40 in Berlin (first occurrence, CEST) = 03:40 EEST in Helsinki
+    )
+    first, second = times[0].departs_at, times[1].arrives_at
+    assert first is not None and second is not None
+    assert second.astimezone(ZoneInfo("UTC")) > first.astimezone(ZoneInfo("UTC"))
+
+
+def test_plan_departure_cutoffs() -> None:
+    stops = [Stop(1, True, False), Stop(2, True, True), Stop(3, False, True)]
+    plan = plan_departure(
+        date(2026, 11, 23),
+        CALLS,
+        [HEL, "Europe/Mariehamn", STO],
+        stops,
+        route_cutoff_minutes=180,
+        call_cutoff_minutes=[None, 60, None],
+    )
+    assert plan[0].cutoff_at == datetime(2026, 11, 23, 7, 0, tzinfo=ZoneInfo(HEL))
+    assert plan[1].cutoff_at == datetime(2026, 11, 23, 14, 0, tzinfo=ZoneInfo(HEL))  # own
+    assert plan[2].cutoff_at is None  # the last stop only unloads
+    no_default = plan_departure(
+        date(2026, 11, 23), CALLS, [HEL, HEL, STO], stops, route_cutoff_minutes=None
+    )
+    assert all(c.cutoff_at is None for c in no_default)
+    with pytest.raises(ValueError):
+        plan_departure(
+            date(2026, 11, 23), CALLS, [HEL, HEL, STO], stops[:2], route_cutoff_minutes=1
+        )
+
+
+def test_schedule_periods_of_one_sailing_do_not_overlap() -> None:
+    validate_schedule_periods(
+        [
+            (1, T("17:00"), date(2026, 1, 1), date(2026, 6, 30)),
+            (1, T("17:00"), date(2026, 7, 1), None),
+            (1, T("18:00"), date(2026, 1, 1), None),  # another sailing
+            (2, T("17:00"), date(2026, 1, 1), None),
+        ]
+    )
+    for periods in (
+        [(1, T("17:00"), date(2026, 1, 1), None), (1, T("17:00"), date(2026, 7, 1), None)],
+        [
+            (1, T("17:00"), date(2026, 1, 1), date(2026, 7, 1)),
+            (1, T("17:00"), date(2026, 7, 1), None),
+        ],
+    ):
+        with pytest.raises(ValueError):
+            validate_schedule_periods(periods)
+
+
+def test_departures_to_add_skips_a_hand_entered_departure() -> None:
+    zone = ZoneInfo(HEL)
+    planned = [date(2026, 11, 23), date(2026, 11, 30)]
+    firsts = {d: datetime.combine(d, T("17:00"), tzinfo=zone) for d in planned}
+    by_hand = [datetime(2026, 11, 30, 15, 0, tzinfo=ZoneInfo("UTC"))]  # = 17:00 Helsinki
+    assert departures_to_add(planned, [], by_hand, firsts) == [date(2026, 11, 23)]
+    assert departures_to_add(planned, [date(2026, 11, 23)], [], firsts) == [date(2026, 11, 30)]
+
+
+def test_vessel_overlaps() -> None:
+    zone = ZoneInfo(HEL)
+
+    def at(day: int, hour: int) -> datetime:
+        return datetime(2026, 11, day, hour, tzinfo=zone)
+
+    voyages = [
+        ("a", at(23, 17), at(25, 0)),
+        ("b", at(25, 1), at(26, 10)),  # after a
+        ("c", at(24, 12), at(24, 20)),  # during a
+    ]
+    assert vessel_overlaps(voyages) == [("a", "c")]
+    with pytest.raises(ValueError):
+        vessel_overlaps([("x", at(23, 17), at(23, 17))])

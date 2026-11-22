@@ -130,7 +130,7 @@ def test_vessels_belong_to_ferry_operators(test_engine: Engine) -> None:
         {"deck_height_mm": 0},
         {"reefer_plug_count": -1},
         {"accompanied": False, "unaccompanied": False},
-        {"driver_cabins": False},  # accompanied units need cabins
+        {"accompanied": False, "driver_cabins": True},  # cabins are for drivers
     ]
     for number, kw in enumerate(bad):
         _rejected(_vessel, test_engine, ferry, f"Demo Bad {number}", **kw)
@@ -159,8 +159,18 @@ def test_vessel_adr_classes(test_engine: Engine) -> None:
         )
 
 
+def _route_operator(engine: Engine, route: Any) -> Any:
+    return _exec(engine, "SELECT operator_id FROM line_routes WHERE id = :id", id=route)
+
+
 def _schedule(engine: Engine, route: Any, **kw: Any) -> Any:
-    values = {"route_id": route, "route_mode": "ferry", "weekday": 1, "valid_from": "2026-01-01"}
+    values = {
+        "route_id": route,
+        "route_mode": "ferry",
+        "operator_id": _route_operator(engine, route),
+        "weekday": 1,
+        "valid_from": "2026-01-01",
+    }
     return _insert(engine, "line_schedules", **{**values, **kw})
 
 
@@ -168,7 +178,11 @@ def test_schedules_and_calls(test_engine: Engine) -> None:
     operator, route = _line(test_engine)
     vessel = _vessel(test_engine, operator)
     schedule = _schedule(test_engine, route, vessel_id=vessel)
-    _rejected(_schedule, test_engine, route)  # a ferry schedule needs its vessel
+    _schedule(test_engine, route, weekday=3)  # vessel assigned per departure
+    other_operator = _operator(test_engine, "Demo Other Ferry")
+    foreign = _vessel(test_engine, other_operator, "Demo Foreign Ship")
+    _rejected(_schedule, test_engine, route, vessel_id=foreign)  # vessel of another operator
+    _rejected(_schedule, test_engine, route, operator_id=other_operator)  # not the route's
     _rejected(_schedule, test_engine, route, vessel_id=vessel, weekday=8)
     _rejected(_schedule, test_engine, route, vessel_id=vessel, valid_until="2025-12-31")
 
@@ -211,7 +225,12 @@ def test_departures(test_engine: Engine) -> None:
     schedule = _schedule(test_engine, route, vessel_id=vessel)
 
     def departure(**kw: Any) -> Any:
-        values = {"route_id": route, "route_mode": "ferry", "service_date": "2026-11-23"}
+        values = {
+            "route_id": route,
+            "route_mode": "ferry",
+            "operator_id": operator,
+            "service_date": "2026-11-23",
+        }
         return _insert(test_engine, "line_departures", **{**values, **kw})
 
     first = departure(schedule_id=schedule, vessel_id=vessel)
@@ -219,6 +238,8 @@ def test_departures(test_engine: Engine) -> None:
     departure()  # an extra departure entered by hand
     _rejected(departure, status="lost")
     _rejected(departure, cutoff_minutes=-1)
+    foreign = _vessel(test_engine, _operator(test_engine, "Demo Other Ferry"), "Demo Foreign")
+    _rejected(departure, vessel_id=foreign)
     with test_engine.connect() as conn:
         assert conn.execute(text("SELECT status FROM line_departures LIMIT 1")).scalar() == (
             "planned"
@@ -248,6 +269,7 @@ def test_departures(test_engine: Engine) -> None:
     for kw in (
         {},
         {"arrives_at": "2026-11-23T18:00+02:00", "departs_at": "2026-11-23T17:00+02:00"},
+        {"arrives_at": "2026-11-23T17:00+02:00", "departs_at": "2026-11-23T17:00+02:00"},
         {"departs_at": "2026-11-23T17:00+02:00", "cutoff_at": "2026-11-23T18:00+02:00"},
         {"departs_at": "2026-11-23T17:00+02:00", "estimated_departs_at": "2026-11-23T18:00+02:00"},
     ):
@@ -267,6 +289,7 @@ def test_rail_schedules_and_departures_have_no_vessel(test_engine: Engine) -> No
         "line_departures",
         route_id=route,
         route_mode="rail",
+        operator_id=rail,
         service_date="2026-11-23",
         vessel_id=ferry_vessel,
     )

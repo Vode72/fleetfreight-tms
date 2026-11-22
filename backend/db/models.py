@@ -1546,7 +1546,7 @@ class Vessel(Base):
             name="ck_vessels_capacities",
         ),
         CheckConstraint(
-            "(accompanied OR unaccompanied) AND (NOT accompanied OR driver_cabins)",
+            "(accompanied OR unaccompanied) AND (accompanied OR NOT driver_cabins)",
             name="ck_vessels_units",
         ),
         Index("ix_vessels_operator_id", "operator_id"),
@@ -1566,7 +1566,8 @@ class Vessel(Base):
     # Units carried: accompanied combinations (with driver) and/or unaccompanied trailers.
     accompanied: Mapped[bool] = mapped_column(Boolean)
     unaccompanied: Mapped[bool] = mapped_column(Boolean)
-    # Cabins for drivers (rest on board, D23; conditions from 561/2006 in phase 5).
+    # Cabins for drivers: whether the crossing can count as rest (D23; conditions from
+    # 561/2006 in phase 5). Information, not a requirement: short crossings have none.
     driver_cabins: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
@@ -1610,6 +1611,7 @@ class LineRoute(Base):
         ),
         UniqueConstraint("name", name="uq_line_routes_name"),
         UniqueConstraint("id", "mode", name="uq_line_routes_id_mode"),
+        UniqueConstraint("id", "mode", "operator_id", name="uq_line_routes_id_mode_operator_id"),
         CheckConstraint(in_list("mode", LineMode), name="ck_line_routes_mode"),
         CheckConstraint("btrim(name) <> ''", name="ck_line_routes_name_not_blank"),
         # Mirrors domain.lines.validate_route.
@@ -1682,20 +1684,33 @@ class LineRouteStop(Base):
 
 class LineSchedule(Base):
     """Weekly pattern of a route (D67 validity): the first departure's ISO weekday, the vessel
-    (ferry) and the local time at every stop (line_schedule_calls)."""
+    (ferry, optional) and the local time at every stop (line_schedule_calls).
+
+    Patterns of one sailing (route, weekday, first departure time) must not overlap in validity;
+    domain.lines.validate_schedule_periods checks it (the time is in the calls table).
+    """
 
     __tablename__ = "line_schedules"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["route_id", "route_mode"],
-            ["line_routes.id", "line_routes.mode"],
+            ["route_id", "route_mode", "operator_id"],
+            ["line_routes.id", "line_routes.mode", "line_routes.operator_id"],
             ondelete="RESTRICT",
             name="fk_line_schedules_route_id",
         ),
+        # The vessel belongs to the route's operator.
+        ForeignKeyConstraint(
+            ["vessel_id", "operator_id"],
+            ["vessels.id", "vessels.operator_id"],
+            ondelete="RESTRICT",
+            name="fk_line_schedules_vessel_id",
+        ),
+        Index("ix_line_schedules_vessel_id", "vessel_id"),
         UniqueConstraint("id", "route_id", name="uq_line_schedules_id_route_id"),
         CheckConstraint("weekday BETWEEN 1 AND 7", name="ck_line_schedules_weekday"),
+        # Rail has no vessel; a ferry schedule may leave it open (assigned per departure).
         CheckConstraint(
-            "(route_mode = 'rail') = (vessel_id IS NULL)", name="ck_line_schedules_vessel"
+            "route_mode = 'ferry' OR vessel_id IS NULL", name="ck_line_schedules_vessel"
         ),
         CheckConstraint(
             "valid_until IS NULL OR valid_from <= valid_until", name="ck_line_schedules_period"
@@ -1706,10 +1721,9 @@ class LineSchedule(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     route_mode: Mapped[str] = mapped_column(String(10))
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
     weekday: Mapped[int] = mapped_column(SmallInteger)
-    vessel_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), _fk("vessels.id", "fk_line_schedules_vessel_id")
-    )
+    vessel_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
     note: Mapped[str | None] = mapped_column(Text)
@@ -1773,11 +1787,19 @@ class LineDeparture(Base):
     __tablename__ = "line_departures"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["route_id", "route_mode"],
-            ["line_routes.id", "line_routes.mode"],
+            ["route_id", "route_mode", "operator_id"],
+            ["line_routes.id", "line_routes.mode", "line_routes.operator_id"],
             ondelete="RESTRICT",
             name="fk_line_departures_route_id",
         ),
+        # The vessel belongs to the route's operator.
+        ForeignKeyConstraint(
+            ["vessel_id", "operator_id"],
+            ["vessels.id", "vessels.operator_id"],
+            ondelete="RESTRICT",
+            name="fk_line_departures_vessel_id",
+        ),
+        Index("ix_line_departures_vessel_id", "vessel_id"),
         ForeignKeyConstraint(
             ["schedule_id", "route_id"],
             ["line_schedules.id", "line_schedules.route_id"],
@@ -1807,9 +1829,8 @@ class LineDeparture(Base):
     schedule_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     # Local date of the first departure.
     service_date: Mapped[date] = mapped_column(Date)
-    vessel_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), _fk("vessels.id", "fk_line_departures_vessel_id")
-    )
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    vessel_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     status: Mapped[str] = mapped_column(
         String(10), server_default=text("'planned'"), default=DepartureStatus.PLANNED.value
     )
@@ -1840,7 +1861,7 @@ class LineDepartureCall(Base):
         ),
         CheckConstraint(
             "(arrives_at IS NOT NULL OR departs_at IS NOT NULL)"
-            " AND (arrives_at IS NULL OR departs_at IS NULL OR arrives_at <= departs_at)"
+            " AND (arrives_at IS NULL OR departs_at IS NULL OR arrives_at < departs_at)"
             " AND (cutoff_at IS NULL OR (departs_at IS NOT NULL AND cutoff_at <= departs_at))",
             name="ck_line_departure_calls_times",
         ),

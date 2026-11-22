@@ -10,7 +10,10 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from enum import StrEnum
+from itertools import pairwise
 from zoneinfo import ZoneInfo
+
+UTC = ZoneInfo("UTC")
 
 
 class LineMode(StrEnum):
@@ -151,12 +154,13 @@ class CallTimes:
 
 
 def _local(day: date, offset: int, at: time, zone: ZoneInfo) -> datetime:
-    """A local wall-clock time; a time that does not exist (spring forward) moves an hour on."""
+    """A local wall-clock time; a time that does not exist (spring forward) moves an hour on.
+
+    A time that occurs twice (autumn) takes its first occurrence (fold=0).
+    """
     local = datetime.combine(day + timedelta(days=offset), at, tzinfo=zone)
     # Round trip through UTC detects a non-existent local time (fold rules of PEP 495).
-    if local.astimezone(ZoneInfo("UTC")).astimezone(zone).replace(tzinfo=None) != (
-        local.replace(tzinfo=None)
-    ):
+    if local.astimezone(UTC).astimezone(zone).replace(tzinfo=None) != (local.replace(tzinfo=None)):
         local = local + timedelta(hours=1)
     return local
 
@@ -190,9 +194,11 @@ def departure_times(
         for moment in (arrives, departs):
             if moment is None:
                 continue
-            if previous is not None and moment <= previous:
+            # Compare in UTC: aware datetimes sharing one ZoneInfo compare by wall clock.
+            instant = moment.astimezone(UTC)
+            if previous is not None and instant <= previous:
                 raise ValueError(f"call {call.sequence}: times must run forward")
-            previous = moment
+            previous = instant
         result.append(CallTimes(call.sequence, arrives, departs))
     return result
 
@@ -239,5 +245,93 @@ def validate_vessel(
         raise ValueError("reefer plug count must not be negative")
     if not (accompanied or unaccompanied):
         raise ValueError("a vessel carries accompanied or unaccompanied units")
-    if accompanied and not driver_cabins:
-        raise ValueError("a vessel that carries accompanied units has driver cabins (D23)")
+    if driver_cabins and not accompanied:
+        raise ValueError("driver cabins are for accompanied units")
+
+
+def vessel_overlaps(
+    voyages: Sequence[tuple[str, datetime, datetime]],
+) -> list[tuple[str, str]]:
+    """Pairs of departures (ids) of one vessel whose [first departure, last arrival] overlap.
+
+    A vessel cannot be on two departures at once; Plan Check and timetable entry use this.
+    """
+    ordered = sorted(voyages, key=lambda v: v[1])
+    clashes: list[tuple[str, str]] = []
+    for index, (key, start, end) in enumerate(ordered):
+        if end <= start:
+            raise ValueError(f"{key}: a voyage must end after it starts")
+        for other, other_start, _ in ordered[index + 1 :]:
+            if other_start >= end:
+                break
+            clashes.append((key, other))
+    return clashes
+
+
+@dataclass(frozen=True)
+class PlannedCall:
+    sequence: int
+    arrives_at: datetime | None
+    departs_at: datetime | None
+    cutoff_at: datetime | None
+
+
+def plan_departure(
+    service_date: date,
+    calls: Sequence[Call],
+    zones: Sequence[str],
+    stops: Sequence[Stop],
+    *,
+    route_cutoff_minutes: int | None,
+    call_cutoff_minutes: Sequence[int | None] | None = None,
+) -> list[PlannedCall]:
+    """Times of one departure with the cut-off at every stop that loads units.
+
+    A stop's own cut-off overrides the route default; no cut-off when neither is set.
+    """
+    if len(stops) != len(calls):
+        raise ValueError("one stop per call")
+    overrides = list(call_cutoff_minutes) if call_cutoff_minutes else [None] * len(calls)
+    planned: list[PlannedCall] = []
+    for stop, times, own in zip(
+        stops, departure_times(service_date, calls, zones), overrides, strict=True
+    ):
+        minutes = own if own is not None else route_cutoff_minutes
+        cutoff = (
+            times.departs_at - timedelta(minutes=minutes)
+            if stop.loading and minutes is not None and times.departs_at is not None
+            else None
+        )
+        planned.append(PlannedCall(times.sequence, times.arrives_at, times.departs_at, cutoff))
+    return planned
+
+
+def validate_schedule_periods(
+    schedules: Sequence[tuple[int, time, date, date | None]],
+) -> None:
+    """Weekly patterns of one route with the same weekday and first departure time must not
+    overlap in validity (D67), or two departures would be generated for one sailing."""
+    by_key: dict[tuple[int, time], list[tuple[date, date | None]]] = {}
+    for weekday, departs, valid_from, valid_until in schedules:
+        by_key.setdefault((weekday, departs), []).append((valid_from, valid_until))
+    for periods in by_key.values():
+        periods.sort(key=lambda period: period[0])
+        for (_, end), (start, _) in pairwise(periods):
+            if end is None or start <= end:
+                raise ValueError("schedules of one sailing must not overlap in validity")
+
+
+def departures_to_add(
+    planned: Iterable[date],
+    existing_of_schedule: Iterable[date],
+    existing_first_departures: Iterable[datetime],
+    first_departure_of: dict[date, datetime],
+) -> list[date]:
+    """Missing departures of a schedule, also skipping a date where the route already has a
+    departure at the same first departure time (e.g. one entered by hand)."""
+    taken = {moment.astimezone(UTC) for moment in existing_first_departures}
+    return [
+        day
+        for day in dates_to_generate(planned, existing_of_schedule)
+        if first_departure_of[day].astimezone(UTC) not in taken
+    ]

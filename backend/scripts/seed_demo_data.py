@@ -127,11 +127,12 @@ from domain.lines import (
     LineMode,
     Stop,
     VesselType,
-    dates_to_generate,
-    departure_times,
+    departures_to_add,
+    plan_departure,
     service_dates,
     validate_calls,
     validate_route,
+    validate_schedule_periods,
     validate_stops,
     validate_vessel,
 )
@@ -819,6 +820,9 @@ VESSELS: dict[str, _VesselSpec] = {
     "Demo Carrier Two": _VesselSpec(
         "Demo Shortsea", _RR, 3000, 5000, 80, False, True, False, _RORO_ADR
     ),
+    "Demo Carrier Three": _VesselSpec(
+        "Demo Shortsea", _RR, 3000, 5000, 80, False, True, False, _RORO_ADR
+    ),
     "Demo Amber": _VesselSpec(
         "Demo Polska Line", _RP, 3200, 4700, 90, True, True, True, _ROPAX_ADR
     ),
@@ -861,23 +865,33 @@ def _two(origin: str, destination: str) -> tuple[_Stop, _Stop]:
     return ((origin, True, False), (destination, False, True))
 
 
+_DEMO_DEFAULTS = "Check-in, cut-off and declaration deadline are demo values."
+# Vessels are set on a schedule only where one ship can sail it without overlapping its other
+# departures; elsewhere the vessel is assigned per departure (NULL in the demo).
+
+
 def _ferry(
     operator: str,
     stops: tuple[_Stop, ...],
     schedules: tuple[_ScheduleSpec, ...],
     *,
     accompanied: bool = True,
+    checkin: int = 120,
+    cutoff: int = 180,
+    dg_hours: int = 24,
+    note: str | None = None,
 ) -> _RouteSpec:
     return _RouteSpec(
         operator,
         LineMode.FERRY,
         accompanied,
         True,
-        120 if accompanied else None,
-        180,
-        24,
+        checkin if accompanied else None,
+        cutoff,
+        dg_hours,
         stops,
         schedules,
+        note=f"{_DEMO_DEFAULTS} {note}" if note else _DEMO_DEFAULTS,
     )
 
 
@@ -892,7 +906,10 @@ def _rail_route(stops: tuple[_Stop, ...], schedules: tuple[_ScheduleSpec, ...]) 
         48,
         stops,
         schedules,
-        note="Loading gauge (profile) checked with Plan Check in phase 5; rail units need RID.",
+        note=(
+            "Cut-off and declaration deadline are demo values. Loading gauge (profile) checked"
+            " with Plan Check in phase 5; rail units need RID."
+        ),
     )
 
 
@@ -903,13 +920,13 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (
             _ScheduleSpec(
                 _ODD,
-                "Demo Star",
+                None,
                 ((None, None, 0, "17:00"), (1, "23:00", None, None)),
                 _PUBLISHED_NOTE,
             ),
             _ScheduleSpec(
                 _EVEN,
-                "Demo Comet",
+                None,
                 ((None, None, 0, "17:00"), (1, "23:00", None, None)),
                 _PUBLISHED_NOTE,
             ),
@@ -921,13 +938,13 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (
             _ScheduleSpec(
                 _ODD,
-                "Demo Comet",
+                None,
                 ((None, None, 0, "02:00"), (1, "10:00", None, None)),
                 _PUBLISHED_NOTE,
             ),
             _ScheduleSpec(
                 _EVEN,
-                "Demo Star",
+                None,
                 ((None, None, 0, "02:00"), (1, "10:00", None, None)),
                 _PUBLISHED_NOTE,
             ),
@@ -950,6 +967,8 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
                 _PUBLISHED_NOTE,
             ),
         ),
+        checkin=60,
+        cutoff=90,
     ),
     "Demo Tallinn\u2013Vuosaari": _ferry(
         "Demo Gulf Ferries",
@@ -968,25 +987,19 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
                 _PUBLISHED_NOTE,
             ),
         ),
+        checkin=60,
+        cutoff=90,
     ),
     "Demo Kotka\u2013Lübeck": _ferry(
         "Demo Shortsea",
         _two(_P + "Kotka", _P + "Lübeck"),
-        (
-            _ScheduleSpec(
-                (1, 3, 5), "Demo Carrier One", ((None, None, 0, "20:00"), (2, "08:00", None, None))
-            ),
-        ),
+        (_ScheduleSpec((1, 3, 5), None, ((None, None, 0, "20:00"), (2, "08:00", None, None))),),
         accompanied=False,
     ),
     "Demo Lübeck\u2013Kotka": _ferry(
         "Demo Shortsea",
         _two(_P + "Lübeck", _P + "Kotka"),
-        (
-            _ScheduleSpec(
-                (2, 4, 6), "Demo Carrier One", ((None, None, 0, "22:00"), (2, "08:00", None, None))
-            ),
-        ),
+        (_ScheduleSpec((2, 4, 6), None, ((None, None, 0, "22:00"), (2, "08:00", None, None))),),
         accompanied=False,
     ),
     "Demo Kotka\u2013Hanko\u2013Antwerpen": _ferry(
@@ -996,7 +1009,7 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
             _ScheduleSpec(
                 (2,),
                 "Demo Carrier Two",
-                ((None, None, 0, "18:00"), (1, "06:00", 1, "14:00"), (4, "10:00", None, None)),
+                ((None, None, 0, "18:00"), (1, "06:00", 1, "14:00"), (3, "10:00", None, None)),
             ),
         ),
         accompanied=False,
@@ -1006,9 +1019,9 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         ((_P + "Antwerpen", True, False), (_P + "Hanko", True, True), (_P + "Kotka", False, True)),
         (
             _ScheduleSpec(
-                (6,),
+                (5,),
                 "Demo Carrier Two",
-                ((None, None, 0, "20:00"), (3, "18:00", 4, "02:00"), (4, "12:00", None, None)),
+                ((None, None, 0, "20:00"), (2, "18:00", 3, "02:00"), (3, "12:00", None, None)),
             ),
         ),
         accompanied=False,
@@ -1018,7 +1031,7 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         _two(_P + "Kotka", _P + "Antwerpen"),
         (
             _ScheduleSpec(
-                (4,), "Demo Carrier One", ((None, None, 0, "20:00"), (4, "06:00", None, None))
+                (4,), "Demo Carrier One", ((None, None, 0, "20:00"), (3, "06:00", None, None))
             ),
         ),
         accompanied=False,
@@ -1028,7 +1041,7 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         _two(_P + "Antwerpen", _P + "Kotka"),
         (
             _ScheduleSpec(
-                (1,), "Demo Carrier One", ((None, None, 0, "22:00"), (4, "08:00", None, None))
+                (7,), "Demo Carrier One", ((None, None, 0, "20:00"), (3, "06:00", None, None))
             ),
         ),
         accompanied=False,
@@ -1039,7 +1052,7 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (
             _ScheduleSpec(
                 (1, 2, 3, 4, 5, 6),
-                "Demo Amber",
+                None,
                 ((None, None, 0, "21:00"), (1, "19:00", None, None)),
             ),
         ),
@@ -1050,7 +1063,7 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (
             _ScheduleSpec(
                 (1, 2, 3, 4, 5, 6),
-                "Demo Amber",
+                None,
                 ((None, None, 0, "20:00"), (1, "20:00", None, None)),
             ),
         ),
@@ -1058,20 +1071,12 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
     "Demo Hanko\u2013Rostock": _ferry(
         "Demo Polska Line",
         _two(_P + "Hanko", _P + "Rostock"),
-        (
-            _ScheduleSpec(
-                (1, 2, 4, 6), "Demo Amber", ((None, None, 0, "22:00"), (1, "21:00", None, None))
-            ),
-        ),
+        (_ScheduleSpec((1, 2, 4, 6), None, ((None, None, 0, "22:00"), (1, "21:00", None, None))),),
     ),
     "Demo Rostock\u2013Hanko": _ferry(
         "Demo Polska Line",
         _two(_P + "Rostock", _P + "Hanko"),
-        (
-            _ScheduleSpec(
-                (2, 3, 5, 7), "Demo Amber", ((None, None, 0, "23:00"), (2, "00:00", None, None))
-            ),
-        ),
+        (_ScheduleSpec((2, 3, 5, 7), None, ((None, None, 0, "23:00"), (2, "00:00", None, None))),),
     ),
     "Demo Oulu\u2013Travemünde\u2013Antwerpen": _ferry(
         "Demo Shortsea",
@@ -1083,8 +1088,8 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (
             _ScheduleSpec(
                 (6,),
-                "Demo Carrier Two",
-                ((None, None, 0, "18:00"), (3, "06:00", 3, "18:00"), (5, "08:00", None, None)),
+                "Demo Carrier Three",
+                ((None, None, 0, "18:00"), (2, "06:00", 2, "18:00"), (4, "06:00", None, None)),
             ),
         ),
         accompanied=False,
@@ -1098,9 +1103,9 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         ),
         (
             _ScheduleSpec(
-                (4,),
-                "Demo Carrier Two",
-                ((None, None, 0, "20:00"), (2, "08:00", 2, "20:00"), (5, "10:00", None, None)),
+                (3,),
+                "Demo Carrier Three",
+                ((None, None, 0, "20:00"), (1, "20:00", 2, "06:00"), (3, "10:00", None, None)),
             ),
         ),
         accompanied=False,
@@ -2126,7 +2131,7 @@ def _seed_lines(
     """Operators, vessels, routes with stops, weekly schedules and departures (D94).
 
     Departures are generated for DEPARTURE_WEEKS from the seed day; only missing ones are added
-    (domain.lines.dates_to_generate), so a departure changed by hand stays as it is.
+    (domain.lines.departures_to_add), so a departure changed or added by hand stays as it is.
     """
     operators: dict[str, LineOperator] = {}
     for name, mode in LINE_OPERATORS:
@@ -2221,6 +2226,18 @@ def _seed_lines(
                 created["line_route_stops"] += 1
             session.flush()
         zones = [locations[place].timezone for place, _, _ in spec.stops]
+        validate_schedule_periods(
+            [
+                (
+                    weekday,
+                    schedule_calls(sched)[0].departure_time or time(0),
+                    date(2026, 1, 1),
+                    None,
+                )
+                for sched in spec.schedules
+                for weekday in sched.weekdays
+            ]
+        )
         for sched in spec.schedules:
             calls = schedule_calls(sched)
             validate_calls(calls)
@@ -2243,6 +2260,7 @@ def _seed_lines(
                     schedule = LineSchedule(
                         route_id=route.id,
                         route_mode=spec.mode.value,
+                        operator_id=route.operator_id,
                         weekday=weekday,
                         vessel_id=vessels[sched.vessel].id if sched.vessel else None,
                         valid_from=date(2026, 1, 1),
@@ -2273,10 +2291,27 @@ def _seed_lines(
                 planned = service_dates(
                     weekday, schedule.valid_from, schedule.valid_until, today, end
                 )
-                for service_date in dates_to_generate(planned, existing):
+                plans = {
+                    day: plan_departure(day, calls, zones, stops, route_cutoff_minutes=spec.cutoff)
+                    for day in planned
+                }
+                route_firsts = session.scalars(
+                    select(LineDepartureCall.departs_at).where(
+                        LineDepartureCall.route_id == route.id,
+                        LineDepartureCall.sequence == 1,
+                    )
+                ).all()
+                to_add = departures_to_add(
+                    planned,
+                    existing,
+                    [moment for moment in route_firsts if moment is not None],
+                    {day: plan[0].departs_at for day, plan in plans.items() if plan[0].departs_at},
+                )
+                for service_date in to_add:
                     departure = LineDeparture(
                         route_id=route.id,
                         route_mode=spec.mode.value,
+                        operator_id=route.operator_id,
                         schedule_id=schedule.id,
                         service_date=service_date,
                         vessel_id=schedule.vessel_id,
@@ -2284,25 +2319,19 @@ def _seed_lines(
                     session.add(departure)
                     session.flush()
                     created["line_departures"] += 1
-                    for stop, times in zip(
-                        stops, departure_times(service_date, calls, zones), strict=True
-                    ):
-                        cutoff = (
-                            times.departs_at - timedelta(minutes=spec.cutoff)
-                            if stop.loading and spec.cutoff is not None and times.departs_at
-                            else None
-                        )
+                    for planned_call in plans[service_date]:
                         session.add(
                             LineDepartureCall(
                                 departure_id=departure.id,
-                                sequence=stop.sequence,
+                                sequence=planned_call.sequence,
                                 route_id=route.id,
-                                arrives_at=times.arrives_at,
-                                departs_at=times.departs_at,
-                                cutoff_at=cutoff,
+                                arrives_at=planned_call.arrives_at,
+                                departs_at=planned_call.departs_at,
+                                cutoff_at=planned_call.cutoff_at,
                             )
                         )
                         created["line_departure_calls"] += 1
+                    session.flush()
     session.flush()
 
 
