@@ -327,11 +327,15 @@ def validate_site_features(
     *,
     forklift_available: bool | None,
     tail_lift_required: bool | None,
+    has_loading_dock: bool | None = None,
 ) -> None:
     """Forklift and tail lift needs are recorded for customer sites only (like has_loading_dock).
 
-    Terminals always have docks and forklifts (D32); None = not known.
+    Terminals always have docks and forklifts (D32); None = not known. A site with a loading dock
+    does not need a tail lift.
     """
+    if has_loading_dock and tail_lift_required:
+        raise ValueError("a site with a loading dock does not need a tail lift")
     if location_type is not LocationType.CUSTOMER_SITE and (
         forklift_available is not None or tail_lift_required is not None
     ):
@@ -405,6 +409,7 @@ class WashGrade(StrEnum):
     FOOD_GRADE = "food_grade"
     CHEMICAL = "chemical"
     TANK = "tank"
+    BULK = "bulk"
 
 
 def validate_wash_details(
@@ -418,7 +423,7 @@ def validate_wash_details(
 
     Grades describe interior cleaning, so they need the interior scope. A cleaning document is
     issued after an interior wash; the European Cleaning Document (ECD) is used for tank and bulk
-    cleaning, so it needs the tank grade and is a cleaning document itself.
+    cleaning, so it needs the tank or bulk grade and is a cleaning document itself.
     """
     for values, enum, label in ((scopes, WashScope, "scopes"), (grades, WashGrade, "grades")):
         unknown = sorted(set(values) - {v.value for v in enum})
@@ -433,6 +438,7 @@ def validate_wash_details(
         raise ValueError("an interior wash needs at least one grade")
     if issues_cleaning_document and not interior:
         raise ValueError("a cleaning document needs an interior wash")
-    if issues_ecd and (not issues_cleaning_document or WashGrade.TANK.value not in grades):
-        raise ValueError("an ECD needs the tank grade and is a cleaning document")
+    tank_or_bulk = {WashGrade.TANK.value, WashGrade.BULK.value} & set(grades)
+    if issues_ecd and (not issues_cleaning_document or not tank_or_bulk):
+        raise ValueError("an ECD needs the tank or bulk grade and is a cleaning document")
     return sorted(set(scopes)), sorted(set(grades))

@@ -519,7 +519,9 @@ SITE_FEATURES: dict[str, tuple[bool | None, bool | None]] = {
     "Demo Timber Yard Site": (True, False),
     "Demo Kemia Plant Site": (True, False),
     "Demo Dairy Plant Site": (True, False),
-    # small shop without a loading dock: no forklift, unloading with a tail lift (via terminal)
+    # Small shop without a loading dock: no forklift, unloading with a tail lift. Intended Plan
+    # Check scenario: the only tail lift body is based at the Central terminal, so the delivery
+    # goes through a terminal (D25).
     "Demo Kauppa Oy \u2013 Kuopio Shop Site": (False, True),
     "Demo Kauppa Oy \u2013 Turku Shop Site": (False, None),
 }
@@ -677,9 +679,11 @@ BORDER_STATUS: tuple[
 )
 
 
-# Trailer storage terms (D83, D93): invented demo fees from 1.1.2026. Free days 3 unless noted.
+# Trailer storage terms (D83, D93): invented demo fees from 1.1.2026, not any port's tariff (every
+# row's note says so). Free days 3 unless noted.
 # place, free days, daily fee cents, currency, reefer plugs, reefer plug fee cents per day, note
 STORAGE_FROM = date(2026, 1, 1)
+_DEMO_TARIFF = "Demo value, not a tariff."
 STORAGE_RULES: tuple[tuple[str, int, int, str, bool, int | None, str | None], ...] = (
     ("Demo Port Vuosaari", 3, 3500, "EUR", True, 2500, None),
     ("Demo Port Kotka", 3, 3000, "EUR", True, 2500, None),
@@ -1627,7 +1631,7 @@ def _seed_places(
                     currency=currency,
                     reefer_plug_available=plugs,
                     reefer_plug_daily_fee_cents=plug_fee,
-                    note=note,
+                    note=f"{_DEMO_TARIFF} {note}" if note else _DEMO_TARIFF,
                 )
             )
             created["trailer_storage_rules"] += 1
@@ -1699,6 +1703,7 @@ def seed_demo_data(
                 place.type,
                 forklift_available=place.forklift_available,
                 tail_lift_required=place.tail_lift_required,
+                has_loading_dock=place.has_loading_dock,
             )
             validate_terminal_fields(
                 place.type,

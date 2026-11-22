@@ -297,6 +297,13 @@ def test_site_features_only_on_customer_sites() -> None:
         LocationType.CUSTOMER_SITE, forklift_available=True, tail_lift_required=False
     )
     validate_site_features(LocationType.TERMINAL, forklift_available=None, tail_lift_required=None)
+    with pytest.raises(ValueError, match="loading dock"):
+        validate_site_features(
+            LocationType.CUSTOMER_SITE,
+            forklift_available=None,
+            tail_lift_required=True,
+            has_loading_dock=True,
+        )
     with pytest.raises(ValueError):
         validate_site_features(
             LocationType.TERMINAL, forklift_available=True, tail_lift_required=None
@@ -352,6 +359,9 @@ def test_wash_details_rules() -> None:
     assert validate_wash_details(
         ["interior"], ["tank"], issues_cleaning_document=True, issues_ecd=True
     ) == (["interior"], ["tank"])
+    assert validate_wash_details(
+        ["interior"], ["bulk"], issues_cleaning_document=True, issues_ecd=True
+    ) == (["interior"], ["bulk"])
     cases: list[tuple[list[str], list[str], bool, bool]] = [
         ([], [], False, False),
         (["roof"], [], False, False),

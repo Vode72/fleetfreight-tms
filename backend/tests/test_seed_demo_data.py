@@ -1328,6 +1328,15 @@ def test_site_features_storage_rules_and_washes(test_engine: Engine) -> None:
         test_engine,
         "SELECT DISTINCT currency FROM trailer_storage_rules ORDER BY 1",
     ) == [("EUR",), ("PLN",), ("SEK",)]
+    # invented fees at real port names are marked as demo values
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM trailer_storage_rules"
+            " WHERE note NOT LIKE 'Demo value, not a tariff.%'",
+        )
+        == 0
+    )
     # washes: a food-grade wash and a tank cleaning that issues the ECD
     assert _rows(
         test_engine,

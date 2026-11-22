@@ -271,6 +271,10 @@ class Location(Base):
             "type = 'customer_site' OR (forklift_available IS NULL AND tail_lift_required IS NULL)",
             name="ck_locations_site_features_customer_site_only",
         ),
+        CheckConstraint(
+            "NOT (has_loading_dock AND tail_lift_required)",
+            name="ck_locations_dock_needs_no_tail_lift",
+        ),
         Index("ix_locations_type", "type"),
         Index("ix_locations_parent_location_id", "parent_location_id"),
         Index("ix_locations_customer_id", "customer_id"),
@@ -529,7 +533,8 @@ class WashDetails(Base):
         ),
         CheckConstraint(
             "(NOT issues_cleaning_document OR 'interior' = ANY(scopes))"
-            " AND (NOT issues_ecd OR (issues_cleaning_document AND 'tank' = ANY(grades)))",
+            " AND (NOT issues_ecd OR (issues_cleaning_document"
+            " AND grades && ARRAY['bulk', 'tank']::varchar[]))",
             name="ck_wash_details_documents",
         ),
     )
@@ -542,7 +547,7 @@ class WashDetails(Base):
     )
     # Issues a cleaning certificate after an interior wash.
     issues_cleaning_document: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
-    # Issues the European Cleaning Document (tank and bulk cleaning).
+    # Issues the European Cleaning Document (tank and bulk cleaning, grade tank or bulk).
     issues_ecd: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()

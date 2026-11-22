@@ -351,6 +351,7 @@ def _site(engine: Engine, name: str, **kw: Any) -> Any:
 
 def test_site_features_for_customer_sites_only(test_engine: Engine) -> None:
     _site(test_engine, "Demo Site A", forklift_available=False, tail_lift_required=True)
+    _rejected(_site, test_engine, "Demo Site B", has_loading_dock=True, tail_lift_required=True)
     for column in ("forklift_available", "tail_lift_required"):
         _rejected(
             _insert,
@@ -436,6 +437,14 @@ def test_wash_details(test_engine: Engine) -> None:
         scopes=["interior", "exterior"],
         grades=["general", "food_grade"],
         issues_cleaning_document=True,
+    )
+    _wash(
+        test_engine,
+        "Demo Wash 4",
+        scopes=["interior"],
+        grades=["bulk"],
+        issues_cleaning_document=True,
+        issues_ecd=True,
     )
     _wash(
         test_engine,

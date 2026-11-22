@@ -3,13 +3,14 @@
 2B-3b part b, D93 (approved by Toni 22.11.2026). Does not edit earlier revisions.
 
 Schema:
-- locations: forklift_available and tail_lift_required (customer sites only, NULL = unknown).
+- locations: forklift_available and tail_lift_required (customer sites only, NULL = unknown; a
+  site with a loading dock needs no tail lift).
 - parking_details: trailer_drop_allowed (trailer left without its tractor, D18, D82).
 - trailer_storage_rules (D27, D63, D83): free days, daily fee with currency, reefer plugs and
   their fee, as validity periods (D67) per port or rail terminal; composite foreign key to
   locations (id, type) with the type limited to port and rail_terminal.
 - wash_details (D56): scopes (interior, exterior), interior grades (general, food grade,
-  chemical, tank), cleaning document and European Cleaning Document (tank and bulk).
+  chemical, tank, bulk), cleaning document and European Cleaning Document (tank and bulk).
 
 Downgrade drops the new tables and columns WITH their values (storage terms, wash details and
 the site features); reload them with the demo seed or enter them again.
@@ -66,8 +67,8 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint("('interior' = ANY(scopes)) = (cardinality(grades) >= 1)", name='ck_wash_details_grades_need_interior'),
-    sa.CheckConstraint("(NOT issues_cleaning_document OR 'interior' = ANY(scopes)) AND (NOT issues_ecd OR (issues_cleaning_document AND 'tank' = ANY(grades)))", name='ck_wash_details_documents'),
-    sa.CheckConstraint("cardinality(scopes) >= 1 AND scopes <@ ARRAY['exterior', 'interior']::varchar[] AND grades <@ ARRAY['chemical', 'food_grade', 'general', 'tank']::varchar[]", name='ck_wash_details_values'),
+    sa.CheckConstraint("(NOT issues_cleaning_document OR 'interior' = ANY(scopes)) AND (NOT issues_ecd OR (issues_cleaning_document AND grades && ARRAY['bulk', 'tank']::varchar[]))", name='ck_wash_details_documents'),
+    sa.CheckConstraint("cardinality(scopes) >= 1 AND scopes <@ ARRAY['exterior', 'interior']::varchar[] AND grades <@ ARRAY['bulk', 'chemical', 'food_grade', 'general', 'tank']::varchar[]", name='ck_wash_details_values'),
     sa.CheckConstraint("location_type = 'wash'", name='ck_wash_details_location_type'),
     sa.ForeignKeyConstraint(['location_id', 'location_type'], ['locations.id', 'locations.type'], name='fk_wash_details_location_id', ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('location_id')
@@ -79,10 +80,16 @@ def upgrade() -> None:
         'locations',
         "type = 'customer_site' OR (forklift_available IS NULL AND tail_lift_required IS NULL)",
     )
+    op.create_check_constraint(
+        'ck_locations_dock_needs_no_tail_lift',
+        'locations',
+        'NOT (has_loading_dock AND tail_lift_required)',
+    )
     op.add_column('parking_details', sa.Column('trailer_drop_allowed', sa.Boolean(), nullable=True))
 
 
 def downgrade() -> None:
+    op.drop_constraint('ck_locations_dock_needs_no_tail_lift', 'locations', type_='check')
     op.drop_constraint('ck_locations_site_features_customer_site_only', 'locations', type_='check')
     op.drop_column('parking_details', 'trailer_drop_allowed')
     op.drop_column('locations', 'tail_lift_required')
