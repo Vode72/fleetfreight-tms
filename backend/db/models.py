@@ -370,6 +370,8 @@ class ParkingDetails(Base):
     # Electric hook-ups for reefer units (thermo trailers); NULL = not recorded.
     reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
     # A space can be booked in advance (locations.booking_required: a booking is required).
+    # "Required implies possible" spans two tables, so only the service layer checks it
+    # (domain.locations.validate_parking_details).
     booking_possible: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     # Vehicles carrying dangerous goods may park here; NULL = not recorded.
     adr_vehicles_allowed: Mapped[bool | None] = mapped_column(Boolean)
@@ -458,6 +460,11 @@ class BorderCrossingDetails(Base):
             "(customs_office_id IS NULL) = (customs_office_type IS NULL)"
             " AND (other_customs_office_id IS NULL) = (other_customs_office_type IS NULL)",
             name="ck_border_crossing_details_customs_office_pairs",
+        ),
+        CheckConstraint(
+            "customs_office_id IS NULL OR other_customs_office_id IS NULL"
+            " OR customs_office_id <> other_customs_office_id",
+            name="ck_border_crossing_details_customs_offices_differ",
         ),
         Index("ix_border_crossing_details_customs_office_id", "customs_office_id"),
         Index("ix_border_crossing_details_other_customs_office_id", "other_customs_office_id"),

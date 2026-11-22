@@ -238,6 +238,16 @@ def test_customs_offices_must_be_customs_offices(test_engine: Engine) -> None:
         customs_office_id=depot,
         customs_office_type="depot",
     )
+    # the two sides need two different offices
+    _rejected(
+        _crossing,
+        test_engine,
+        "Demo Crossing 5",
+        customs_office_id=office,
+        customs_office_type="customs_office",
+        other_customs_office_id=office,
+        other_customs_office_type="customs_office",
+    )
     # id and type come as a pair
     _rejected(_crossing, test_engine, "Demo Crossing 4", customs_office_id=office)
     # an office in use cannot be deleted

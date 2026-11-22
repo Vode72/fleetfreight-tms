@@ -111,6 +111,7 @@ from domain.locations import (
     ParkingCertificationScheme,
     ParkingService,
     validate_border_crossing,
+    validate_customs_office_pair,
     validate_opening_hours,
     validate_parking_certification,
     validate_parking_details,
@@ -302,7 +303,9 @@ _PLACES_WITHOUT_LOCALITY: tuple[_Place, ...] = (
         _hours(_WEEKDAYS, "06:00", "22:00"),
     ),
     _customs(
-        "Demo Customs Office Svinesund SE",  # border crossing, Swedish side
+        # Border crossing, Swedish side; open 24/7 like the real clearance office (Tullverket,
+        # Svinesund Customs Clearance Office, checked 22.11.2026).
+        "Demo Customs Office Svinesund SE",
         "SE",
         "59.080000",
         "11.260000",
@@ -554,7 +557,9 @@ BORDER_CROSSINGS: dict[str, _BorderSpec] = {
     "Demo Border Crossing Tornio\u2013Haaparanta": _BorderSpec(
         "SE", None, None, "Internal EU border; no customs formalities."
     ),
-    "Demo Border Crossing Vaalimaa": _BorderSpec("RU", None, None, None),
+    "Demo Border Crossing Vaalimaa": _BorderSpec(
+        "RU", None, None, "No customs offices recorded while the crossing is closed."
+    ),
     "Demo Border Crossing Svinesund": _BorderSpec(
         "NO",
         "Demo Customs Office Svinesund SE",
@@ -609,7 +614,8 @@ BORDER_STATUS: tuple[
         BorderCrossingStatus.CLOSED,
         datetime(2023, 12, 15, 20, 0, tzinfo=_HEL),
         None,
-        "Closed again from 20.00; kept closed until further notice (Government 4.6.2026).",
+        "Closed again from 20.00; still closed until further notice by the Government decision"
+        f" of 4.6.2026 ({_VN_STILL_CLOSED}).",
         _TULLI_REOPEN_CLOSED,
     ),
     (
@@ -617,8 +623,8 @@ BORDER_STATUS: tuple[
         BorderCrossingStatus.OPEN,
         datetime(2026, 11, 22, tzinfo=_STO),
         None,
-        "Open on the check day (Norwegian customs office open 24/7 for road traffic);"
-        " earlier history not recorded.",
+        "Open on the check day: Norwegian Customs keeps the crossing open 24/7 for cross-border"
+        " road traffic. Earlier history not recorded.",
         _TOLL_SVINESUND,
     ),
 )
@@ -1462,6 +1468,7 @@ def _seed_places(
         if session.get(BorderCrossingDetails, location.id) is None:
             office = locations[border.customs_office] if border.customs_office else None
             other = locations[border.other_customs_office] if border.other_customs_office else None
+            validate_customs_office_pair(office.id if office else None, other.id if other else None)
             validate_border_crossing(
                 location.country,
                 border.other_country,

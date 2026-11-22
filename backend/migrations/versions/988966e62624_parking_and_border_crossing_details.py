@@ -14,8 +14,10 @@ Schema:
 - border_crossing_status_periods: open / closed / restricted over [starts_at, ends_at) with the
   official source (times, not days: a border may close in the evening).
 
-Downgrade drops the new tables and restores the old type list; it stops if border crossing
-locations exist (archive or remove them first, nothing is deleted silently).
+Downgrade drops the new tables WITH their rows (parking details, certificates, border crossing
+details and status history; reload them with the demo seed or enter them again), then restores
+the old type list. It stops if border crossing locations exist, so those locations are never
+deleted silently: remove them first.
 
 Revision ID: 988966e62624
 Revises: 47da3484520e
@@ -68,6 +70,7 @@ def upgrade() -> None:
     sa.CheckConstraint("other_customs_office_type = 'customs_office'", name='ck_border_crossing_details_other_customs_office_type'),
     sa.CheckConstraint('(customs_office_id IS NULL) = (customs_office_type IS NULL) AND (other_customs_office_id IS NULL) = (other_customs_office_type IS NULL)', name='ck_border_crossing_details_customs_office_pairs'),
     sa.CheckConstraint('typical_wait_minutes IS NULL OR typical_wait_minutes >= 0', name='ck_border_crossing_details_typical_wait'),
+    sa.CheckConstraint('customs_office_id IS NULL OR other_customs_office_id IS NULL OR customs_office_id <> other_customs_office_id', name='ck_border_crossing_details_customs_offices_differ'),
     sa.ForeignKeyConstraint(['customs_office_id', 'customs_office_type'], ['locations.id', 'locations.type'], name='fk_border_crossing_details_customs_office_id', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['location_id', 'location_type'], ['locations.id', 'locations.type'], name='fk_border_crossing_details_location_id', ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['other_customs_office_id', 'other_customs_office_type'], ['locations.id', 'locations.type'], name='fk_border_crossing_details_other_customs_office_id', ondelete='RESTRICT'),

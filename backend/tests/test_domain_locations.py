@@ -12,6 +12,7 @@ from domain.locations import (
     ParkingCertificationLevel,
     status_at,
     validate_border_crossing,
+    validate_customs_office_pair,
     validate_latitude,
     validate_longitude,
     validate_opening_hours,
@@ -270,6 +271,15 @@ def test_status_periods_rejected() -> None:
         [(OPEN, b, a)],
         [(OPEN, a, a)],
         [(OPEN, datetime(2024, 1, 1), None)],  # no time zone
+        [(OPEN, a, None), (CLOSED, datetime(2024, 3, 1), None)],  # mixed: no TypeError
     ):
         with pytest.raises(ValueError):
             validate_status_periods(periods)
+
+
+def test_customs_offices_of_the_two_sides_differ() -> None:
+    validate_customs_office_pair(None, None)
+    validate_customs_office_pair(1, None)
+    validate_customs_office_pair(1, 2)
+    with pytest.raises(ValueError):
+        validate_customs_office_pair(1, 1)

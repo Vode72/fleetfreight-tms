@@ -535,6 +535,34 @@ def test_places_migration_creates_and_removes_tables(test_engine: Engine) -> Non
     command.upgrade(cfg, "head")
 
 
+def test_places_downgrade_drops_parking_rows_but_keeps_the_location(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "head")
+    with test_engine.begin() as conn:
+        location_id = conn.execute(
+            text(
+                "INSERT INTO locations (type, name, country, timezone)"
+                " VALUES ('parking', 'Demo Parking M', 'FI', 'Europe/Helsinki') RETURNING id"
+            )
+        ).scalar()
+        conn.execute(
+            text("INSERT INTO parking_details (location_id) VALUES (:id)"), {"id": location_id}
+        )
+    try:
+        command.downgrade(cfg, "47da3484520e")  # documented: detail rows go with their tables
+        with test_engine.connect() as conn:
+            assert (
+                conn.execute(
+                    text("SELECT count(*) FROM locations WHERE id = :id"), {"id": location_id}
+                ).scalar()
+                == 1
+            )
+    finally:
+        with test_engine.begin() as conn:
+            conn.execute(text("DELETE FROM locations WHERE name = 'Demo Parking M'"))
+        command.upgrade(cfg, "head")
+
+
 def test_places_downgrade_stops_while_border_crossings_exist(test_engine: Engine) -> None:
     cfg = _config(test_engine)
     command.upgrade(cfg, "head")

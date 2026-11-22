@@ -281,6 +281,14 @@ def validate_border_crossing(
         raise ValueError("the other side's customs office must lie in the other country")
 
 
+def validate_customs_office_pair(
+    customs_office_id: object | None, other_customs_office_id: object | None
+) -> None:
+    """The two sides need two different offices (mirrors ck_border_crossing_details_...)."""
+    if customs_office_id is not None and customs_office_id == other_customs_office_id:
+        raise ValueError("the customs offices of the two sides must differ")
+
+
 def validate_status_periods(
     periods: Sequence[tuple[BorderCrossingStatus, datetime, datetime | None]],
 ) -> None:
@@ -288,11 +296,12 @@ def validate_status_periods(
 
     Mirrors the exclusion constraint; ends_at None = until further notice.
     """
+    for _, starts_at, ends_at in periods:
+        if starts_at.tzinfo is None or (ends_at is not None and ends_at.tzinfo is None):
+            raise ValueError("status period times need a time zone")
     ordered = sorted(periods, key=lambda p: p[1])
     previous_end: datetime | None = None
     for index, (_, starts_at, ends_at) in enumerate(ordered):
-        if starts_at.tzinfo is None or (ends_at is not None and ends_at.tzinfo is None):
-            raise ValueError("status period times need a time zone")
         if ends_at is not None and ends_at <= starts_at:
             raise ValueError("a status period must end after it starts")
         if index and (previous_end is None or starts_at < previous_end):
