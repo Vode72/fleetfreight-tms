@@ -40,6 +40,13 @@ from domain.equipment import (
     PowerSource,
     TruckType,
 )
+from domain.lines import (
+    ADR_CLASSES,
+    AdrAcceptance,
+    DepartureStatus,
+    LineMode,
+    VesselType,
+)
 from domain.locations import (
     LEVELS_BY_SCHEME,
     STORAGE_LOCATION_TYPES,
@@ -1489,5 +1496,372 @@ class RoadRestrictionWindow(Base):
     season_start: Mapped[int | None] = mapped_column(SmallInteger)  # MMDD
     season_end: Mapped[int | None] = mapped_column(SmallInteger)
     on_date: Mapped[date | None] = mapped_column(Date)  # kind 'date' only
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+# --- Ferry and rail lines (2B-3c, D62, D63, D94). A route is a sequence of stops; a schedule is
+# a weekly pattern with the local time at every stop; a departure ("lähtö") is one dated trip.
+
+
+class LineOperator(Base):
+    """A ferry or rail operator (demo names only, rule 5)."""
+
+    __tablename__ = "line_operators"
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_line_operators_name"),
+        UniqueConstraint("id", "mode", name="uq_line_operators_id_mode"),
+        CheckConstraint(in_list("mode", LineMode), name="ck_line_operators_mode"),
+        CheckConstraint("btrim(name) <> ''", name="ck_line_operators_name_not_blank"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    name: Mapped[str] = mapped_column(String(200))
+    mode: Mapped[str] = mapped_column(String(10))
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class Vessel(Base):
+    """A ship of a ferry operator (D27, D46, D94)."""
+
+    __tablename__ = "vessels"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["operator_id", "operator_mode"],
+            ["line_operators.id", "line_operators.mode"],
+            ondelete="RESTRICT",
+            name="fk_vessels_operator_id",
+        ),
+        CheckConstraint("operator_mode = 'ferry'", name="ck_vessels_operator_mode"),
+        UniqueConstraint("name", name="uq_vessels_name"),
+        UniqueConstraint("id", "operator_id", name="uq_vessels_id_operator_id"),
+        CheckConstraint(in_list("vessel_type", VesselType), name="ck_vessels_vessel_type"),
+        CheckConstraint("btrim(name) <> ''", name="ck_vessels_name_not_blank"),
+        CheckConstraint(
+            "(lane_metres IS NULL OR lane_metres > 0)"
+            " AND (deck_height_mm IS NULL OR deck_height_mm > 0)"
+            " AND (reefer_plug_count IS NULL OR reefer_plug_count >= 0)",
+            name="ck_vessels_capacities",
+        ),
+        CheckConstraint(
+            "(accompanied OR unaccompanied) AND (NOT accompanied OR driver_cabins)",
+            name="ck_vessels_units",
+        ),
+        Index("ix_vessels_operator_id", "operator_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    operator_mode: Mapped[str] = mapped_column(
+        String(10), server_default=text("'ferry'"), default=LineMode.FERRY.value
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    vessel_type: Mapped[str] = mapped_column(String(10))
+    lane_metres: Mapped[int | None] = mapped_column(Integer)
+    # Free height of the lowest freight deck; NULL = not recorded.
+    deck_height_mm: Mapped[int | None] = mapped_column(Integer)
+    reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
+    # Units carried: accompanied combinations (with driver) and/or unaccompanied trailers.
+    accompanied: Mapped[bool] = mapped_column(Boolean)
+    unaccompanied: Mapped[bool] = mapped_column(Boolean)
+    # Cabins for drivers (rest on board, D23; conditions from 561/2006 in phase 5).
+    driver_cabins: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class VesselAdrClass(Base):
+    """How a vessel accepts one dangerous goods class (D46, D94); no row = not recorded."""
+
+    __tablename__ = "vessel_adr_classes"
+    __table_args__ = (
+        CheckConstraint(
+            f"adr_class IN ({_sql_list(list(ADR_CLASSES))})", name="ck_vessel_adr_classes_class"
+        ),
+        CheckConstraint(
+            in_list("acceptance", AdrAcceptance), name="ck_vessel_adr_classes_acceptance"
+        ),
+    )
+
+    vessel_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("vessels.id", "fk_vessel_adr_classes_vessel_id"), primary_key=True
+    )
+    adr_class: Mapped[str] = mapped_column(String(4), primary_key=True)
+    acceptance: Mapped[str] = mapped_column(String(15))
+    # e.g. which deck, or only with an open deck position.
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LineRoute(Base):
+    """One direction of a line (D62: each direction is its own route) with its defaults."""
+
+    __tablename__ = "line_routes"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["operator_id", "mode"],
+            ["line_operators.id", "line_operators.mode"],
+            ondelete="RESTRICT",
+            name="fk_line_routes_operator_id",
+        ),
+        UniqueConstraint("name", name="uq_line_routes_name"),
+        UniqueConstraint("id", "mode", name="uq_line_routes_id_mode"),
+        CheckConstraint(in_list("mode", LineMode), name="ck_line_routes_mode"),
+        CheckConstraint("btrim(name) <> ''", name="ck_line_routes_name_not_blank"),
+        # Mirrors domain.lines.validate_route.
+        CheckConstraint(
+            "(accompanied OR unaccompanied) AND (mode = 'ferry' OR NOT accompanied)"
+            " AND (checkin_minutes IS NULL OR (accompanied AND checkin_minutes >= 0))"
+            " AND (cutoff_minutes IS NULL OR (unaccompanied AND cutoff_minutes >= 0))"
+            " AND (dg_declaration_hours IS NULL OR dg_declaration_hours >= 0)",
+            name="ck_line_routes_units_and_defaults",
+        ),
+        Index("ix_line_routes_operator_id", "operator_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    operator_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    mode: Mapped[str] = mapped_column(String(10))
+    name: Mapped[str] = mapped_column(String(200))
+    accompanied: Mapped[bool] = mapped_column(Boolean)
+    unaccompanied: Mapped[bool] = mapped_column(Boolean)
+    # Defaults in minutes before departure: check-in for accompanied units, cut-off for
+    # unaccompanied ones (a stop or a departure may override them).
+    checkin_minutes: Mapped[int | None] = mapped_column(Integer)
+    cutoff_minutes: Mapped[int | None] = mapped_column(Integer)
+    # Dangerous goods declaration deadline, hours before departure (D46).
+    dg_declaration_hours: Mapped[int | None] = mapped_column(Integer)
+    # e.g. the loading gauge of a rail route (profile codes come with Plan Check, phase 5).
+    note: Mapped[str | None] = mapped_column(Text)
+    archived_at: Mapped[datetime | None] = _archived_at()
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LineRouteStop(Base):
+    """A stop of a route: a port (ferry) or a rail terminal (rail), in order."""
+
+    __tablename__ = "line_route_stops"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["route_id", "route_mode"],
+            ["line_routes.id", "line_routes.mode"],
+            ondelete="RESTRICT",
+            name="fk_line_route_stops_route_id",
+        ),
+        ForeignKeyConstraint(
+            ["location_id", "location_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_line_route_stops_location_id",
+        ),
+        CheckConstraint(
+            "(route_mode = 'ferry' AND location_type = 'port')"
+            " OR (route_mode = 'rail' AND location_type = 'rail_terminal')",
+            name="ck_line_route_stops_location_type",
+        ),
+        CheckConstraint("sequence >= 1", name="ck_line_route_stops_sequence"),
+        CheckConstraint("loading OR unloading", name="ck_line_route_stops_handles_units"),
+        Index("ix_line_route_stops_location_id", "location_id"),
+    )
+
+    route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    sequence: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    route_mode: Mapped[str] = mapped_column(String(10))
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    location_type: Mapped[str] = mapped_column(String(20))
+    loading: Mapped[bool] = mapped_column(Boolean)
+    unloading: Mapped[bool] = mapped_column(Boolean)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LineSchedule(Base):
+    """Weekly pattern of a route (D67 validity): the first departure's ISO weekday, the vessel
+    (ferry) and the local time at every stop (line_schedule_calls)."""
+
+    __tablename__ = "line_schedules"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["route_id", "route_mode"],
+            ["line_routes.id", "line_routes.mode"],
+            ondelete="RESTRICT",
+            name="fk_line_schedules_route_id",
+        ),
+        UniqueConstraint("id", "route_id", name="uq_line_schedules_id_route_id"),
+        CheckConstraint("weekday BETWEEN 1 AND 7", name="ck_line_schedules_weekday"),
+        CheckConstraint(
+            "(route_mode = 'rail') = (vessel_id IS NULL)", name="ck_line_schedules_vessel"
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until", name="ck_line_schedules_period"
+        ),
+        Index("ix_line_schedules_route_id", "route_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    route_mode: Mapped[str] = mapped_column(String(10))
+    weekday: Mapped[int] = mapped_column(SmallInteger)
+    vessel_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("vessels.id", "fk_line_schedules_vessel_id")
+    )
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+_CALL_CHECKS = (
+    "(arrival_day IS NULL) = (arrival_time IS NULL)"
+    " AND (departure_day IS NULL) = (departure_time IS NULL)"
+    " AND (arrival_day IS NULL OR arrival_day BETWEEN 0 AND 14)"
+    " AND (departure_day IS NULL OR departure_day BETWEEN 0 AND 14)"
+    " AND (arrival_day IS NOT NULL OR departure_day IS NOT NULL)"
+)
+
+
+class LineScheduleCall(Base):
+    """Local arrival and departure at one stop of a weekly schedule, as day offsets from the
+    first departure; optional cut-off override in minutes before the departure there."""
+
+    __tablename__ = "line_schedule_calls"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["schedule_id", "route_id"],
+            ["line_schedules.id", "line_schedules.route_id"],
+            ondelete="RESTRICT",
+            name="fk_line_schedule_calls_schedule_id",
+        ),
+        ForeignKeyConstraint(
+            ["route_id", "sequence"],
+            ["line_route_stops.route_id", "line_route_stops.sequence"],
+            ondelete="RESTRICT",
+            name="fk_line_schedule_calls_stop",
+        ),
+        CheckConstraint(_CALL_CHECKS, name="ck_line_schedule_calls_times"),
+        CheckConstraint(
+            "cutoff_minutes IS NULL OR cutoff_minutes >= 0",
+            name="ck_line_schedule_calls_cutoff",
+        ),
+    )
+
+    schedule_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    sequence: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    arrival_day: Mapped[int | None] = mapped_column(SmallInteger)
+    arrival_time: Mapped[time | None] = mapped_column(Time)
+    departure_day: Mapped[int | None] = mapped_column(SmallInteger)
+    departure_time: Mapped[time | None] = mapped_column(Time)
+    cutoff_minutes: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LineDeparture(Base):
+    """One dated trip of a route ("lähtö"), generated from a schedule or entered by hand.
+
+    Generating only adds missing departures; an existing one is never edited or deleted by it
+    (rules 8 and 9). Bookings refer to a departure (line_bookings, 2C).
+    """
+
+    __tablename__ = "line_departures"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["route_id", "route_mode"],
+            ["line_routes.id", "line_routes.mode"],
+            ondelete="RESTRICT",
+            name="fk_line_departures_route_id",
+        ),
+        ForeignKeyConstraint(
+            ["schedule_id", "route_id"],
+            ["line_schedules.id", "line_schedules.route_id"],
+            ondelete="RESTRICT",
+            name="fk_line_departures_schedule_id",
+        ),
+        UniqueConstraint("id", "route_id", name="uq_line_departures_id_route_id"),
+        UniqueConstraint(
+            "schedule_id", "service_date", name="uq_line_departures_schedule_id_service_date"
+        ),
+        CheckConstraint(in_list("status", DepartureStatus), name="ck_line_departures_status"),
+        CheckConstraint(
+            "route_mode = 'ferry' OR vessel_id IS NULL", name="ck_line_departures_vessel"
+        ),
+        CheckConstraint(
+            "(checkin_minutes IS NULL OR checkin_minutes >= 0)"
+            " AND (cutoff_minutes IS NULL OR cutoff_minutes >= 0)",
+            name="ck_line_departures_overrides",
+        ),
+        Index("ix_line_departures_route_id_service_date", "route_id", "service_date"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    route_mode: Mapped[str] = mapped_column(String(10))
+    # NULL = an extra departure entered by hand.
+    schedule_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    # Local date of the first departure.
+    service_date: Mapped[date] = mapped_column(Date)
+    vessel_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), _fk("vessels.id", "fk_line_departures_vessel_id")
+    )
+    status: Mapped[str] = mapped_column(
+        String(10), server_default=text("'planned'"), default=DepartureStatus.PLANNED.value
+    )
+    # Overrides of the route's defaults for this departure.
+    checkin_minutes: Mapped[int | None] = mapped_column(Integer)
+    cutoff_minutes: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LineDepartureCall(Base):
+    """Planned and estimated times of a departure at one stop."""
+
+    __tablename__ = "line_departure_calls"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["departure_id", "route_id"],
+            ["line_departures.id", "line_departures.route_id"],
+            ondelete="RESTRICT",
+            name="fk_line_departure_calls_departure_id",
+        ),
+        ForeignKeyConstraint(
+            ["route_id", "sequence"],
+            ["line_route_stops.route_id", "line_route_stops.sequence"],
+            ondelete="RESTRICT",
+            name="fk_line_departure_calls_stop",
+        ),
+        CheckConstraint(
+            "(arrives_at IS NOT NULL OR departs_at IS NOT NULL)"
+            " AND (arrives_at IS NULL OR departs_at IS NULL OR arrives_at <= departs_at)"
+            " AND (cutoff_at IS NULL OR (departs_at IS NOT NULL AND cutoff_at <= departs_at))",
+            name="ck_line_departure_calls_times",
+        ),
+        CheckConstraint(
+            "(estimated_arrives_at IS NULL AND estimated_departs_at IS NULL)"
+            " = (estimated_at IS NULL)",
+            name="ck_line_departure_calls_estimate",
+        ),
+    )
+
+    departure_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    sequence: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    route_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    arrives_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    departs_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Last moment for unaccompanied units at this stop (the route's or the stop's default).
+    cutoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Latest estimate, its source (e.g. operator notice) and when it was given.
+    estimated_arrives_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    estimated_departs_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    estimate_source: Mapped[str | None] = mapped_column(Text)
+    estimated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()

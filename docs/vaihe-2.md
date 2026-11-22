@@ -1,6 +1,6 @@
 # Vaihe 2: tietomalli
 
-Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2 ja 2B-3a valmiit; 2B-3b valmis; seuraavaksi 2B-3c) · Päivitetty 22.11.2026
+Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2 ja 2B-3a valmiit; 2B-3b valmis; 2B-3c osa 1 tehty, seuraavaksi osa 2) · Päivitetty 22.11.2026
 
 Tavoite: koko tietomalli v1 (`suunnitelma.md` luku 3) Alembic-revisioina, tilakoneet testeineen ja
 yhdistetty demodata, jonka päälle vaiheen 4 läpimenevä polku rakennetaan. Taulut luodaan luvun 3
@@ -65,10 +65,11 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 - **Osa b, PR (2B-3b-2, D93):** asiakkaan toimipaikalle `forklift_available` ja `tail_lift_required` (laituri, sivulastaus, enimmäispituus ja ajanvarauspakko olivat jo `locations`-taulussa); trailerin säilytysehdot `trailer_storage_rules` satamille ja junaterminaaleille jaksoina (ilmaiset päivät, päivämaksu ja valuutta, sähköön kytkentä ja sen maksu; laituri perii satama-alueen säännön, `domain.locations.storage_rule_for`); pesupaikat `wash_details` (sisä/ulko, tasot yleinen, elintarvike, kemikaali, säiliö ja bulkki, pesutodistus ja ECD); turvaparkille `trailer_drop_allowed` (revisio 4523ff2f5448). Demo: säilytysehdot D62:n satamille ja kolmelle junaterminaalille keksityin summin (EUR, PLN, SEK; Lehmannkailla oma sääntö), pesupaikat Tampere (elintarvike) ja Kotka (säiliö, ECD), trailerin jättö Lübeckin ja Rostockin turvaparkeissa
 - **Valmis kun:** demon turvaparkit, rajanylitykset ja satamat asetuksineen ovat kannassa ✓
 
-#### 2B-3c Linjat ja reititys
-- `line_operators`, `line_routes`, `line_departures` (lautta ja juna, D62, D63) ja aluskohtaiset ADR-rajoitukset (kaikki alukset eivät ota kaikkia luokkia)
-- `routing_preferences` (D64), `ltl_linehauls`, `customs_areas` (D48), `adr_rules`-rakenne (sisältö lähteistä ennen vaihetta 5, luku 3C)
-- Demodata: lauttayhteydet D62:n mukaan molempiin suuntiin, junayhteys Rostock ja Travemünde ↔ Verona, reititysehdotukset D64:n mukaan
+#### 2B-3c Linjat ja reititys · osa 1 tehty (D94)
+- **Osa 1, PR (2B-3c-1, D94):** `line_operators`, `vessels` ja `vessel_adr_classes` (sallittu, kielletty, ennakkohyväksyntä), `line_routes` (yksi suunta, check-in-, cut-off- ja DG-ilmoitusoletukset) ja `line_route_stops`, viikkorytmi `line_schedules` + `line_schedule_calls` (paikallisajat päiväsiirtymin) sekä **lähdöt** `line_departures` + `line_departure_calls` (pysähdyskohtaiset ajat, cut-off, arvio lähteineen, tila). Lähtöjen luonti lisää vain puuttuvat (`domain/lines.py`), revisio f1f1b6c62fc0. Demo: 5 operaattoria, 8 alusta, 22 reittiä (D62 molempiin suuntiin ja D63:n junat), lähdöt 8 viikoksi
+- **Osa 2, PR (2B-3c-2):** `routing_preferences` (D64; kohdemaa, myöhemmin postinumeroalue, tarkempi voittaa) ja `ltl_linehauls` (runkolinjat terminaalien välillä, lähtöajat, cut-off, toimitusaikalupaus)
+- **Osa 3, PR (2B-3c-3):** `customs_areas` (D48) jaksoina virallisista lähteistä ja `adr_rules`-rakenne (sisältö ennen vaihetta 5, luku 3C)
+- **Myöhemmin:** junan kuormaprofiili (vaihe 5), RID junan vaarallisille aineille (D46)
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
 
 #### 2B-3d Kustannusasetukset (rakenne; laskenta vaiheessa 6)

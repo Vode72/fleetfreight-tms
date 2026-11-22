@@ -594,3 +594,25 @@ def test_site_storage_wash_migration_adds_and_removes(test_engine: Engine) -> No
     assert not {"forklift_available", "tail_lift_required"} & columns
     assert "trailer_drop_allowed" not in {c["name"] for c in insp.get_columns("parking_details")}
     command.upgrade(cfg, "head")
+
+
+LINE_TABLES = {
+    "line_operators",
+    "vessels",
+    "vessel_adr_classes",
+    "line_routes",
+    "line_route_stops",
+    "line_schedules",
+    "line_schedule_calls",
+    "line_departures",
+    "line_departure_calls",
+}
+
+
+def test_lines_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "f1f1b6c62fc0")
+    assert set(inspect(test_engine).get_table_names()) >= LINE_TABLES
+    command.downgrade(cfg, "4523ff2f5448")
+    assert not LINE_TABLES & set(inspect(test_engine).get_table_names())
+    command.upgrade(cfg, "head")
