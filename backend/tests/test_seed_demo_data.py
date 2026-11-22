@@ -60,6 +60,8 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "parking_certifications",
         "border_crossing_details",
         "border_crossing_status_periods",
+        "trailer_storage_rules",
+        "wash_details",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
@@ -1295,3 +1297,50 @@ def test_seed_parking_and_border_data_is_valid_by_the_domain_rules() -> None:
     assert set(seed.BORDER_CROSSINGS) <= names
     assert {c[0] for c in seed.PARKING_CERTIFICATIONS} <= set(seed.PARKING)
     assert {s[0] for s in seed.BORDER_STATUS} <= set(seed.BORDER_CROSSINGS)
+
+
+def test_site_features_storage_rules_and_washes(test_engine: Engine) -> None:
+    _run(test_engine)
+    # the shop without a dock needs a tail lift and has no forklift
+    assert _rows(
+        test_engine,
+        "SELECT forklift_available, tail_lift_required, has_loading_dock FROM locations"
+        " WHERE name = 'Demo Kauppa Oy \u2013 Kuopio Shop Site'",
+    ) == [(False, True, False)]
+    # every port area and rail terminal of the ferry and rail network has storage terms
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM locations l WHERE l.type IN ('port', 'rail_terminal')"
+            " AND l.parent_location_id IS NULL AND NOT EXISTS (SELECT 1 FROM"
+            " trailer_storage_rules r WHERE r.location_id = l.id)",
+        )
+        == 0
+    )
+    # a quay with its own terms and one using the port area's (D93)
+    assert _rows(
+        test_engine,
+        "SELECT l.name, count(r.id) FROM locations l LEFT JOIN trailer_storage_rules r"
+        " ON r.location_id = l.id WHERE l.parent_location_id IS NOT NULL"
+        " GROUP BY l.name ORDER BY l.name",
+    ) == [("Demo Port Lübeck \u2013 Lehmannkai", 1), ("Demo Port Lübeck \u2013 Seelandkai", 0)]
+    assert _rows(
+        test_engine,
+        "SELECT DISTINCT currency FROM trailer_storage_rules ORDER BY 1",
+    ) == [("EUR",), ("PLN",), ("SEK",)]
+    # washes: a food-grade wash and a tank cleaning that issues the ECD
+    assert _rows(
+        test_engine,
+        "SELECT l.name, w.grades, w.issues_ecd FROM wash_details w"
+        " JOIN locations l ON l.id = w.location_id ORDER BY l.name",
+    ) == [
+        ("Demo Tank Cleaning Kotka", ["chemical", "tank"], True),
+        ("Demo Truck Wash Tampere", ["food_grade", "general"], False),
+    ]
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM parking_details WHERE trailer_drop_allowed",
+        )
+        == 2
+    )

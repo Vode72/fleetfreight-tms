@@ -580,3 +580,17 @@ def test_places_downgrade_stops_while_border_crossings_exist(test_engine: Engine
         with test_engine.begin() as conn:
             conn.execute(text("DELETE FROM locations WHERE name = 'Demo Crossing M'"))
         command.upgrade(cfg, "head")
+
+
+def test_site_storage_wash_migration_adds_and_removes(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "4523ff2f5448")
+    tables = set(inspect(test_engine).get_table_names())
+    assert {"trailer_storage_rules", "wash_details"} <= tables
+    command.downgrade(cfg, "988966e62624")
+    insp = inspect(test_engine)
+    assert not {"trailer_storage_rules", "wash_details"} & set(insp.get_table_names())
+    columns = {c["name"] for c in insp.get_columns("locations")}
+    assert not {"forklift_available", "tail_lift_required"} & columns
+    assert "trailer_drop_allowed" not in {c["name"] for c in insp.get_columns("parking_details")}
+    command.upgrade(cfg, "head")

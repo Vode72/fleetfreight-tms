@@ -11,6 +11,7 @@ from domain.locations import (
     LocationType,
     ParkingCertificationLevel,
     status_at,
+    storage_rule_for,
     validate_border_crossing,
     validate_customs_office_pair,
     validate_latitude,
@@ -19,9 +20,12 @@ from domain.locations import (
     validate_parking_certification,
     validate_parking_details,
     validate_postal_code,
+    validate_site_features,
     validate_status_periods,
     validate_terminal_fields,
     validate_timezone,
+    validate_trailer_storage_rule,
+    validate_wash_details,
 )
 from domain.locations import ParkingCertificationScheme as S
 
@@ -283,3 +287,81 @@ def test_customs_offices_of_the_two_sides_differ() -> None:
     validate_customs_office_pair(1, 2)
     with pytest.raises(ValueError):
         validate_customs_office_pair(1, 1)
+
+
+# --- D93: site features, trailer storage, wash places
+
+
+def test_site_features_only_on_customer_sites() -> None:
+    validate_site_features(
+        LocationType.CUSTOMER_SITE, forklift_available=True, tail_lift_required=False
+    )
+    validate_site_features(LocationType.TERMINAL, forklift_available=None, tail_lift_required=None)
+    with pytest.raises(ValueError):
+        validate_site_features(
+            LocationType.TERMINAL, forklift_available=True, tail_lift_required=None
+        )
+
+
+def _storage_kw(**kw: Any) -> dict[str, Any]:
+    values: dict[str, Any] = {
+        "free_days": 3,
+        "daily_fee_cents": 3000,
+        "currency": "EUR",
+        "reefer_plug_available": True,
+        "reefer_plug_daily_fee_cents": 2500,
+        "valid_from": date(2026, 1, 1),
+        "valid_until": None,
+    }
+    return {**values, **kw}
+
+
+def test_trailer_storage_rule() -> None:
+    validate_trailer_storage_rule("port", **_storage_kw())
+    validate_trailer_storage_rule("rail_terminal", **_storage_kw(free_days=0))
+    with pytest.raises(ValueError):
+        validate_trailer_storage_rule("depot", **_storage_kw())
+    for bad in (
+        {"free_days": -1},
+        {"daily_fee_cents": -1},
+        {"currency": "eur"},
+        {"reefer_plug_available": False},
+        {"reefer_plug_daily_fee_cents": -1},
+        {"valid_until": date(2025, 12, 31)},
+    ):
+        with pytest.raises(ValueError):
+            validate_trailer_storage_rule("port", **_storage_kw(**bad))
+
+
+def test_quay_uses_its_own_rule_on_its_days_and_the_port_area_otherwise() -> None:
+    own = [(date(2026, 3, 1), date(2026, 3, 31))]
+    parent = [(date(2026, 1, 1), None)]
+    assert storage_rule_for(date(2026, 3, 15), own, parent) == ("own", 0)
+    assert storage_rule_for(date(2026, 4, 1), own, parent) == ("parent", 0)
+    assert storage_rule_for(date(2025, 12, 31), own, parent) is None
+    assert storage_rule_for(date(2026, 3, 31), own, []) == ("own", 0)
+
+
+def test_wash_details_rules() -> None:
+    assert validate_wash_details(
+        ["interior", "exterior", "interior"],
+        ["food_grade", "general"],
+        issues_cleaning_document=True,
+        issues_ecd=False,
+    ) == (["exterior", "interior"], ["food_grade", "general"])
+    assert validate_wash_details(
+        ["interior"], ["tank"], issues_cleaning_document=True, issues_ecd=True
+    ) == (["interior"], ["tank"])
+    cases: list[tuple[list[str], list[str], bool, bool]] = [
+        ([], [], False, False),
+        (["roof"], [], False, False),
+        (["exterior"], ["general"], False, False),
+        (["interior"], [], False, False),
+        (["interior"], ["steam"], False, False),
+        (["exterior"], [], True, False),
+        (["interior"], ["tank"], False, True),
+        (["interior"], ["chemical"], True, True),
+    ]
+    for scopes, grades, document, ecd in cases:
+        with pytest.raises(ValueError):
+            validate_wash_details(scopes, grades, issues_cleaning_document=document, issues_ecd=ecd)

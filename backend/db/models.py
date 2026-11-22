@@ -42,10 +42,13 @@ from domain.equipment import (
 )
 from domain.locations import (
     LEVELS_BY_SCHEME,
+    STORAGE_LOCATION_TYPES,
     BorderCrossingStatus,
     LocationType,
     ParkingCertificationScheme,
     ParkingService,
+    WashGrade,
+    WashScope,
 )
 from domain.parties import CarrierType, CustomerType, DriverEmployment
 from domain.qualifications import DriverQualificationType
@@ -264,6 +267,10 @@ class Location(Base):
             "type = 'customer_site' OR has_loading_dock IS NULL",
             name="ck_locations_loading_dock_customer_site_only",
         ),
+        CheckConstraint(
+            "type = 'customer_site' OR (forklift_available IS NULL AND tail_lift_required IS NULL)",
+            name="ck_locations_site_features_customer_site_only",
+        ),
         Index("ix_locations_type", "type"),
         Index("ix_locations_parent_location_id", "parent_location_id"),
         Index("ix_locations_customer_id", "customer_id"),
@@ -301,6 +308,9 @@ class Location(Base):
     reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
     # Customer sites only: does the site have a loading dock? NULL = unknown.
     has_loading_dock: Mapped[bool | None] = mapped_column(Boolean)
+    # Customer sites only (D93): forklift on site; unloading needs a tail lift. NULL = unknown.
+    forklift_available: Mapped[bool | None] = mapped_column(Boolean)
+    tail_lift_required: Mapped[bool | None] = mapped_column(Boolean)
     archived_at: Mapped[datetime | None] = _archived_at()
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
@@ -369,6 +379,9 @@ class ParkingDetails(Base):
     price_currency: Mapped[str | None] = mapped_column(String(3))
     # Electric hook-ups for reefer units (thermo trailers); NULL = not recorded.
     reefer_plug_count: Mapped[int | None] = mapped_column(Integer)
+    # A trailer may be left here without its tractor, e.g. for a tractor swap or a drop before a
+    # delivery slot (D18, D82, D93); NULL = not recorded.
+    trailer_drop_allowed: Mapped[bool | None] = mapped_column(Boolean)
     # A space can be booked in advance (locations.booking_required: a booking is required).
     # "Required implies possible" spans two tables, so only the service layer checks it
     # (domain.locations.validate_parking_details).
@@ -428,6 +441,109 @@ class ParkingCertification(Base):
     valid_from: Mapped[date] = mapped_column(Date)
     valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = end not recorded
     document_ref: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class TrailerStorageRule(Base):
+    """Trailer storage terms of a port or rail terminal for one validity period (D27, D83, D93).
+
+    Recorded per port area or terminal (v1: not per shipping line, direction or load state); a
+    quay (child location) uses its own rule on the days it has one, otherwise its parent's
+    (domain.locations.storage_rule_for). Free days count in the place's local time zone. The fee
+    is calculated in phase 6.
+    """
+
+    __tablename__ = "trailer_storage_rules"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["location_id", "location_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_trailer_storage_rules_location_id",
+        ),
+        CheckConstraint(
+            f"location_type IN ({_sql_list([t.value for t in STORAGE_LOCATION_TYPES])})",
+            name="ck_trailer_storage_rules_location_type",
+        ),
+        CheckConstraint("free_days >= 0", name="ck_trailer_storage_rules_free_days"),
+        CheckConstraint(
+            "daily_fee_cents >= 0 AND currency ~ '^[A-Z]{3}$'",
+            name="ck_trailer_storage_rules_daily_fee",
+        ),
+        CheckConstraint(
+            "reefer_plug_daily_fee_cents IS NULL"
+            " OR (reefer_plug_available AND reefer_plug_daily_fee_cents >= 0)",
+            name="ck_trailer_storage_rules_reefer_plug_fee",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until",
+            name="ck_trailer_storage_rules_period",
+        ),
+        ExcludeConstraint(
+            ("location_id", "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_trailer_storage_rules_no_overlap",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    # port or rail_terminal; copied from the location and kept in step by the foreign key.
+    location_type: Mapped[str] = mapped_column(String(20))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    # Free days: the arrival (gate-in or discharge) day and the following calendar days (D83).
+    free_days: Mapped[int] = mapped_column(SmallInteger, server_default=text("3"), default=3)
+    # Fee for every started day after the free days (D28: cents, in its own currency).
+    daily_fee_cents: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3))
+    # D27: reefer units can be plugged in; optional fee per started day.
+    reefer_plug_available: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    reefer_plug_daily_fee_cents: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class WashDetails(Base):
+    """Wash place (D56, D93): one row per location of type wash.
+
+    The cleaning document itself is an event of the load unit at the wash Node (2C).
+    """
+
+    __tablename__ = "wash_details"
+    __table_args__ = (
+        *_location_type_fk("location_id", "wash_details", LocationType.WASH),
+        CheckConstraint(
+            "cardinality(scopes) >= 1 AND scopes <@"
+            f" ARRAY[{_sql_list([v.value for v in WashScope])}]::varchar[]"
+            f" AND grades <@ ARRAY[{_sql_list([v.value for v in WashGrade])}]::varchar[]",
+            name="ck_wash_details_values",
+        ),
+        # Grades describe interior cleaning: present exactly when the interior is washed.
+        CheckConstraint(
+            "('interior' = ANY(scopes)) = (cardinality(grades) >= 1)",
+            name="ck_wash_details_grades_need_interior",
+        ),
+        CheckConstraint(
+            "(NOT issues_cleaning_document OR 'interior' = ANY(scopes))"
+            " AND (NOT issues_ecd OR (issues_cleaning_document AND 'tank' = ANY(grades)))",
+            name="ck_wash_details_documents",
+        ),
+    )
+
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    location_type: Mapped[str] = _location_type_column(LocationType.WASH)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(String(20)))
+    grades: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), server_default=text("'{}'::varchar[]"), default=list
+    )
+    # Issues a cleaning certificate after an interior wash.
+    issues_cleaning_document: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    # Issues the European Cleaning Document (tank and bulk cleaning).
+    issues_ecd: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
 

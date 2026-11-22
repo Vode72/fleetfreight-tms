@@ -5,7 +5,8 @@ Usage (from the backend directory):
 
 Contents: the own company, the terminal network (D31-D33), ports, rail terminals, customs
 offices, secure truck parking areas with certificates and border crossings with their status
-history (2B-3b, D92), demo customers with sites, carriers, drivers and driver qualifications,
+history (2B-3b, D92), trailer storage terms of ports and rail terminals and wash places (D93),
+demo customers with sites, carriers, drivers and driver qualifications,
 and the fleet (2B-2): tractors and rigid trucks, a dolly, trailers and fixed bodies with temperature
 compartments and reefer units, and equipment qualification periods. All names contain "Demo";
 addresses and identifiers are invented; registrations look like DEMO-TRK-001 (never real plates).
@@ -73,7 +74,9 @@ from db.models import (
     ParkingDetails,
     ReeferEvaporator,
     ReeferUnit,
+    TrailerStorageRule,
     Truck,
+    WashDetails,
 )
 from db.session import get_engine
 from domain.equipment import (
@@ -110,15 +113,20 @@ from domain.locations import (
     ParkingCertificationLevel,
     ParkingCertificationScheme,
     ParkingService,
+    WashGrade,
+    WashScope,
     validate_border_crossing,
     validate_customs_office_pair,
     validate_opening_hours,
     validate_parking_certification,
     validate_parking_details,
     validate_postal_code,
+    validate_site_features,
     validate_status_periods,
     validate_terminal_fields,
     validate_timezone,
+    validate_trailer_storage_rule,
+    validate_wash_details,
 )
 from domain.parties import (
     CarrierType,
@@ -171,6 +179,8 @@ class _Place:
     side_loading: bool = False
     max_vehicle_length_m: str | None = None
     has_loading_dock: bool | None = None
+    forklift_available: bool | None = None
+    tail_lift_required: bool | None = None
 
 
 def _terminal(
@@ -198,6 +208,12 @@ def _port(
 ) -> _Place:
     # opening_hours stays NULL: port opening hours are not checked.
     return _Place(f"Demo Port {name}", LocationType.PORT, country, lat, lon, tz, parent=parent)
+
+
+def _wash(name: str, lat: str, lon: str) -> _Place:
+    return _Place(
+        f"Demo {name}", LocationType.WASH, "FI", lat, lon, "Europe/Helsinki", hours=HOURS_INDUSTRY
+    )
 
 
 def _rail(city: str, country: str, lat: str, lon: str, tz: str) -> _Place:
@@ -440,6 +456,9 @@ _PLACES_WITHOUT_LOCALITY: tuple[_Place, ...] = (
     _border("Tornio\u2013Haaparanta", "FI", "65.844000", "24.150000", "Europe/Helsinki"),
     _border("Vaalimaa", "FI", "60.580000", "27.830000", "Europe/Helsinki"),
     _border("Svinesund", "SE", "59.090000", "11.270000", "Europe/Stockholm"),
+    # Wash places (D56, D93): invented points.
+    _wash("Truck Wash Tampere", "61.470000", "23.850000"),
+    _wash("Tank Cleaning Kotka", "60.500000", "26.900000"),
 )
 
 # Postal code and city (D68). Real codes of the general city-centre area only; where a code is not
@@ -479,6 +498,8 @@ _LOCALITY: dict[str, tuple[str | None, str]] = {
     "Demo Border Crossing Tornio\u2013Haaparanta": ("95400", "Tornio"),
     "Demo Border Crossing Vaalimaa": ("49930", "Virolahti"),
     "Demo Border Crossing Svinesund": (None, "Strömstad"),
+    "Demo Truck Wash Tampere": ("33100", "Tampere"),
+    "Demo Tank Cleaning Kotka": ("48100", "Kotka"),
     "Demo Paper Mill Site": ("70100", "Kuopio"),
     "Demo Paper Oy \u2013 Jyväskylä Site": ("40100", "Jyväskylä"),
     "Demo Dairy Plant Site": ("33100", "Tampere"),
@@ -492,8 +513,24 @@ _LOCALITY: dict[str, tuple[str | None, str]] = {
     "Demo Konepaja Oy \u2013 Kuopio Workshop Site": ("70100", "Kuopio"),
     "Demo Konepaja Oy \u2013 Oulu Workshop Site": ("90100", "Oulu"),
 }
+# Customer site features (D93): forklift on site, unloading needs a tail lift; others unknown.
+SITE_FEATURES: dict[str, tuple[bool | None, bool | None]] = {
+    "Demo Paper Mill Site": (True, False),
+    "Demo Timber Yard Site": (True, False),
+    "Demo Kemia Plant Site": (True, False),
+    "Demo Dairy Plant Site": (True, False),
+    # small shop without a loading dock: no forklift, unloading with a tail lift (via terminal)
+    "Demo Kauppa Oy \u2013 Kuopio Shop Site": (False, True),
+    "Demo Kauppa Oy \u2013 Turku Shop Site": (False, None),
+}
 PLACES: tuple[_Place, ...] = tuple(
-    replace(p, postal_code=_LOCALITY[p.name][0], city=_LOCALITY[p.name][1])
+    replace(
+        p,
+        postal_code=_LOCALITY[p.name][0],
+        city=_LOCALITY[p.name][1],
+        forklift_available=SITE_FEATURES.get(p.name, (None, None))[0],
+        tail_lift_required=SITE_FEATURES.get(p.name, (None, None))[1],
+    )
     for p in _PLACES_WITHOUT_LOCALITY
 )
 
@@ -509,14 +546,24 @@ class _ParkingSpec:
     booking_possible: bool
     adr_allowed: bool | None
     services: tuple[ParkingService, ...]
+    trailer_drop: bool | None = None
 
 
 # Invented parking details (prices are demo values, D28 cents in the local currency).
 PARKING: dict[str, _ParkingSpec] = {
     "Demo Truck Parking Lübeck": _ParkingSpec(
-        120, 2500, "EUR", 20, True, False, (_S.SHOWER, _S.TOILET, _S.RESTAURANT, _S.SECURITY_STAFF)
+        120,
+        2500,
+        "EUR",
+        20,
+        True,
+        False,
+        (_S.SHOWER, _S.TOILET, _S.RESTAURANT, _S.SECURITY_STAFF),
+        trailer_drop=True,
     ),
-    "Demo Truck Parking Rostock": _ParkingSpec(40, None, None, None, False, None, (_S.TOILET,)),
+    "Demo Truck Parking Rostock": _ParkingSpec(
+        40, None, None, None, False, None, (_S.TOILET,), trailer_drop=True
+    ),
     "Demo Truck Parking Gdańsk": _ParkingSpec(
         80, 6000, "PLN", 8, True, True, (_S.SHOWER, _S.TOILET, _S.FUEL, _S.SECURITY_STAFF)
     ),
@@ -628,6 +675,42 @@ BORDER_STATUS: tuple[
         _TOLL_SVINESUND,
     ),
 )
+
+
+# Trailer storage terms (D83, D93): invented demo fees from 1.1.2026. Free days 3 unless noted.
+# place, free days, daily fee cents, currency, reefer plugs, reefer plug fee cents per day, note
+STORAGE_FROM = date(2026, 1, 1)
+STORAGE_RULES: tuple[tuple[str, int, int, str, bool, int | None, str | None], ...] = (
+    ("Demo Port Vuosaari", 3, 3500, "EUR", True, 2500, None),
+    ("Demo Port Kotka", 3, 3000, "EUR", True, 2500, None),
+    ("Demo Port Hanko", 3, 3000, "EUR", True, 2500, None),
+    ("Demo Port Oulu", 3, 2500, "EUR", False, None, None),
+    ("Demo Port Naantali", 3, 3000, "EUR", True, 2500, None),
+    ("Demo Port Långnäs", 2, 2000, "EUR", False, None, "Small port: two free days."),
+    ("Demo Port Kapellskär", 3, 35000, "SEK", True, 25000, None),
+    ("Demo Port Travemünde", 3, 4000, "EUR", True, 3000, None),
+    ("Demo Port Lübeck", 3, 3500, "EUR", True, 3000, "Applies to the quays without a rule."),
+    # the quay's own terms override the port area's (D93)
+    ("Demo Port Lübeck \u2013 Lehmannkai", 2, 4500, "EUR", True, 3000, "Quay's own terms."),
+    ("Demo Port Rostock", 3, 3500, "EUR", True, 3000, None),
+    ("Demo Port Gdynia", 3, 15000, "PLN", True, 12000, None),
+    ("Demo Port Tallinn", 3, 3000, "EUR", True, 2500, None),
+    ("Demo Port Antwerpen", 3, 5000, "EUR", True, 3500, None),
+    ("Demo Rail Terminal Rostock", 3, 3000, "EUR", True, 3000, None),
+    ("Demo Rail Terminal Travemünde", 3, 3000, "EUR", True, 3000, None),
+    ("Demo Rail Terminal Verona", 2, 4000, "EUR", True, 3500, None),
+)
+_SC, _GR = WashScope, WashGrade
+# Wash places: scopes, grades, cleaning document, ECD (tank and bulk).
+WASHES: dict[str, tuple[tuple[WashScope, ...], tuple[WashGrade, ...], bool, bool]] = {
+    "Demo Truck Wash Tampere": (
+        (_SC.INTERIOR, _SC.EXTERIOR),
+        (_GR.GENERAL, _GR.FOOD_GRADE),
+        True,
+        False,
+    ),
+    "Demo Tank Cleaning Kotka": ((_SC.INTERIOR,), (_GR.CHEMICAL, _GR.TANK), True, True),
+}
 
 
 # name, type, country, business_id (invented), pallet_exchange_agreed
@@ -1435,6 +1518,7 @@ def _seed_places(
                     reefer_plug_count=spec.reefer_plugs,
                     booking_possible=spec.booking_possible,
                     adr_vehicles_allowed=spec.adr_allowed,
+                    trailer_drop_allowed=spec.trailer_drop,
                     services=services,
                 )
             )
@@ -1514,6 +1598,61 @@ def _seed_places(
             created["border_crossing_status_periods"] += 1
     session.flush()
 
+    for name, free, fee, currency, plugs, plug_fee, note in STORAGE_RULES:
+        location = locations[name]
+        exists = session.scalar(
+            select(TrailerStorageRule.id).where(
+                TrailerStorageRule.location_id == location.id,
+                TrailerStorageRule.valid_from == STORAGE_FROM,
+            )
+        )
+        if exists is None:
+            validate_trailer_storage_rule(
+                location.type,
+                free_days=free,
+                daily_fee_cents=fee,
+                currency=currency,
+                reefer_plug_available=plugs,
+                reefer_plug_daily_fee_cents=plug_fee,
+                valid_from=STORAGE_FROM,
+                valid_until=None,
+            )
+            session.add(
+                TrailerStorageRule(
+                    location_id=location.id,
+                    location_type=location.type,
+                    valid_from=STORAGE_FROM,
+                    free_days=free,
+                    daily_fee_cents=fee,
+                    currency=currency,
+                    reefer_plug_available=plugs,
+                    reefer_plug_daily_fee_cents=plug_fee,
+                    note=note,
+                )
+            )
+            created["trailer_storage_rules"] += 1
+
+    for name, (scopes, grades, document, ecd) in WASHES.items():
+        location = locations[name]
+        if session.get(WashDetails, location.id) is None:
+            scope_values, grade_values = validate_wash_details(
+                [v.value for v in scopes],
+                [v.value for v in grades],
+                issues_cleaning_document=document,
+                issues_ecd=ecd,
+            )
+            session.add(
+                WashDetails(
+                    location_id=location.id,
+                    scopes=scope_values,
+                    grades=grade_values,
+                    issues_cleaning_document=document,
+                    issues_ecd=ecd,
+                )
+            )
+            created["wash_details"] += 1
+    session.flush()
+
 
 def seed_demo_data(
     session: Session, today: date | None = None, gdp_validity_months: int | None = None
@@ -1556,6 +1695,11 @@ def seed_demo_data(
             validate_timezone(place.timezone)
             if place.postal_code is not None:
                 validate_postal_code(place.country, place.postal_code)
+            validate_site_features(
+                place.type,
+                forklift_available=place.forklift_available,
+                tail_lift_required=place.tail_lift_required,
+            )
             validate_terminal_fields(
                 place.type,
                 loading_docks=place.docks,
@@ -1583,6 +1727,8 @@ def seed_demo_data(
                     Decimal(place.max_vehicle_length_m) if place.max_vehicle_length_m else None
                 ),
                 has_loading_dock=place.has_loading_dock,
+                forklift_available=place.forklift_available,
+                tail_lift_required=place.tail_lift_required,
                 loading_docks=place.docks,
                 cold_storage=place.cold,
                 temperature_min=temp_min,
@@ -1690,6 +1836,8 @@ def main() -> int:
         "parking_certifications",
         "border_crossing_details",
         "border_crossing_status_periods",
+        "trailer_storage_rules",
+        "wash_details",
         "drivers",
         "driver_qualifications",
         "trucks",
