@@ -331,3 +331,152 @@ def test_crossing_with_status_history_cannot_be_deleted(test_engine: Engine) -> 
         "DELETE FROM border_crossing_details WHERE location_id = :id",
         id=location_id,
     )
+
+
+# --- D93: site features, trailer storage, wash places
+
+
+def _site(engine: Engine, name: str, **kw: Any) -> Any:
+    customer = _insert(engine, "customers", name=f"{name} Oy", country="FI")
+    values = {
+        "type": "customer_site",
+        "name": name,
+        "country": "FI",
+        "timezone": "Europe/Helsinki",
+        "customer_id": customer,
+        **kw,
+    }
+    return _insert(engine, "locations", **values)
+
+
+def test_site_features_for_customer_sites_only(test_engine: Engine) -> None:
+    _site(test_engine, "Demo Site A", forklift_available=False, tail_lift_required=True)
+    _rejected(_site, test_engine, "Demo Site B", has_loading_dock=True, tail_lift_required=True)
+    for column in ("forklift_available", "tail_lift_required"):
+        _rejected(
+            _insert,
+            test_engine,
+            "locations",
+            type="depot",
+            name=f"Demo Depot {column}",
+            country="FI",
+            timezone="Europe/Helsinki",
+            **{column: True},
+        )
+
+
+def test_parking_trailer_drop(test_engine: Engine) -> None:
+    _parking(test_engine, trailer_drop_allowed=True)
+
+
+def _storage(engine: Engine, location_id: Any, location_type: str = "port", **kw: Any) -> Any:
+    values = {
+        "location_id": location_id,
+        "location_type": location_type,
+        "valid_from": "2026-01-01",
+        "daily_fee_cents": 3000,
+        "currency": "EUR",
+        **kw,
+    }
+    return _insert(engine, "trailer_storage_rules", **values)
+
+
+@pytest.mark.parametrize("location_type", ["port", "rail_terminal"])
+def test_storage_rules_for_ports_and_rail_terminals(
+    test_engine: Engine, location_type: str
+) -> None:
+    place = _location(test_engine, location_type, "Demo Place")
+    _storage(test_engine, place, location_type)
+    with test_engine.connect() as conn:
+        assert (
+            conn.execute(text("SELECT free_days FROM trailer_storage_rules")).scalar() == 3
+        )  # D83 default
+
+
+def test_storage_rules_rejected_elsewhere(test_engine: Engine) -> None:
+    depot = _location(test_engine, "depot", "Demo Depot")
+    _rejected(_storage, test_engine, depot, "depot")
+    _rejected(_storage, test_engine, depot, "port")  # type must match the location
+
+
+def test_storage_rule_values_and_periods(test_engine: Engine) -> None:
+    port = _location(test_engine, "port", "Demo Port")
+    _storage(
+        test_engine,
+        port,
+        valid_until="2026-06-30",
+        reefer_plug_available=True,
+        reefer_plug_daily_fee_cents=0,
+    )
+    _storage(test_engine, port, valid_from="2026-07-01", free_days=0)  # history kept
+    bad: list[dict[str, Any]] = [
+        {"free_days": -1},
+        {"daily_fee_cents": -1},
+        {"currency": "eur"},
+        {"reefer_plug_daily_fee_cents": 100},  # fee without plugs
+        {"reefer_plug_available": True, "reefer_plug_daily_fee_cents": -1},
+        {"valid_until": "2025-12-31"},
+    ]
+    for number, values in enumerate(bad):
+        other = _location(test_engine, "port", f"Demo Port {number}")
+        _rejected(_storage, test_engine, other, **values)
+    _rejected(_storage, test_engine, port, valid_from="2026-12-01")  # overlaps the open period
+    _rejected(_exec, test_engine, "DELETE FROM locations WHERE id = :id", id=port)
+
+
+def _wash(engine: Engine, name: str = "Demo Wash", **kw: Any) -> Any:
+    location_id = _location(engine, "wash", name)
+    return _insert(engine, "wash_details", returning="location_id", location_id=location_id, **kw)
+
+
+def test_wash_details(test_engine: Engine) -> None:
+    _wash(test_engine, scopes=["exterior"])
+    _wash(
+        test_engine,
+        "Demo Wash 2",
+        scopes=["interior", "exterior"],
+        grades=["general", "food_grade"],
+        issues_cleaning_document=True,
+    )
+    _wash(
+        test_engine,
+        "Demo Wash 4",
+        scopes=["interior"],
+        grades=["bulk"],
+        issues_cleaning_document=True,
+        issues_ecd=True,
+    )
+    _wash(
+        test_engine,
+        "Demo Wash 3",
+        scopes=["interior"],
+        grades=["tank"],
+        issues_cleaning_document=True,
+        issues_ecd=True,
+    )
+    bad: list[dict[str, Any]] = [
+        {"scopes": []},
+        {"scopes": ["roof"]},
+        {"scopes": ["exterior"], "grades": ["general"]},  # grade without interior
+        {"scopes": ["interior"]},  # interior without a grade
+        {"scopes": ["interior"], "grades": ["steam"]},
+        {"scopes": ["exterior"], "issues_cleaning_document": True},
+        {"scopes": ["interior"], "grades": ["chemical"], "issues_ecd": True},
+        {
+            "scopes": ["interior"],
+            "grades": ["chemical"],
+            "issues_cleaning_document": True,
+            "issues_ecd": True,
+        },  # ECD needs the tank grade
+    ]
+    for number, values in enumerate(bad):
+        _rejected(_wash, test_engine, f"Demo Bad Wash {number}", **values)
+    depot = _location(test_engine, "depot", "Demo Depot")
+    _rejected(
+        _insert,
+        test_engine,
+        "wash_details",
+        returning="location_id",
+        location_id=depot,
+        scopes=["exterior"],
+    )

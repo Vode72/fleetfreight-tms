@@ -317,3 +317,128 @@ def status_at(
         if starts_at <= moment and (ends_at is None or moment < ends_at):
             return status
     return None
+
+
+# --- Loading sites, port storage and wash places (2B-3b part b, D93) --------------------------
+
+
+def validate_site_features(
+    location_type: LocationType,
+    *,
+    forklift_available: bool | None,
+    tail_lift_required: bool | None,
+    has_loading_dock: bool | None = None,
+) -> None:
+    """Forklift and tail lift needs are recorded for customer sites only (like has_loading_dock).
+
+    Terminals always have docks and forklifts (D32); None = not known. A site with a loading dock
+    does not need a tail lift.
+    """
+    if has_loading_dock and tail_lift_required:
+        raise ValueError("a site with a loading dock does not need a tail lift")
+    if location_type is not LocationType.CUSTOMER_SITE and (
+        forklift_available is not None or tail_lift_required is not None
+    ):
+        raise ValueError("forklift and tail lift fields are for customer sites only")
+
+
+# Location types whose trailer storage terms are recorded (D63, D83, D93).
+STORAGE_LOCATION_TYPES: tuple[LocationType, ...] = (LocationType.PORT, LocationType.RAIL_TERMINAL)
+
+
+def validate_trailer_storage_rule(
+    location_type: str,
+    *,
+    free_days: int,
+    daily_fee_cents: int,
+    currency: str,
+    reefer_plug_available: bool,
+    reefer_plug_daily_fee_cents: int | None,
+    valid_from: date,
+    valid_until: date | None,
+) -> None:
+    """D83: free days (the arrival day counts as the first) and a fee for each further day.
+
+    Recorded for ports and rail terminals (D63, D93).
+    """
+    if location_type not in {t.value for t in STORAGE_LOCATION_TYPES}:
+        raise ValueError("storage terms are recorded for ports and rail terminals only")
+    if free_days < 0:
+        raise ValueError("free_days must not be negative")
+    if daily_fee_cents < 0:
+        raise ValueError("daily fee must not be negative")
+    if not _CURRENCY_RE.fullmatch(currency):
+        raise ValueError("currency must be an ISO 4217 code")
+    if reefer_plug_daily_fee_cents is not None:
+        if not reefer_plug_available:
+            raise ValueError("a reefer plug fee needs reefer plugs")
+        if reefer_plug_daily_fee_cents < 0:
+            raise ValueError("reefer plug fee must not be negative")
+    if valid_until is not None and valid_until < valid_from:
+        raise ValueError("valid_until must not be before valid_from")
+
+
+def storage_rule_for(
+    day: date,
+    own_rules: Sequence[tuple[date, date | None]],
+    parent_rules: Sequence[tuple[date, date | None]],
+) -> tuple[str, int] | None:
+    """Which storage rule applies on a day: ("own" | "parent", index) or None = not recorded.
+
+    A quay uses its own rule on the days it has one, otherwise the rule of its port area (D93).
+    Rules of one place never overlap (exclusion constraint), so at most one matches.
+    """
+    for source, rules in (("own", own_rules), ("parent", parent_rules)):
+        for index, (valid_from, valid_until) in enumerate(rules):
+            if valid_from <= day and (valid_until is None or day <= valid_until):
+                return source, index
+    return None
+
+
+class WashScope(StrEnum):
+    """What is washed."""
+
+    INTERIOR = "interior"
+    EXTERIOR = "exterior"
+
+
+class WashGrade(StrEnum):
+    """Cleaning level of an interior wash (D56: e.g. after dangerous goods before food)."""
+
+    GENERAL = "general"
+    FOOD_GRADE = "food_grade"
+    CHEMICAL = "chemical"
+    TANK = "tank"
+    BULK = "bulk"
+
+
+def validate_wash_details(
+    scopes: Sequence[str],
+    grades: Sequence[str],
+    *,
+    issues_cleaning_document: bool,
+    issues_ecd: bool,
+) -> tuple[list[str], list[str]]:
+    """Returns scopes and grades de-duplicated and sorted.
+
+    Grades describe interior cleaning, so they need the interior scope. A cleaning document is
+    issued after an interior wash; the European Cleaning Document (ECD) is used for tank and bulk
+    cleaning, so it needs the tank or bulk grade and is a cleaning document itself.
+    """
+    for values, enum, label in ((scopes, WashScope, "scopes"), (grades, WashGrade, "grades")):
+        unknown = sorted(set(values) - {v.value for v in enum})
+        if unknown:
+            raise ValueError(f"unknown wash {label}: {', '.join(unknown)}")
+    if not scopes:
+        raise ValueError("a wash place washes the interior, the exterior or both")
+    interior = WashScope.INTERIOR.value in scopes
+    if grades and not interior:
+        raise ValueError("wash grades need an interior wash")
+    if interior and not grades:
+        raise ValueError("an interior wash needs at least one grade")
+    if issues_cleaning_document and not interior:
+        raise ValueError("a cleaning document needs an interior wash")
+    tank_or_bulk = {WashGrade.TANK.value, WashGrade.BULK.value} & set(grades)
+    if issues_ecd and (not issues_cleaning_document or not tank_or_bulk):
+        raise ValueError("an ECD needs the tank or bulk grade and is a cleaning document")
+    return sorted(set(scopes)), sorted(set(grades))
