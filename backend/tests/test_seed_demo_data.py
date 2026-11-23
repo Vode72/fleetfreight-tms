@@ -17,6 +17,7 @@ from domain.combinations import (
     validate_combination_structure,
 )
 from domain.equipment import CouplingType, EquipmentQualificationType, TruckType
+from domain.lines import vessel_overlaps
 from domain.locations import validate_opening_hours, validate_postal_code, validate_timezone
 from domain.qualifications import (
     DriverQualificationType,
@@ -25,7 +26,7 @@ from domain.qualifications import (
     validate_adr_qualifications,
 )
 from scripts.seed_demo_data import seed_demo_data
-from tests.conftest import make_settings
+from tests.conftest import REGISTER_TABLES, make_settings
 
 pytestmark = pytest.mark.usefixtures("clean_registers")
 TODAY = date(2026, 11, 18)
@@ -62,6 +63,15 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "border_crossing_status_periods",
         "trailer_storage_rules",
         "wash_details",
+        "line_operators",
+        "vessels",
+        "vessel_adr_classes",
+        "line_routes",
+        "line_route_stops",
+        "line_schedules",
+        "line_schedule_calls",
+        "line_departures",
+        "line_departure_calls",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
@@ -468,9 +478,7 @@ def test_gdp_end_date_follows_the_setting(test_engine: Engine) -> None:
     ((start, end),) = _rows(test_engine, sql)
     assert end == date(start.year + 1, start.month, start.day) - timedelta(days=1)  # type: ignore[attr-defined]
     with test_engine.begin() as conn:
-        conn.execute(
-            text("TRUNCATE driver_qualifications, drivers, carriers, locations, customers CASCADE")
-        )
+        conn.execute(text(f"TRUNCATE {REGISTER_TABLES} CASCADE"))
     with sessionmaker(bind=test_engine)() as session:
         seed_demo_data(session, TODAY, gdp_validity_months=24)
     ((start, end),) = _rows(test_engine, sql)
@@ -1353,3 +1361,131 @@ def test_site_features_storage_rules_and_washes(test_engine: Engine) -> None:
         )
         == 2
     )
+
+
+def test_lines_routes_and_departures(test_engine: Engine) -> None:
+    _run(test_engine)
+    # D62: every connection both ways; D63: two rail connections both ways
+    assert _count(test_engine, "SELECT count(*) FROM line_routes WHERE mode = 'ferry'") == 18
+    assert _count(test_engine, "SELECT count(*) FROM line_routes WHERE mode = 'rail'") == 4
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_routes r WHERE NOT EXISTS (SELECT 1 FROM line_routes b"
+            " JOIN line_route_stops bs ON bs.route_id = b.id AND bs.sequence = 1"
+            " JOIN line_route_stops rl ON rl.route_id = r.id AND rl.sequence ="
+            " (SELECT max(sequence) FROM line_route_stops WHERE route_id = r.id)"
+            " WHERE bs.location_id = rl.location_id AND b.operator_id = r.operator_id)",
+        )
+        == 0
+    )  # every route has a return route of the same operator from its last stop
+    # weekly frequencies from D62
+    freq: dict[object, object] = {
+        row[0]: row[1]
+        for row in _rows(
+            test_engine,
+            "SELECT r.name, count(*) FROM line_schedules s JOIN line_routes r"
+            " ON r.id = s.route_id GROUP BY r.name",
+        )
+    }
+    assert freq["Demo Vuosaari\u2013Travemünde"] == 7
+    assert freq["Demo Vuosaari\u2013Tallinn"] == 14
+    assert freq["Demo Hanko\u2013Gdynia"] == 6
+    assert freq["Demo Hanko\u2013Rostock"] == 4
+    assert freq["Demo Kotka\u2013Antwerpen"] == 1
+    assert freq["Demo Oulu\u2013Travemünde\u2013Antwerpen"] == 1
+    assert freq["Demo Naantali\u2013Långnäs\u2013Kapellskär"] == 14
+    # departures for eight weeks from the seed day, each with a call per stop
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_departures WHERE service_date < DATE '2026-11-18'"
+            " OR service_date > DATE '2026-11-18' + 55",
+        )
+        == 0
+    )
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_departures d WHERE (SELECT count(*) FROM"
+            " line_departure_calls c WHERE c.departure_id = d.id) <> (SELECT count(*) FROM"
+            " line_route_stops s WHERE s.route_id = d.route_id)",
+        )
+        == 0
+    )
+    # Naantali 10:00 local -> Kapellskär 17:45 Swedish time: 8 h 45 min
+    assert _rows(
+        test_engine,
+        "SELECT DISTINCT a.arrives_at - d.departs_at FROM line_departure_calls d"
+        " JOIN line_departure_calls a ON a.departure_id = d.departure_id AND a.sequence = 3"
+        " JOIN line_departures x ON x.id = d.departure_id JOIN line_routes r"
+        " ON r.id = x.route_id WHERE d.sequence = 1"
+        " AND r.name = 'Demo Naantali\u2013Långnäs\u2013Kapellskär'"
+        " AND extract(hour FROM d.departs_at AT TIME ZONE 'Europe/Helsinki') = 10",
+    ) == [(timedelta(hours=8, minutes=45),)]
+    # cut-off only where units are loaded, and before the departure
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_departure_calls c JOIN line_route_stops s"
+            " ON s.route_id = c.route_id AND s.sequence = c.sequence"
+            " WHERE (c.cutoff_at IS NOT NULL) <> s.loading",
+        )
+        == 0
+    )
+    # no vessel on rail; a vessel never sails two departures at once
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_departures WHERE route_mode = 'rail'"
+            " AND vessel_id IS NOT NULL",
+        )
+        == 0
+    )
+    voyages = _rows(
+        test_engine,
+        "SELECT d.vessel_id, d.id, min(c.departs_at), max(c.arrives_at) FROM line_departures d"
+        " JOIN line_departure_calls c ON c.departure_id = d.id WHERE d.vessel_id IS NOT NULL"
+        " GROUP BY d.vessel_id, d.id",
+    )
+    by_vessel: dict[object, list[tuple[str, Any, Any]]] = defaultdict(list)
+    for vessel_id, dep_id, start, end in voyages:
+        by_vessel[vessel_id].append((str(dep_id), start, end))
+    assert len(by_vessel) >= 6
+    for vessel_voyages in by_vessel.values():
+        assert vessel_overlaps(vessel_voyages) == []
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM line_schedules WHERE note NOT LIKE 'Demo timetable%'",
+        )
+        == 0
+    )
+
+
+def test_seed_keeps_a_changed_departure(test_engine: Engine) -> None:
+    _run(test_engine)
+    with test_engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE line_departures SET status = 'cancelled', note = 'Demo storm'"
+                " WHERE id = (SELECT id FROM line_departures ORDER BY service_date LIMIT 1)"
+            )
+        )
+    _run(test_engine)
+    assert (
+        _count(test_engine, "SELECT count(*) FROM line_departures WHERE status = 'cancelled'") == 1
+    )
+    # a later seed day adds the new week and keeps the old departures
+    before = _count(test_engine, "SELECT count(*) FROM line_departures")
+    created = _run(test_engine, TODAY + timedelta(days=7))
+    assert created["line_departures"] > 0
+    assert _count(test_engine, "SELECT count(*) FROM line_departures") == (
+        before + created["line_departures"]
+    )
+
+
+def test_all_line_and_vessel_names_are_demo() -> None:
+    assert all(name.startswith("Demo ") for name, _ in seed.LINE_OPERATORS)
+    assert all(name.startswith("Demo ") for name in seed.VESSELS)
+    assert all(name.startswith("Demo ") for name in seed.LINE_ROUTES)
