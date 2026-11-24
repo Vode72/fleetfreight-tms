@@ -35,12 +35,13 @@ Kiellä jokaiselta pytestin ajo ja tiedostojen muokkaus. Vastaus suomeksi, vakav
 - Jos Kriittinen jää auki 2 kierroksen jälkeen: pysähdy, älä avaa PR:ää, raportoi.
 
 ## 5. PR
-- Push ja `gh pr create` (base `main`). Kuvaus suomeksi: mitä ja miksi, D-numerot, tarkistusten tulokset,
+- Push ja `gh pr create` (base `main`). Pilvi-istunnossa GraphQL on estetty: käytä
+  `gh api repos/Vode72/fleetfreight-tms/pulls -f title=... -f head=<haara> -f base=main -f body=...`. Kuvaus suomeksi: mitä ja miksi, D-numerot, tarkistusten tulokset,
   agenttien löydökset ja mitä niille tehtiin, jätetyt pienet huomiot.
 - Ei työnantajatietoja missään (sääntö 4) — tarkista myös commit-viestit ja PR-kuvaus.
 
 ## 6. CI ja konfliktit — enintään 2 korjauskierrosta
-- Seuraa: `gh pr checks --watch`.
+- Seuraa: `gh pr checks --watch` (pilvessä `gh run list --branch <haara>` ja `gh run watch <id>`).
 - Kaatunut ajo: `gh run view --log-failed`, korjaa syy (ei oireita, ei testien ohittamista), push.
 - Konflikti mainin kanssa: `git fetch && git rebase origin/main`; migraatiokonfliktissa korjaa Alembicin
   `down_revision`-ketju, ei vanhoja revisioita. Selvä konflikti: ratkaise ja `git push --force-with-lease`.
