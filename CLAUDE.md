@@ -130,3 +130,8 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
 | `ff-reviewer` | Jokainen PR ennen yhdistämistä |
 | `ff-security` | Autentikointi, oikeudet, syötteet ja jokainen uusi endpoint |
 | `ff-auditor` | Vaiheiden välissä: koko koodikannan ristiriidat ja päällekkäisyydet |
+
+### Komento `/toimita` (`.claude/commands/`)
+
+Vie valmiin haaran PR:ksi: omat tarkistukset → `ff-reviewer` (+ `ff-security`/`ff-logistiikka` tarpeen mukaan)
+→ korjaukset (max 2 kierrosta) → PR → CI- ja konfliktikorjaukset (max 2 kierrosta). Ei yhdistä mainiin.
