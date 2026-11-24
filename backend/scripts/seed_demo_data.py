@@ -66,6 +66,9 @@ from app.config import get_settings
 from db.models import (
     BorderCrossingDetails,
     BorderCrossingStatusPeriod,
+    BorderWaitObservation,
+    CargoCrimeCount,
+    CargoCrimeReport,
     Carrier,
     Compartment,
     Customer,
@@ -86,6 +89,7 @@ from db.models import (
     ParkingDetails,
     ReeferEvaporator,
     ReeferUnit,
+    RiskArea,
     TrailerStorageRule,
     Truck,
     Vessel,
@@ -166,6 +170,16 @@ from domain.parties import (
 )
 from domain.qualifications import DriverQualificationType as Q
 from domain.qualifications import suggest_gdp_valid_until
+from domain.risks import (
+    DEMO_WAIT_NOTE,
+    RiskSourceType,
+    WaitDirection,
+    WaitSourceType,
+    validate_incident_count,
+    validate_report_month,
+    validate_risk_area,
+    validate_wait_observation,
+)
 
 OWN_COMPANY = "Demo Freight Oy"
 _Hours = dict[str, list[list[str]]]
@@ -2335,6 +2349,285 @@ def _seed_lines(
     session.flush()
 
 
+# --- Cargo crime risk and border waiting times (2B-3e, D95) -----------------------------------
+# Reported incidents per country from the TAPA EMEA monthly figures as published by trans.info.
+# Only the countries an article names get a count; a missing country is unknown, not zero.
+_TAPA = "TAPA EMEA Cargo Crime Monitor, as reported by trans.info"
+_RISK_CHECKED = date(2026, 11, 24)
+_TOP5 = "The article names the five countries with the most reports only."
+CARGO_CRIME_REPORTS: tuple[tuple[date, str, str, dict[str, int]], ...] = (
+    (
+        date(2025, 12, 1),
+        "https://trans.info/en/cargo-crime-reports-454902",
+        _TOP5,
+        {"DE": 115, "IT": 64, "GB": 54, "ES": 41, "FR": 41},
+    ),
+    (
+        date(2026, 2, 1),
+        "https://trans.info/en/cargo-theft-europe-471019",
+        _TOP5,
+        {"DE": 223, "IT": 105, "ES": 96, "FR": 79, "GB": 64},
+    ),
+    (
+        date(2026, 3, 1),
+        "https://trans.info/en/tapa-march-2026-477316",
+        "The article names nine of the 51 reporting countries.",
+        {
+            "DE": 1295,
+            "IT": 867,
+            "FR": 850,
+            "GB": 761,
+            "ES": 682,
+            "PL": 338,
+            "CZ": 207,
+            "SK": 94,
+            "NL": 45,
+        },
+    ),
+    (
+        date(2026, 5, 1),
+        "https://trans.info/en/cargo-theft-june-493590",
+        "Previous-month figures in the June article; Germany is not given as a number.",
+        {"IT": 176, "ES": 111, "FR": 139, "GB": 169, "BE": 63, "GR": 26, "NL": 92, "PL": 23},
+    ),
+    (
+        date(2026, 6, 1),
+        "https://trans.info/en/cargo-theft-june-493590",
+        "The article names thirteen countries.",
+        {
+            "DE": 440,
+            "IT": 320,
+            "ES": 280,
+            "FR": 262,
+            "GB": 224,
+            "BE": 80,
+            "GR": 57,
+            "NL": 53,
+            "AT": 29,
+            "SE": 28,
+            "PL": 25,
+            "CZ": 24,
+            "RO": 23,
+        },
+    ),
+    (
+        date(2026, 7, 1),
+        "https://trans.info/en/fewer-cargo-thefts-but-bigger-losses-and-more-violence-in-july"
+        "-499745",
+        _TOP5,
+        {"DE": 200, "IT": 159, "ES": 106, "FR": 81, "GB": 48},
+    ),
+    (
+        date(2026, 9, 1),
+        "https://trans.info/en/losses-of-24-8-million-euros-despite-only-0-5-per-cent-of"
+        "-reports-assessed-tapa-shows-the-scale-of-cargo-theft-512114",
+        "The article names nine European countries.",
+        {
+            "DE": 202,
+            "IT": 103,
+            "FR": 84,
+            "ES": 75,
+            "GB": 49,
+            "SE": 40,
+            "CH": 24,
+            "AT": 15,
+            "PL": 4,
+        },
+    ),
+)
+
+_TT_CLUB_BENELUX = (
+    "https://www.ttclub.com/news-and-resources/news/article/tt-club-warns-of-sophisticated"
+    "-criminal-networks-targeting-benelux-logistics-hub/"
+)
+_HOTSPOT_BASIS = (
+    "Named in the TT Club, BSI Consulting and TVM 2026 Benelux report as a highway with elevated"
+    " theft rates, particularly at unsecured rest areas. Demo classification: a named hotspot"
+    " road = level 4."
+)
+# The report names the roads for Belgium and the Netherlands together; E19 runs through both.
+_BENELUX_HOTSPOTS = (("BE", "E19"), ("NL", "E19"), ("BE", "E17"), ("NL", "A67"), ("NL", "A2"))
+_DEMO_ESTIMATE = "Demo estimate for the portfolio demo, not a security assessment: "
+
+
+@dataclass(frozen=True)
+class _RiskAreaSpec:
+    country: str
+    region: str | None
+    road_ref: str | None
+    section: str | None
+    level: int
+    source_type: RiskSourceType
+    basis: str
+    source_url: str | None
+    valid_from: date
+
+
+RISK_AREAS: tuple[_RiskAreaSpec, ...] = (
+    *(
+        _RiskAreaSpec(
+            country,
+            None,
+            road,
+            None,
+            4,
+            RiskSourceType.DATA,
+            _HOTSPOT_BASIS,
+            _TT_CLUB_BENELUX,
+            date(2026, 3, 31),
+        )
+        for country, road in (
+            ("BE", "E19"),
+            ("NL", "E19"),
+            ("BE", "E17"),
+            ("NL", "A67"),
+            ("NL", "A2"),
+        )
+    ),
+    _RiskAreaSpec(
+        "FR",
+        "FR-ARA",
+        None,
+        "Lyon area motorways and rest areas",
+        4,
+        RiskSourceType.EXPERT_ESTIMATE,
+        _DEMO_ESTIMATE + "few secure parking places after Lyon on the way south; plan the rest"
+        " before the area.",
+        None,
+        date(2026, 11, 24),
+    ),
+    _RiskAreaSpec(
+        "ES",
+        "ES-CT",
+        "AP-7",
+        "French border to Barcelona",
+        4,
+        RiskSourceType.EXPERT_ESTIMATE,
+        _DEMO_ESTIMATE + "avoid unplanned stops between the border and Barcelona.",
+        None,
+        date(2026, 11, 24),
+    ),
+)
+
+_CET = ZoneInfo("Europe/Stockholm")
+# Invented heavy-traffic waits at Svinesund (location in SE): direction, local time, minutes.
+BORDER_WAITS: tuple[tuple[str, WaitDirection, datetime, int], ...] = tuple(
+    ("Demo Border Crossing Svinesund", direction, datetime(2026, 11, day, hour, 0, tzinfo=_CET), m)
+    for direction, day, hour, m in (
+        (WaitDirection.EXIT, 2, 7, 45),
+        (WaitDirection.EXIT, 9, 7, 60),
+        (WaitDirection.EXIT, 16, 7, 35),
+        (WaitDirection.EXIT, 2, 14, 20),
+        (WaitDirection.EXIT, 9, 14, 15),
+        (WaitDirection.ENTRY, 6, 16, 30),
+        (WaitDirection.ENTRY, 13, 16, 40),
+        (WaitDirection.ENTRY, 20, 16, 25),
+    )
+)
+
+
+def _seed_risks(session: Session, locations: dict[str, Location], created: Counter[str]) -> None:
+    """Monthly reports, risk areas and demo border waits (D95). Idempotent."""
+    for month, url, coverage, counts in CARGO_CRIME_REPORTS:
+        validate_report_month(month)
+        report = session.scalar(
+            select(CargoCrimeReport).where(
+                CargoCrimeReport.source_name == _TAPA, CargoCrimeReport.report_month == month
+            )
+        )
+        if report is None:
+            report = CargoCrimeReport(
+                source_name=_TAPA,
+                report_month=month,
+                coverage_note=coverage,
+                source_url=url,
+                checked_on=_RISK_CHECKED,
+            )
+            session.add(report)
+            session.flush()
+            created["cargo_crime_reports"] += 1
+        for country, count in counts.items():
+            if session.get(CargoCrimeCount, (report.id, country)) is None:
+                session.add(
+                    CargoCrimeCount(
+                        report_id=report.id,
+                        country=country,
+                        incident_count=validate_incident_count(count),
+                    )
+                )
+                created["cargo_crime_counts"] += 1
+    session.flush()
+
+    for area in RISK_AREAS:
+        validate_risk_area(
+            country=area.country,
+            region=area.region,
+            road_ref=area.road_ref,
+            level=area.level,
+            source_type=area.source_type,
+            basis=area.basis,
+            source_url=area.source_url,
+            valid_from=area.valid_from,
+            valid_until=None,
+        )
+        exists = session.scalar(
+            select(RiskArea.id).where(
+                RiskArea.country == area.country,
+                RiskArea.region.is_not_distinct_from(area.region),
+                RiskArea.road_ref.is_not_distinct_from(area.road_ref),
+                RiskArea.valid_from == area.valid_from,
+            )
+        )
+        if exists is None:
+            session.add(
+                RiskArea(
+                    country=area.country,
+                    region=area.region,
+                    road_ref=area.road_ref,
+                    section=area.section,
+                    level=area.level,
+                    source_type=area.source_type.value,
+                    basis=area.basis,
+                    source_url=area.source_url,
+                    checked_on=_RISK_CHECKED,
+                    valid_from=area.valid_from,
+                )
+            )
+            created["risk_areas"] += 1
+    session.flush()
+
+    for name, direction, observed_at, minutes in BORDER_WAITS:
+        validate_wait_observation(
+            observed_at=observed_at,
+            wait_minutes=minutes,
+            source_type=WaitSourceType.DEMO,
+            source_url=None,
+            note=DEMO_WAIT_NOTE,
+        )
+        location = locations[name]
+        exists = session.scalar(
+            select(BorderWaitObservation.id).where(
+                BorderWaitObservation.location_id == location.id,
+                BorderWaitObservation.direction == direction.value,
+                BorderWaitObservation.observed_at == observed_at,
+                BorderWaitObservation.source_type == WaitSourceType.DEMO.value,
+            )
+        )
+        if exists is None:
+            session.add(
+                BorderWaitObservation(
+                    location_id=location.id,
+                    direction=direction.value,
+                    observed_at=observed_at,
+                    wait_minutes=minutes,
+                    source_type=WaitSourceType.DEMO.value,
+                    note=DEMO_WAIT_NOTE,
+                )
+            )
+            created["border_wait_observations"] += 1
+    session.flush()
+
+
 def seed_demo_data(
     session: Session, today: date | None = None, gdp_validity_months: int | None = None
 ) -> Counter[str]:
@@ -2500,6 +2793,7 @@ def seed_demo_data(
 
     _seed_places(session, locations, today, created)
     _seed_lines(session, locations, today, created)
+    _seed_risks(session, locations, created)
     _seed_fleet(session, carriers, locations, today, created)
     session.commit()
     return created
@@ -2519,6 +2813,10 @@ def main() -> int:
         "parking_certifications",
         "border_crossing_details",
         "border_crossing_status_periods",
+        "border_wait_observations",
+        "cargo_crime_reports",
+        "cargo_crime_counts",
+        "risk_areas",
         "trailer_storage_rules",
         "wash_details",
         "line_operators",

@@ -71,6 +71,7 @@ from domain.restrictions import (
     WeightBasis,
     WindowKind,
 )
+from domain.risks import DEMO_WAIT_NOTE, RISK_LEVELS, RiskSourceType, WaitDirection, WaitSourceType
 
 
 def in_list(column: str, values: type[StrEnum]) -> str:
@@ -1884,5 +1885,166 @@ class LineDepartureCall(Base):
     estimated_departs_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     estimate_source: Mapped[str | None] = mapped_column(Text)
     estimated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+# --- Cargo crime risk and border waiting times (2B-3e, D95). Planning information: the system
+# shows it and Plan Check warns (phase 5), the planner decides. Missing data = unknown, not low.
+
+
+class CargoCrimeReport(Base):
+    """A published monthly incident report that was read (D95).
+
+    A report row without a count for a country means "read, country not named", which differs
+    from a month whose report was not read at all.
+    """
+
+    __tablename__ = "cargo_crime_reports"
+    __table_args__ = (
+        CheckConstraint("extract(day FROM report_month) = 1", name="ck_cargo_crime_reports_month"),
+        CheckConstraint("btrim(source_name) <> ''", name="ck_cargo_crime_reports_source_name"),
+        UniqueConstraint("source_name", "report_month", name="uq_cargo_crime_reports_month"),
+        *_source_checks("cargo_crime_reports"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # Who published the figures, e.g. the reporting association and the outlet quoting it.
+    source_name: Mapped[str] = mapped_column(String(120))
+    report_month: Mapped[date] = mapped_column(Date)  # first day of the month
+    # Which countries the report names, e.g. "top five countries only".
+    coverage_note: Mapped[str | None] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class CargoCrimeCount(Base):
+    """Reported incidents in one country in one report (D95). Reported, not risk per km."""
+
+    __tablename__ = "cargo_crime_counts"
+    __table_args__ = (
+        CheckConstraint(_COUNTRY_CHECK, name="ck_cargo_crime_counts_country"),
+        CheckConstraint("incident_count >= 0", name="ck_cargo_crime_counts_incident_count"),
+    )
+
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        _fk("cargo_crime_reports.id", "fk_cargo_crime_counts_report_id"),
+        primary_key=True,
+    )
+    # No FK to countries: reports name countries outside the planning countries too.
+    country: Mapped[str] = mapped_column(String(2), primary_key=True)
+    incident_count: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class RiskArea(Base):
+    """A country, region or road with a raised cargo crime level 1-5 for a period (D67, D95).
+
+    The level is always a human classification, so every row states its basis. A data row links
+    to its source; an expert estimate may have none. Overlapping areas: the higher level wins
+    (domain.risks.effective_risk_level).
+    """
+
+    __tablename__ = "risk_areas"
+    __table_args__ = (
+        CheckConstraint(_COUNTRY_CHECK, name="ck_risk_areas_country"),
+        CheckConstraint(_REGION_CHECK, name="ck_risk_areas_region"),
+        CheckConstraint("road_ref IS NULL OR btrim(road_ref) <> ''", name="ck_risk_areas_road_ref"),
+        CheckConstraint(
+            f"level IN ({', '.join(str(v) for v in RISK_LEVELS)})", name="ck_risk_areas_level"
+        ),
+        CheckConstraint(in_list("source_type", RiskSourceType), name="ck_risk_areas_source_type"),
+        CheckConstraint("btrim(basis) <> ''", name="ck_risk_areas_basis"),
+        CheckConstraint(
+            "source_url IS NULL OR source_url ~ '^https://'", name="ck_risk_areas_source_url"
+        ),
+        CheckConstraint(
+            "source_type <> 'data' OR source_url IS NOT NULL", name="ck_risk_areas_data_source"
+        ),
+        CheckConstraint("checked_on >= DATE '2026-01-01'", name="ck_risk_areas_checked_on"),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until", name="ck_risk_areas_period"
+        ),
+        ExcludeConstraint(
+            ("country", "="),
+            (text("coalesce(region, '')"), "="),
+            (text("coalesce(road_ref, '')"), "="),
+            (text("daterange(valid_from, valid_until, '[]')"), "&&"),
+            using="gist",
+            name="ex_risk_areas_no_overlap",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    country: Mapped[str] = mapped_column(String(2))
+    region: Mapped[str | None] = mapped_column(String(6))  # ISO 3166-2
+    road_ref: Mapped[str | None] = mapped_column(String(40))  # e.g. E19
+    section: Mapped[str | None] = mapped_column(Text)  # where on the road, in words
+    level: Mapped[int] = mapped_column(SmallInteger)
+    source_type: Mapped[str] = mapped_column(String(20))
+    basis: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    checked_on: Mapped[date] = mapped_column(Date)
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class BorderWaitObservation(Base):
+    """One heavy-traffic waiting time at a border crossing (D95; refines D92's planning value).
+
+    Demo rows carry the note DEMO_WAIT_NOTE and are never mixed with real ones in estimates.
+    """
+
+    __tablename__ = "border_wait_observations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["location_id"],
+            ["border_crossing_details.location_id"],
+            ondelete="RESTRICT",
+            name="fk_border_wait_observations_location_id",
+        ),
+        CheckConstraint(
+            in_list("direction", WaitDirection), name="ck_border_wait_observations_direction"
+        ),
+        CheckConstraint(
+            in_list("source_type", WaitSourceType), name="ck_border_wait_observations_source_type"
+        ),
+        CheckConstraint("wait_minutes >= 0", name="ck_border_wait_observations_wait_minutes"),
+        CheckConstraint(
+            "source_url IS NULL OR source_url ~ '^https://'",
+            name="ck_border_wait_observations_source_url",
+        ),
+        CheckConstraint(
+            "source_type NOT IN ('historical_avg', 'official_feed') OR source_url IS NOT NULL",
+            name="ck_border_wait_observations_published_source",
+        ),
+        CheckConstraint(
+            f"source_type <> 'demo' OR coalesce(note, '') = '{DEMO_WAIT_NOTE}'",
+            name="ck_border_wait_observations_demo_note",
+        ),
+        UniqueConstraint(
+            "location_id",
+            "direction",
+            "observed_at",
+            "source_type",
+            name="uq_border_wait_observations_observation",
+        ),
+        Index("ix_border_wait_observations_location_observed", "location_id", "observed_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    direction: Mapped[str] = mapped_column(String(10))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    wait_minutes: Mapped[int] = mapped_column(Integer)
+    source_type: Mapped[str] = mapped_column(String(20))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
