@@ -320,3 +320,71 @@ def test_valid_demo_observation() -> None:
         source_url=None,
         note=DEMO_WAIT_NOTE,
     )
+
+
+def test_even_count_median_rounds_half_up() -> None:
+    at = datetime(2026, 11, 23, 7, 0, tzinfo=STO)
+    estimate = expected_wait(
+        [_obs(2, 7, 35), _obs(9, 7, 40)],
+        direction=WaitDirection.EXIT,
+        at=at,
+        time_zone="Europe/Stockholm",
+    )
+    assert estimate is not None and estimate.minutes == 38  # 37.5
+
+
+def test_old_observations_are_left_out() -> None:
+    at = datetime(2026, 11, 23, 7, 0, tzinfo=STO)
+    old = WaitObservation(
+        datetime(2026, 6, 1, 7, 0, tzinfo=STO), WaitDirection.EXIT, 300, WaitSourceType.MANUAL
+    )
+    estimate = expected_wait(
+        [old, _obs(16, 7, 30)], direction=WaitDirection.EXIT, at=at, time_zone="Europe/Stockholm"
+    )
+    assert estimate is not None and (estimate.minutes, estimate.sample_size) == (30, 1)
+    with pytest.raises(ValueError):
+        expected_wait([old], direction=WaitDirection.EXIT, at=at, time_zone="UTC", max_age_days=0)
+
+
+def test_slot_follows_local_time_across_daylight_saving() -> None:
+    # Monday 07:00 in summer time (UTC+2) and in winter time (UTC+1) are the same local slot.
+    summer = WaitObservation(
+        datetime(2026, 10, 19, 5, 0, tzinfo=ZoneInfo("UTC")),
+        WaitDirection.EXIT,
+        50,
+        WaitSourceType.MANUAL,
+    )
+    at = datetime(2026, 11, 2, 6, 30, tzinfo=ZoneInfo("UTC"))  # 07:30 local, after the change
+    estimate = expected_wait(
+        [summer], direction=WaitDirection.EXIT, at=at, time_zone="Europe/Stockholm"
+    )
+    assert estimate is not None and estimate.minutes == 50
+
+
+def test_observation_without_time_zone_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        WaitObservation(datetime(2026, 11, 2, 7), WaitDirection.EXIT, 5, WaitSourceType.MANUAL)
+
+
+def test_area_validity_includes_both_end_days() -> None:
+    area = Area("FR", "FR-ARA", None, 4, date(2026, 1, 1), date(2026, 6, 30))
+    assert area.applies("FR", "FR-ARA", None, date(2026, 1, 1))
+    assert area.applies("FR", "FR-ARA", None, date(2026, 6, 30))
+    assert not area.applies("FR", "FR-ARA", None, date(2025, 12, 31))
+    assert not area.applies("FR", "FR-OCC", None, date(2026, 3, 1))
+
+
+def test_country_region_and_road_rows_together() -> None:
+    areas = [
+        Area("FR", None, None, 2, date(2026, 1, 1), None),
+        Area("FR", "FR-ARA", None, 3, date(2026, 1, 1), None),
+        Area("FR", "FR-ARA", "A7", 5, date(2026, 1, 1), None),
+    ]
+    kw: dict[str, Any] = {"country": "FR", "day": DAY}
+    assert effective_risk_level(None, areas, region="FR-OCC", road_ref="A9", **kw) == 2
+    assert effective_risk_level(None, areas, region="FR-ARA", road_ref="A43", **kw) == 3
+    assert effective_risk_level(None, areas, region="FR-ARA", road_ref="A7", **kw) == 5
+
+
+def test_demo_note_can_sit_in_a_sql_literal() -> None:
+    assert "'" not in DEMO_WAIT_NOTE

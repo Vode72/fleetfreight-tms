@@ -10,7 +10,7 @@ migration); tests/test_domain_risks.py keeps both in step.
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
 from statistics import median
@@ -230,6 +230,10 @@ class WaitObservation:
     wait_minutes: int
     source_type: WaitSourceType
 
+    def __post_init__(self) -> None:
+        if self.observed_at.tzinfo is None:
+            raise ValueError("observed_at needs a time zone")
+
 
 @dataclass(frozen=True)
 class WaitEstimate:
@@ -245,21 +249,27 @@ def expected_wait(
     direction: WaitDirection,
     at: datetime,
     time_zone: str,
+    max_age_days: int = 90,
 ) -> WaitEstimate | None:
     """Expected heavy-traffic wait at a moment: the median of the observations made on the same
-    weekday and in the same local hour at the crossing. None = no observation for that slot.
+    weekday and in the same local hour at the crossing, at most `max_age_days` before the moment
+    (queues change; the default is a demo setting). None = no observation for that slot.
 
     Demo values are never mixed with real ones: if any real observation matches, the demo ones
     are ignored.
     """
     if at.tzinfo is None:
         raise ValueError("the moment needs a time zone")
+    if max_age_days < 1:
+        raise ValueError("max_age_days must be positive")
     zone = ZoneInfo(time_zone)
     local = at.astimezone(zone)
+    oldest = at - timedelta(days=max_age_days)
     slot = [
         o
         for o in observations
         if o.direction is direction
+        and oldest <= o.observed_at <= at
         and (seen := o.observed_at.astimezone(zone)).weekday() == local.weekday()
         and seen.hour == local.hour
     ]

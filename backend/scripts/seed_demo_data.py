@@ -43,8 +43,11 @@ expired inspection, a GDP temperature mapping and a tail lift inspection.
 Parking and border crossings (D92): parking areas have invented names, prices and certificates
 (Lübeck shows both schemes, Gdańsk an expired TAPA certificate and its renewal). Border crossings
 carry public place names; their status periods come from official sources (Vaalimaa: closed,
-reopened for one day and closed again in 2023; Svinesund: open on the check day). Typical waits
-are left unrecorded: an invented number at a real place would look like a fact.
+reopened for one day and closed again in 2023; Svinesund: open on the check day). The typical
+wait setting is left empty; Svinesund has invented wait observations instead, each marked
+"Invented demo value, not a measurement." (D95 refines D92).
+Cargo crime risk (D95): TAPA EMEA monthly counts as published by trans.info (named countries
+only), Benelux hotspot roads from TT Club, Lyon area and AP-7 as marked demo estimates.
 Lines (D62, D63, D94): demo operators and vessels on the public routes; each direction is its own
 route. Timetables follow public frequencies; Vuosaari-Travemünde, Vuosaari-Tallinn and
 Naantali-Långnäs-Kapellskär are modelled on published timetables, the freight-only and rail
@@ -2353,6 +2356,7 @@ def _seed_lines(
 # Reported incidents per country from the TAPA EMEA monthly figures as published by trans.info.
 # Only the countries an article names get a count; a missing country is unknown, not zero.
 _TAPA = "TAPA EMEA Cargo Crime Monitor, as reported by trans.info"
+# Every source was read on the same day for this demo; a real update sets its own day per row.
 _RISK_CHECKED = date(2026, 11, 24)
 _TOP5 = "The article names the five countries with the most reports only."
 CARGO_CRIME_REPORTS: tuple[tuple[date, str, str, dict[str, int]], ...] = (
@@ -2371,7 +2375,8 @@ CARGO_CRIME_REPORTS: tuple[tuple[date, str, str, dict[str, int]], ...] = (
     (
         date(2026, 3, 1),
         "https://trans.info/en/tapa-march-2026-477316",
-        "The article names nine of the 51 reporting countries.",
+        "The article names nine of the 51 reporting countries. The counts are for March only but"
+        " about five times those of other months; one month weighs heavily in an average.",
         {
             "DE": 1295,
             "IT": 867,
@@ -2441,9 +2446,9 @@ _TT_CLUB_BENELUX = (
     "-criminal-networks-targeting-benelux-logistics-hub/"
 )
 _HOTSPOT_BASIS = (
-    "Named in the TT Club, BSI Consulting and TVM 2026 Benelux report as a highway with elevated"
-    " theft rates, particularly at unsecured rest areas. Demo classification: a named hotspot"
-    " road = level 4."
+    "Demo classification: a named hotspot road = level 4. Named in the TT Club, BSI Consulting"
+    " and TVM 2026 Benelux report as a highway with elevated theft rates, particularly at"
+    " unsecured rest areas."
 )
 # The report names the roads for Belgium and the Netherlands together; E19 runs through both.
 _BENELUX_HOTSPOTS = (("BE", "E19"), ("NL", "E19"), ("BE", "E17"), ("NL", "A67"), ("NL", "A2"))
@@ -2476,13 +2481,7 @@ RISK_AREAS: tuple[_RiskAreaSpec, ...] = (
             _TT_CLUB_BENELUX,
             date(2026, 3, 31),
         )
-        for country, road in (
-            ("BE", "E19"),
-            ("NL", "E19"),
-            ("BE", "E17"),
-            ("NL", "A67"),
-            ("NL", "A2"),
-        )
+        for country, road in _BENELUX_HOTSPOTS
     ),
     _RiskAreaSpec(
         "FR",

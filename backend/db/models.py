@@ -1945,7 +1945,8 @@ class RiskArea(Base):
     """A country, region or road with a raised cargo crime level 1-5 for a period (D67, D95).
 
     The level is always a human classification, so every row states its basis. A data row links
-    to its source; an expert estimate may have none. Overlapping areas: the higher level wins
+    to its source; an expert estimate may have none. Periods of the same country, region and
+    road must not overlap, but a country row and a road row in it may: the higher level wins
     (domain.risks.effective_risk_level).
     """
 
