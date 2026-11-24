@@ -6,6 +6,7 @@ Usage (from the backend directory):
 Contents: the own company, the terminal network (D31-D33), ports, rail terminals, customs
 offices, secure truck parking areas with certificates and border crossings with their status
 history (2B-3b, D92), trailer storage terms of ports and rail terminals and wash places (D93),
+ferry and rail lines with vessels, weekly schedules and departures for eight weeks (2B-3c, D94),
 demo customers with sites, carriers, drivers and driver qualifications,
 and the fleet (2B-2): tractors and rigid trucks, a dolly, trailers and fixed bodies with temperature
 compartments and reefer units, and equipment qualification periods. All names contain "Demo";
@@ -44,13 +45,17 @@ Parking and border crossings (D92): parking areas have invented names, prices an
 carry public place names; their status periods come from official sources (Vaalimaa: closed,
 reopened for one day and closed again in 2023; Svinesund: open on the check day). Typical waits
 are left unrecorded: an invented number at a real place would look like a fact.
+Lines (D62, D63, D94): demo operators and vessels on the public routes; each direction is its own
+route. Timetables follow public frequencies; Vuosaari-Travemünde, Vuosaari-Tallinn and
+Naantali-Långnäs-Kapellskär are modelled on published timetables, the freight-only and rail
+timetables are invented. None is an official timetable (every schedule's note says so).
 Refuses to run unless ENVIRONMENT=development.
 """
 
 import sys
 from collections import Counter
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -68,6 +73,13 @@ from db.models import (
     Driver,
     DriverQualification,
     EquipmentQualification,
+    LineDeparture,
+    LineDepartureCall,
+    LineOperator,
+    LineRoute,
+    LineRouteStop,
+    LineSchedule,
+    LineScheduleCall,
     LoadUnit,
     Location,
     ParkingCertification,
@@ -76,6 +88,8 @@ from db.models import (
     ReeferUnit,
     TrailerStorageRule,
     Truck,
+    Vessel,
+    VesselAdrClass,
     WashDetails,
 )
 from db.session import get_engine
@@ -106,6 +120,21 @@ from domain.equipment import (
     validate_truck,
     validate_vehicle,
     validate_zones,
+)
+from domain.lines import (
+    AdrAcceptance,
+    Call,
+    LineMode,
+    Stop,
+    VesselType,
+    departures_to_add,
+    plan_departure,
+    service_dates,
+    validate_calls,
+    validate_route,
+    validate_schedule_periods,
+    validate_stops,
+    validate_vessel,
 )
 from domain.locations import (
     BorderCrossingStatus,
@@ -715,6 +744,444 @@ WASHES: dict[str, tuple[tuple[WashScope, ...], tuple[WashGrade, ...], bool, bool
     ),
     "Demo Tank Cleaning Kotka": ((_SC.INTERIOR,), (_GR.CHEMICAL, _GR.TANK), True, True),
 }
+
+
+# --- Lines (D62, D63, D94) ----------------------------------------------------------------------
+
+DEPARTURE_WEEKS = 8
+_TIMETABLE_NOTE = (
+    "Demo timetable based on public route frequencies (D62); not an official timetable."
+)
+_PUBLISHED_NOTE = "Demo timetable modelled on a published timetable; not an official timetable."
+
+# operator name, mode
+LINE_OPERATORS: tuple[tuple[str, LineMode], ...] = (
+    ("Demo Baltic Line", LineMode.FERRY),
+    ("Demo Gulf Ferries", LineMode.FERRY),
+    ("Demo Shortsea", LineMode.FERRY),
+    ("Demo Polska Line", LineMode.FERRY),
+    ("Demo Rail", LineMode.RAIL),
+)
+
+
+@dataclass(frozen=True)
+class _VesselSpec:
+    operator: str
+    type: VesselType
+    lane_metres: int
+    deck_height_mm: int | None
+    reefer_plugs: int
+    accompanied: bool
+    unaccompanied: bool
+    cabins: bool
+    adr: tuple[tuple[str, AdrAcceptance, str | None], ...]
+
+
+_RP, _RR = VesselType.ROPAX, VesselType.RORO
+_ALLOW, _FORBID, _PRE = AdrAcceptance.ALLOWED, AdrAcceptance.FORBIDDEN, AdrAcceptance.PRE_APPROVAL
+# Invented vessels; ro-pax ships refuse class 1 and need approval for class 7, ro-ro ships take
+# more classes (demo values, not any real ship's rules).
+_ROPAX_ADR = (
+    ("1", _FORBID, None),
+    ("2", _ALLOW, "Open deck only."),
+    ("3", _ALLOW, None),
+    ("7", _PRE, None),
+    ("8", _ALLOW, None),
+    ("9", _ALLOW, None),
+)
+_RORO_ADR = (
+    ("1", _PRE, None),
+    ("2", _ALLOW, None),
+    ("3", _ALLOW, None),
+    ("6.1", _ALLOW, None),
+    ("7", _PRE, None),
+    ("8", _ALLOW, None),
+    ("9", _ALLOW, None),
+)
+VESSELS: dict[str, _VesselSpec] = {
+    "Demo Star": _VesselSpec(
+        "Demo Baltic Line", _RP, 4200, 4800, 120, True, True, True, _ROPAX_ADR
+    ),
+    "Demo Comet": _VesselSpec(
+        "Demo Baltic Line", _RP, 4200, 4800, 120, True, True, True, _ROPAX_ADR
+    ),
+    "Demo Aurora": _VesselSpec(
+        "Demo Baltic Line", _RP, 2800, 4600, 60, True, True, True, _ROPAX_ADR
+    ),
+    "Demo Borealis": _VesselSpec(
+        "Demo Baltic Line", _RP, 2800, 4600, 60, True, True, True, _ROPAX_ADR
+    ),
+    "Demo Gulf": _VesselSpec(
+        "Demo Gulf Ferries", _RP, 1900, None, 40, True, True, True, _ROPAX_ADR
+    ),
+    "Demo Carrier One": _VesselSpec(
+        "Demo Shortsea", _RR, 3000, 5000, 80, False, True, False, _RORO_ADR
+    ),
+    "Demo Carrier Two": _VesselSpec(
+        "Demo Shortsea", _RR, 3000, 5000, 80, False, True, False, _RORO_ADR
+    ),
+    "Demo Carrier Three": _VesselSpec(
+        "Demo Shortsea", _RR, 3000, 5000, 80, False, True, False, _RORO_ADR
+    ),
+    "Demo Amber": _VesselSpec(
+        "Demo Polska Line", _RP, 3200, 4700, 90, True, True, True, _ROPAX_ADR
+    ),
+}
+
+_P = "Demo Port "
+_R = "Demo Rail Terminal "
+# stop: (place, loading, unloading); call: (arrival day, arrival, departure day, departure)
+_Stop = tuple[str, bool, bool]
+_CallSpec = tuple[int | None, str | None, int | None, str | None]
+
+
+@dataclass(frozen=True)
+class _ScheduleSpec:
+    weekdays: tuple[int, ...]
+    vessel: str | None
+    calls: tuple[_CallSpec, ...]
+    note: str = _TIMETABLE_NOTE
+
+
+@dataclass(frozen=True)
+class _RouteSpec:
+    operator: str
+    mode: LineMode
+    accompanied: bool
+    unaccompanied: bool
+    checkin: int | None
+    cutoff: int | None
+    dg_hours: int | None
+    stops: tuple[_Stop, ...]
+    schedules: tuple[_ScheduleSpec, ...]
+    note: str | None = None
+
+
+_DAILY = (1, 2, 3, 4, 5, 6, 7)
+_ODD, _EVEN = (1, 3, 5, 7), (2, 4, 6)
+
+
+def _two(origin: str, destination: str) -> tuple[_Stop, _Stop]:
+    return ((origin, True, False), (destination, False, True))
+
+
+_DEMO_DEFAULTS = "Check-in, cut-off and declaration deadline are demo values."
+# Vessels are set on a schedule only where one ship can sail it without overlapping its other
+# departures; elsewhere the vessel is assigned per departure (NULL in the demo).
+
+
+def _ferry(
+    operator: str,
+    stops: tuple[_Stop, ...],
+    schedules: tuple[_ScheduleSpec, ...],
+    *,
+    accompanied: bool = True,
+    checkin: int = 120,
+    cutoff: int = 180,
+    dg_hours: int = 24,
+    note: str | None = None,
+) -> _RouteSpec:
+    return _RouteSpec(
+        operator,
+        LineMode.FERRY,
+        accompanied,
+        True,
+        checkin if accompanied else None,
+        cutoff,
+        dg_hours,
+        stops,
+        schedules,
+        note=f"{_DEMO_DEFAULTS} {note}" if note else _DEMO_DEFAULTS,
+    )
+
+
+def _rail_route(stops: tuple[_Stop, ...], schedules: tuple[_ScheduleSpec, ...]) -> _RouteSpec:
+    return _RouteSpec(
+        "Demo Rail",
+        LineMode.RAIL,
+        False,
+        True,
+        None,
+        240,
+        48,
+        stops,
+        schedules,
+        note=(
+            "Cut-off and declaration deadline are demo values. Loading gauge (profile) checked"
+            " with Plan Check in phase 5; rail units need RID."
+        ),
+    )
+
+
+LINE_ROUTES: dict[str, _RouteSpec] = {
+    "Demo Vuosaari\u2013Travemünde": _ferry(
+        "Demo Baltic Line",
+        _two(_P + "Vuosaari", _P + "Travemünde"),
+        (
+            _ScheduleSpec(
+                _ODD,
+                None,
+                ((None, None, 0, "17:00"), (1, "23:00", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _EVEN,
+                None,
+                ((None, None, 0, "17:00"), (1, "23:00", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+    ),
+    "Demo Travemünde\u2013Vuosaari": _ferry(
+        "Demo Baltic Line",
+        _two(_P + "Travemünde", _P + "Vuosaari"),
+        (
+            _ScheduleSpec(
+                _ODD,
+                None,
+                ((None, None, 0, "02:00"), (1, "10:00", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _EVEN,
+                None,
+                ((None, None, 0, "02:00"), (1, "10:00", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+    ),
+    "Demo Vuosaari\u2013Tallinn": _ferry(
+        "Demo Gulf Ferries",
+        _two(_P + "Vuosaari", _P + "Tallinn"),
+        (
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Gulf",
+                ((None, None, 0, "06:00"), (0, "08:45", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Gulf",
+                ((None, None, 0, "20:00"), (0, "22:45", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+        checkin=60,
+        cutoff=90,
+    ),
+    "Demo Tallinn\u2013Vuosaari": _ferry(
+        "Demo Gulf Ferries",
+        _two(_P + "Tallinn", _P + "Vuosaari"),
+        (
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Gulf",
+                ((None, None, 0, "09:30"), (0, "12:15", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Gulf",
+                ((None, None, 0, "23:30"), (1, "02:15", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+        checkin=60,
+        cutoff=90,
+    ),
+    "Demo Kotka\u2013Lübeck": _ferry(
+        "Demo Shortsea",
+        _two(_P + "Kotka", _P + "Lübeck"),
+        (_ScheduleSpec((1, 3, 5), None, ((None, None, 0, "20:00"), (2, "08:00", None, None))),),
+        accompanied=False,
+    ),
+    "Demo Lübeck\u2013Kotka": _ferry(
+        "Demo Shortsea",
+        _two(_P + "Lübeck", _P + "Kotka"),
+        (_ScheduleSpec((2, 4, 6), None, ((None, None, 0, "22:00"), (2, "08:00", None, None))),),
+        accompanied=False,
+    ),
+    "Demo Kotka\u2013Hanko\u2013Antwerpen": _ferry(
+        "Demo Shortsea",
+        ((_P + "Kotka", True, False), (_P + "Hanko", True, True), (_P + "Antwerpen", False, True)),
+        (
+            _ScheduleSpec(
+                (2,),
+                "Demo Carrier Two",
+                ((None, None, 0, "18:00"), (1, "06:00", 1, "14:00"), (3, "10:00", None, None)),
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Antwerpen\u2013Hanko\u2013Kotka": _ferry(
+        "Demo Shortsea",
+        ((_P + "Antwerpen", True, False), (_P + "Hanko", True, True), (_P + "Kotka", False, True)),
+        (
+            _ScheduleSpec(
+                (5,),
+                "Demo Carrier Two",
+                ((None, None, 0, "20:00"), (2, "18:00", 3, "02:00"), (3, "12:00", None, None)),
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Kotka\u2013Antwerpen": _ferry(
+        "Demo Shortsea",
+        _two(_P + "Kotka", _P + "Antwerpen"),
+        (
+            _ScheduleSpec(
+                (4,), "Demo Carrier One", ((None, None, 0, "20:00"), (3, "06:00", None, None))
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Antwerpen\u2013Kotka": _ferry(
+        "Demo Shortsea",
+        _two(_P + "Antwerpen", _P + "Kotka"),
+        (
+            _ScheduleSpec(
+                (7,), "Demo Carrier One", ((None, None, 0, "20:00"), (3, "06:00", None, None))
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Hanko\u2013Gdynia": _ferry(
+        "Demo Polska Line",
+        _two(_P + "Hanko", _P + "Gdynia"),
+        (
+            _ScheduleSpec(
+                (1, 2, 3, 4, 5, 6),
+                None,
+                ((None, None, 0, "21:00"), (1, "19:00", None, None)),
+            ),
+        ),
+    ),
+    "Demo Gdynia\u2013Hanko": _ferry(
+        "Demo Polska Line",
+        _two(_P + "Gdynia", _P + "Hanko"),
+        (
+            _ScheduleSpec(
+                (1, 2, 3, 4, 5, 6),
+                None,
+                ((None, None, 0, "20:00"), (1, "20:00", None, None)),
+            ),
+        ),
+    ),
+    "Demo Hanko\u2013Rostock": _ferry(
+        "Demo Polska Line",
+        _two(_P + "Hanko", _P + "Rostock"),
+        (_ScheduleSpec((1, 2, 4, 6), None, ((None, None, 0, "22:00"), (1, "21:00", None, None))),),
+    ),
+    "Demo Rostock\u2013Hanko": _ferry(
+        "Demo Polska Line",
+        _two(_P + "Rostock", _P + "Hanko"),
+        (_ScheduleSpec((2, 3, 5, 7), None, ((None, None, 0, "23:00"), (2, "00:00", None, None))),),
+    ),
+    "Demo Oulu\u2013Travemünde\u2013Antwerpen": _ferry(
+        "Demo Shortsea",
+        (
+            (_P + "Oulu", True, False),
+            (_P + "Travemünde", True, True),
+            (_P + "Antwerpen", False, True),
+        ),
+        (
+            _ScheduleSpec(
+                (6,),
+                "Demo Carrier Three",
+                ((None, None, 0, "18:00"), (2, "06:00", 2, "18:00"), (4, "06:00", None, None)),
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Antwerpen\u2013Travemünde\u2013Oulu": _ferry(
+        "Demo Shortsea",
+        (
+            (_P + "Antwerpen", True, False),
+            (_P + "Travemünde", True, True),
+            (_P + "Oulu", False, True),
+        ),
+        (
+            _ScheduleSpec(
+                (3,),
+                "Demo Carrier Three",
+                ((None, None, 0, "20:00"), (1, "20:00", 2, "06:00"), (3, "10:00", None, None)),
+            ),
+        ),
+        accompanied=False,
+    ),
+    "Demo Naantali\u2013Långnäs\u2013Kapellskär": _ferry(
+        "Demo Baltic Line",
+        (
+            (_P + "Naantali", True, False),
+            (_P + "Långnäs", True, True),
+            (_P + "Kapellskär", False, True),
+        ),
+        (
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Aurora",
+                ((None, None, 0, "10:00"), (0, "14:45", 0, "15:00"), (0, "17:45", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Borealis",
+                ((None, None, 0, "22:45"), (1, "03:45", 1, "03:55"), (1, "06:15", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+    ),
+    "Demo Kapellskär\u2013Långnäs\u2013Naantali": _ferry(
+        "Demo Baltic Line",
+        (
+            (_P + "Kapellskär", True, False),
+            (_P + "Långnäs", True, True),
+            (_P + "Naantali", False, True),
+        ),
+        (
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Borealis",
+                ((None, None, 0, "10:30"), (0, "15:00", 0, "15:15"), (0, "19:55", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+            _ScheduleSpec(
+                _DAILY,
+                "Demo Aurora",
+                ((None, None, 0, "21:45"), (1, "02:00", 1, "02:10"), (1, "07:15", None, None)),
+                _PUBLISHED_NOTE,
+            ),
+        ),
+    ),
+    "Demo Rail Rostock\u2013Verona": _rail_route(
+        _two(_R + "Rostock", _R + "Verona"),
+        (_ScheduleSpec((1, 3, 5), None, ((None, None, 0, "18:00"), (2, "06:00", None, None))),),
+    ),
+    "Demo Rail Verona\u2013Rostock": _rail_route(
+        _two(_R + "Verona", _R + "Rostock"),
+        (_ScheduleSpec((2, 4, 6), None, ((None, None, 0, "20:00"), (2, "08:00", None, None))),),
+    ),
+    "Demo Rail Travemünde\u2013Verona": _rail_route(
+        _two(_R + "Travemünde", _R + "Verona"),
+        (_ScheduleSpec((2, 4, 6), None, ((None, None, 0, "17:00"), (2, "05:00", None, None))),),
+    ),
+    "Demo Rail Verona\u2013Travemünde": _rail_route(
+        _two(_R + "Verona", _R + "Travemünde"),
+        (_ScheduleSpec((1, 3, 5), None, ((None, None, 0, "21:00"), (2, "09:00", None, None))),),
+    ),
+}
+
+
+def _hhmm(value: str | None) -> time | None:
+    return time.fromisoformat(value) if value is not None else None
+
+
+def schedule_calls(spec: _ScheduleSpec) -> list[Call]:
+    return [
+        Call(number, a_day, _hhmm(a_time), d_day, _hhmm(d_time))
+        for number, (a_day, a_time, d_day, d_time) in enumerate(spec.calls, start=1)
+    ]
 
 
 # name, type, country, business_id (invented), pallet_exchange_agreed
@@ -1658,6 +2125,216 @@ def _seed_places(
     session.flush()
 
 
+def _seed_lines(
+    session: Session, locations: dict[str, Location], today: date, created: Counter[str]
+) -> None:
+    """Operators, vessels, routes with stops, weekly schedules and departures (D94).
+
+    Departures are generated for DEPARTURE_WEEKS from the seed day; only missing ones are added
+    (domain.lines.departures_to_add), so a departure changed or added by hand stays as it is.
+    """
+    operators: dict[str, LineOperator] = {}
+    for name, mode in LINE_OPERATORS:
+        operator = session.scalar(select(LineOperator).where(LineOperator.name == name))
+        if operator is None:
+            operator = LineOperator(name=name, mode=mode.value)
+            session.add(operator)
+            created["line_operators"] += 1
+        operators[name] = operator
+    session.flush()
+
+    vessels: dict[str, Vessel] = {}
+    for name, v in VESSELS.items():
+        vessel = session.scalar(select(Vessel).where(Vessel.name == name))
+        if vessel is None:
+            validate_vessel(
+                lane_metres=v.lane_metres,
+                deck_height_mm=v.deck_height_mm,
+                reefer_plug_count=v.reefer_plugs,
+                accompanied=v.accompanied,
+                unaccompanied=v.unaccompanied,
+                driver_cabins=v.cabins,
+            )
+            vessel = Vessel(
+                operator_id=operators[v.operator].id,
+                name=name,
+                vessel_type=v.type.value,
+                lane_metres=v.lane_metres,
+                deck_height_mm=v.deck_height_mm,
+                reefer_plug_count=v.reefer_plugs,
+                accompanied=v.accompanied,
+                unaccompanied=v.unaccompanied,
+                driver_cabins=v.cabins,
+            )
+            session.add(vessel)
+            session.flush()
+            created["vessels"] += 1
+            for adr_class, acceptance, note in v.adr:
+                session.add(
+                    VesselAdrClass(
+                        vessel_id=vessel.id,
+                        adr_class=adr_class,
+                        acceptance=acceptance.value,
+                        note=note,
+                    )
+                )
+                created["vessel_adr_classes"] += 1
+        vessels[name] = vessel
+    session.flush()
+
+    end = today + timedelta(days=7 * DEPARTURE_WEEKS - 1)
+    for route_name, spec in LINE_ROUTES.items():
+        route = session.scalar(select(LineRoute).where(LineRoute.name == route_name))
+        stops = [Stop(n, load, unload) for n, (_, load, unload) in enumerate(spec.stops, 1)]
+        if route is None:
+            validate_route(
+                spec.mode,
+                accompanied=spec.accompanied,
+                unaccompanied=spec.unaccompanied,
+                checkin_minutes=spec.checkin,
+                cutoff_minutes=spec.cutoff,
+                dg_declaration_hours=spec.dg_hours,
+            )
+            validate_stops(stops)
+            route = LineRoute(
+                operator_id=operators[spec.operator].id,
+                mode=spec.mode.value,
+                name=route_name,
+                accompanied=spec.accompanied,
+                unaccompanied=spec.unaccompanied,
+                checkin_minutes=spec.checkin,
+                cutoff_minutes=spec.cutoff,
+                dg_declaration_hours=spec.dg_hours,
+                note=spec.note,
+            )
+            session.add(route)
+            session.flush()
+            created["line_routes"] += 1
+            for stop, (place, _, _) in zip(stops, spec.stops, strict=True):
+                location = locations[place]
+                session.add(
+                    LineRouteStop(
+                        route_id=route.id,
+                        sequence=stop.sequence,
+                        route_mode=spec.mode.value,
+                        location_id=location.id,
+                        location_type=location.type,
+                        loading=stop.loading,
+                        unloading=stop.unloading,
+                    )
+                )
+                created["line_route_stops"] += 1
+            session.flush()
+        zones = [locations[place].timezone for place, _, _ in spec.stops]
+        validate_schedule_periods(
+            [
+                (
+                    weekday,
+                    schedule_calls(sched)[0].departure_time or time(0),
+                    date(2026, 1, 1),
+                    None,
+                )
+                for sched in spec.schedules
+                for weekday in sched.weekdays
+            ]
+        )
+        for sched in spec.schedules:
+            calls = schedule_calls(sched)
+            validate_calls(calls)
+            for weekday in sched.weekdays:
+                first_departure = calls[0].departure_time
+                schedule = session.scalar(
+                    select(LineSchedule)
+                    .join(
+                        LineScheduleCall,
+                        (LineScheduleCall.schedule_id == LineSchedule.id)
+                        & (LineScheduleCall.sequence == 1),
+                    )
+                    .where(
+                        LineSchedule.route_id == route.id,
+                        LineSchedule.weekday == weekday,
+                        LineScheduleCall.departure_time == first_departure,
+                    )
+                )
+                if schedule is None:
+                    schedule = LineSchedule(
+                        route_id=route.id,
+                        route_mode=spec.mode.value,
+                        operator_id=route.operator_id,
+                        weekday=weekday,
+                        vessel_id=vessels[sched.vessel].id if sched.vessel else None,
+                        valid_from=date(2026, 1, 1),
+                        note=sched.note,
+                    )
+                    session.add(schedule)
+                    session.flush()
+                    created["line_schedules"] += 1
+                    for call in calls:
+                        session.add(
+                            LineScheduleCall(
+                                schedule_id=schedule.id,
+                                sequence=call.sequence,
+                                route_id=route.id,
+                                arrival_day=call.arrival_day,
+                                arrival_time=call.arrival_time,
+                                departure_day=call.departure_day,
+                                departure_time=call.departure_time,
+                            )
+                        )
+                        created["line_schedule_calls"] += 1
+                    session.flush()
+                existing = session.scalars(
+                    select(LineDeparture.service_date).where(
+                        LineDeparture.schedule_id == schedule.id
+                    )
+                ).all()
+                planned = service_dates(
+                    weekday, schedule.valid_from, schedule.valid_until, today, end
+                )
+                plans = {
+                    day: plan_departure(day, calls, zones, stops, route_cutoff_minutes=spec.cutoff)
+                    for day in planned
+                }
+                route_firsts = session.scalars(
+                    select(LineDepartureCall.departs_at).where(
+                        LineDepartureCall.route_id == route.id,
+                        LineDepartureCall.sequence == 1,
+                    )
+                ).all()
+                to_add = departures_to_add(
+                    planned,
+                    existing,
+                    [moment for moment in route_firsts if moment is not None],
+                    {day: plan[0].departs_at for day, plan in plans.items() if plan[0].departs_at},
+                )
+                for service_date in to_add:
+                    departure = LineDeparture(
+                        route_id=route.id,
+                        route_mode=spec.mode.value,
+                        operator_id=route.operator_id,
+                        schedule_id=schedule.id,
+                        service_date=service_date,
+                        vessel_id=schedule.vessel_id,
+                    )
+                    session.add(departure)
+                    session.flush()
+                    created["line_departures"] += 1
+                    for planned_call in plans[service_date]:
+                        session.add(
+                            LineDepartureCall(
+                                departure_id=departure.id,
+                                sequence=planned_call.sequence,
+                                route_id=route.id,
+                                arrives_at=planned_call.arrives_at,
+                                departs_at=planned_call.departs_at,
+                                cutoff_at=planned_call.cutoff_at,
+                            )
+                        )
+                        created["line_departure_calls"] += 1
+                    session.flush()
+    session.flush()
+
+
 def seed_demo_data(
     session: Session, today: date | None = None, gdp_validity_months: int | None = None
 ) -> Counter[str]:
@@ -1822,6 +2499,7 @@ def seed_demo_data(
     session.flush()
 
     _seed_places(session, locations, today, created)
+    _seed_lines(session, locations, today, created)
     _seed_fleet(session, carriers, locations, today, created)
     session.commit()
     return created
@@ -1843,6 +2521,15 @@ def main() -> int:
         "border_crossing_status_periods",
         "trailer_storage_rules",
         "wash_details",
+        "line_operators",
+        "vessels",
+        "vessel_adr_classes",
+        "line_routes",
+        "line_route_stops",
+        "line_schedules",
+        "line_schedule_calls",
+        "line_departures",
+        "line_departure_calls",
         "drivers",
         "driver_qualifications",
         "trucks",
