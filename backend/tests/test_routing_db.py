@@ -138,6 +138,12 @@ def test_routing_preference_leg_checks(test_engine: Engine) -> None:
         onward_route_id=s["route"],
         onward_route_mode="ferry",
     )
+    # An id without its type or mode would skip the composite foreign key (MATCH SIMPLE).
+    _rejected(_pref, test_engine, s, gateway_location_type=None)
+    _rejected(_pref, test_engine, s, destination_country="SE", via_location_id=s["border"])
+    _rejected(_pref, test_engine, s, line_route_id=s["route"])
+    _rejected(_pref, test_engine, s, onward_mode="rail", onward_route_id=s["rail_route"])
+    _rejected(_pref, test_engine, s, line_route_mode="ferry")
     # The crossing must be a border crossing.
     _rejected(_pref, test_engine, s, via_location_id=s["terminal"], via_location_type="terminal")
 

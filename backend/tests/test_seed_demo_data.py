@@ -1613,3 +1613,20 @@ def test_routing_suggestions_and_linehauls(test_engine: Engine) -> None:
         (o, d) for o, d, thermo, cold, *_ in linehauls if cold
     }
     assert sum(1 for _, _, thermo, *_ in linehauls if thermo) == 6
+
+
+def test_linehauls_arrive_and_close_within_opening_hours() -> None:
+    """A linehaul arrives while the destination terminal is open and its cut-off falls within
+    the origin's opening hours, on every weekday it runs (ff-logistiikka 26.11.2026)."""
+    places = {place.name: place for place in seed.PLACES}
+    days = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+    def is_open(name: str, weekday: int, at: str) -> bool:
+        hours = places[name].hours or {}
+        return any(start <= at <= end for start, end in hours.get(days[weekday - 1], []))
+
+    for lh in seed.LTL_LINEHAULS:
+        for weekday in seed.LINEHAUL_WEEKDAYS:
+            arrival_weekday = (weekday - 1 + lh.arrival_day) % 7 + 1
+            assert is_open(lh.destination, arrival_weekday, lh.arrives), (lh, weekday)
+            assert is_open(lh.origin, weekday, lh.cutoff), (lh, weekday)

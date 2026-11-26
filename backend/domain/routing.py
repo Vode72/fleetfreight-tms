@@ -147,7 +147,9 @@ def validate_linehaul(
 
     Times are local at each terminal. The cut-off is on the departure day, at or before the
     departure. Arrival is a day offset from the departure day (0-14) and a local time after
-    the departure. The delivery promise counts working days from the departure day.
+    the departure; a same-day arrival is compared in local clock time, which assumes both
+    terminals share a time zone (true for the Finnish terminal network of v1). The delivery
+    promise counts working days from the departure day.
     """
     if origin_id == destination_id:
         raise ValueError("a linehaul runs between two different terminals")

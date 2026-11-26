@@ -2107,7 +2107,14 @@ class RoutingPreference(Base):
         ),
         # Mirrors domain.routing.validate_preference.
         CheckConstraint(
-            "(gateway_location_id IS NULL OR gateway_location_type IN ('port', 'rail_terminal'))"
+            # Composite foreign keys are MATCH SIMPLE: an id without its type would skip the
+            # check, so each id and its type or mode are set together.
+            "(gateway_location_id IS NULL) = (gateway_location_type IS NULL)"
+            " AND (line_route_id IS NULL) = (line_route_mode IS NULL)"
+            " AND (onward_route_id IS NULL) = (onward_route_mode IS NULL)"
+            " AND (via_location_id IS NULL) = (via_location_type IS NULL)"
+            " AND (gateway_location_id IS NULL"
+            " OR gateway_location_type IN ('port', 'rail_terminal'))"
             " AND (line_route_id IS NULL OR line_route_mode = 'ferry')"
             " AND (onward_route_id IS NULL OR onward_route_mode = 'rail')"
             " AND (via_location_id IS NULL OR via_location_type = 'border_crossing')"
@@ -2214,7 +2221,8 @@ class LtlLinehaul(Base):
     destination_terminal_type: Mapped[str] = mapped_column(
         String(20), server_default=text("'terminal'"), default=LocationType.TERMINAL.value
     )
-    # ISO weekdays of departure (1 = Monday); distinct values, checked in the domain.
+    # ISO weekdays of departure (1 = Monday). The CHECK limits the range; duplicates are
+    # refused only by domain.routing.validate_linehaul (a CHECK cannot use a subquery).
     weekdays: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger))
     departure_time: Mapped[time] = mapped_column(Time)
     # Last moment to hand over at the origin terminal, local time on the departure day.

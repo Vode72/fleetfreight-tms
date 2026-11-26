@@ -1333,11 +1333,13 @@ def _linehaul_pair(
 LINEHAUL_WEEKDAYS = (1, 2, 3, 4, 5)
 LINEHAUL_DELIVERY_DAYS = 1
 LTL_LINEHAULS: tuple[_LinehaulSpec, ...] = (
+    # Central and Tampere are open around the clock; the others open at 06:00 on Saturday, so
+    # every arrival is at or after 06:00 (ff-logistiikka 26.11.2026).
     *_linehaul_pair("Central", "Tampere", "21:00", "18:00", "03:00", True),
-    *_linehaul_pair("Central", "Turku", "21:00", "18:00", "01:00", False),
-    *_linehaul_pair("Central", "Kuopio", "20:00", "17:00", "03:00", False),
-    *_linehaul_pair("Central", "Oulu", "18:00", "16:00", "04:00", True),
-    *_linehaul_pair("Tampere", "Oulu", "19:00", "17:00", "02:00", True),
+    *_linehaul_pair("Central", "Turku", "23:00", "18:00", "06:00", False),
+    *_linehaul_pair("Central", "Kuopio", "23:00", "18:00", "06:00", False),
+    *_linehaul_pair("Central", "Oulu", "21:00", "18:00", "06:00", True),
+    *_linehaul_pair("Tampere", "Oulu", "22:00", "18:00", "06:00", True),
 )
 
 
