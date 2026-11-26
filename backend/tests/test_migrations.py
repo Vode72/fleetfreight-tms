@@ -633,3 +633,13 @@ def test_risk_migration_creates_and_removes_tables(test_engine: Engine) -> None:
     command.downgrade(cfg, "8df1bdeac8a3")
     assert not RISK_TABLES & set(inspect(test_engine).get_table_names())
     command.upgrade(cfg, "head")
+
+
+def test_routing_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "6b0acbaf3f8c")
+    tables = {"routing_preferences", "ltl_linehauls"}
+    assert tables <= set(inspect(test_engine).get_table_names())
+    command.downgrade(cfg, "7767d6908268")
+    assert not tables & set(inspect(test_engine).get_table_names())
+    command.upgrade(cfg, "head")

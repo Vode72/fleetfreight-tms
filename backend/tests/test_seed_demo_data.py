@@ -76,6 +76,8 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "cargo_crime_counts",
         "risk_areas",
         "border_wait_observations",
+        "routing_preferences",
+        "ltl_linehauls",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
@@ -1535,3 +1537,79 @@ def test_seed_risk_reports_are_valid_by_the_domain_rules() -> None:
     # Germany: six named months in the year before the seed day
     assert country_risk("DE", reports, date(2026, 11, 24)).months_used == 6
     assert {w[0] for w in seed.BORDER_WAITS} <= set(seed.BORDER_CROSSINGS)
+
+
+def test_routing_suggestions_and_linehauls(test_engine: Engine) -> None:
+    """D64, D96: export and import rows per country pair; LTL linehauls (chapter 3B, D33)."""
+    _run(test_engine)
+
+    def rows(sql: str) -> list[Any]:
+        with test_engine.connect() as conn:
+            return list(conn.execute(text(sql)).all())
+
+    pairs = rows("SELECT origin_country, destination_country FROM routing_preferences")
+    assert len(pairs) == len(seed.ROUTING_PREFERENCES)
+    # Every pair has an export row from Finland and an import row to Finland.
+    exports = {d for o, d in pairs if o == "FI"}
+    imports = {o for o, d in pairs if d == "FI"}
+    assert (
+        exports
+        == imports
+        == {"IT", "BE", "FR", "ES", "NL", "DE", "AT", "CH", "PL", "EE", "LV", "LT", "NO"}
+    )
+    suggestions = """
+        SELECT rp.priority, g.name, r.name, rp.onward_mode, rr.name, v.name
+        FROM routing_preferences rp
+        LEFT JOIN locations g ON g.id = rp.gateway_location_id
+        LEFT JOIN line_routes r ON r.id = rp.line_route_id
+        LEFT JOIN line_routes rr ON rr.id = rp.onward_route_id
+        LEFT JOIN locations v ON v.id = rp.via_location_id
+        WHERE rp.origin_country = '{o}' AND rp.destination_country = '{d}'
+        ORDER BY rp.priority, g.name
+    """
+    assert rows(suggestions.format(o="FI", d="IT")) == [
+        (
+            1,
+            "Demo Port Rostock",
+            "Demo Hanko\u2013Rostock",
+            "rail",
+            "Demo Rail Rostock\u2013Verona",
+            None,
+        )
+    ]
+    # Antwerpen preferred, Travemünde or Lübeck as equal second alternatives (Toni 26.11.2026).
+    assert [(p, g) for p, g, *_ in rows(suggestions.format(o="FR", d="FI"))] == [
+        (1, "Demo Port Antwerpen"),
+        (2, "Demo Port Lübeck"),
+        (2, "Demo Port Travemünde"),
+    ]
+    assert [(p, g) for p, g, *_ in rows(suggestions.format(o="FI", d="DE"))] == [
+        (1, "Demo Port Lübeck"),
+        (1, "Demo Port Travemünde"),
+    ]
+    assert rows(suggestions.format(o="FI", d="NO"))[0][1:] == (
+        "Demo Port Kapellskär",
+        "Demo Naantali\u2013Långnäs\u2013Kapellskär",
+        "road",
+        None,
+        "Demo Border Crossing Svinesund",
+    )
+
+    linehauls = rows(
+        """
+        SELECT o.name, d.name, l.temperature_controlled, o.cold_storage AND d.cold_storage,
+               l.delivery_days, l.weekdays
+        FROM ltl_linehauls l
+        JOIN locations o ON o.id = l.origin_terminal_id
+        JOIN locations d ON d.id = l.destination_terminal_id
+        """
+    )
+    assert len(linehauls) == 10
+    # Every linehaul runs both ways, Mon-Fri, D+1; thermo only between cold terminals (D33).
+    legs = {(o, d) for o, d, *_ in linehauls}
+    assert all((d, o) in legs for o, d in legs)
+    assert all(days == 1 and list(weekdays) == [1, 2, 3, 4, 5] for *_, days, weekdays in linehauls)
+    assert {(o, d) for o, d, thermo, cold, *_ in linehauls if thermo} == {
+        (o, d) for o, d, thermo, cold, *_ in linehauls if cold
+    }
+    assert sum(1 for _, _, thermo, *_ in linehauls if thermo) == 6
