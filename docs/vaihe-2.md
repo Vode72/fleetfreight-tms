@@ -1,6 +1,6 @@
 # Vaihe 2: tietomalli
 
-Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2 ja 2B-3a valmiit; 2B-3b valmis; 2B-3c osa 1 tehty, seuraavaksi osa 2) · Päivitetty 22.11.2026
+Tila: **käynnissä** (2A, tietomalli v1, 2B-1, 2B-2, 2B-3a ja 2B-3b valmiit; 2B-3c osa 1 ja 2B-3e tehty; seuraavaksi rekisterinäkymät, ks. Järjestys) · Päivitetty 26.11.2026
 
 Tavoite: koko tietomalli v1 (`suunnitelma.md` luku 3) Alembic-revisioina, tilakoneet testeineen ja
 yhdistetty demodata, jonka päälle vaiheen 4 läpimenevä polku rakennetaan. Taulut luodaan luvun 3
@@ -72,8 +72,8 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 - **Myöhemmin:** junan kuormaprofiili (vaihe 5), RID junan vaarallisille aineille (D46)
 - **Valmis kun:** demon linjavuorot ja reititysehdotukset ovat kannassa, ja versioidut taulut tukevat voimassaoloa
 
-#### 2B-3e Rahtirikosriski ja rajajonot (D95)
-- **PR (2B-3e):** `cargo_crime_reports` ja `cargo_crime_counts` (luettu kuukausiraportti ja ilmoitusmäärät maittain; nimeämätön maa = ei riviä, tuntematon), `risk_areas` (maa, ISO 3166-2 -alue, valinnainen tie, taso 1–5, peruste, data tai asiantuntija-arvio, jaksot D67) ja `border_wait_observations` (rajanylitys, suunta, havaintoaika, odotus, lähdetyyppi; demo-merkintä kiinteä), revisio 7767d6908268. `domain/risks.py`: maan taso asetuksin (ikkuna 12 kk, vähintään 3 kk, alarajat demoarvoja), korkeampi taso voittaa, odotusarvio viikonpäivän ja paikallisen tunnin mediaanina ilman demoarvojen sekoittamista. Demo: TAPA EMEA:n luvut 12/2025–9/2026 (trans.info), Benelux-tiet TT Clubin raportista, Lyonin seutu ja AP-7 demoarvioina, Svinesundin keksityt jonohavainnot
+#### 2B-3e Rahtirikosriski ja rajajonot (D95) · valmis
+- **PR (2B-3e):** `cargo_crime_reports` ja `cargo_crime_counts` (luettu kuukausiraportti ja ilmoitusmäärät maittain; nimeämätön maa = ei riviä, tuntematon), `risk_areas` (maa, ISO 3166-2 -alue, valinnainen tie, taso 1–5, peruste, data tai asiantuntija-arvio, jaksot D67) ja `border_wait_observations` (rajanylitys, suunta, havaintoaika, odotus, lähdetyyppi; demo-merkintä kiinteä), revisio 7767d6908268. `domain/risks.py`: maan taso kuukausien mediaanista asetuksin (ikkuna 12 kk, vähintään 3 kk, alarajat demoarvoja), korkeampi taso voittaa, odotusarvio viikonpäivän ja paikallisen tunnin mediaanina ilman demoarvojen sekoittamista. Demo: TAPA EMEA:n luvut 12/2025–9/2026 (trans.info), Benelux-tiet TT Clubin raportista, Lyonin seutu ja AP-7 demoarvioina, Svinesundin keksityt jonohavainnot
 - **Valmis kun:** maan taso voidaan laskea kannan raporteista, riskialueet ja jonohavainnot ovat kannassa lähteineen tai merkittyinä demoarvoiksi ✓
 
 #### 2B-3d Kustannusasetukset (rakenne; laskenta vaiheessa 6)
@@ -83,7 +83,7 @@ Neljä PR:ää järjestyksessä a → b → c → d, kukin oma revisionsa, demod
 
 ### 2C Kuorma ja keikka · tulossa
 - Kuorma: `orders` (tyypit D54, kuormatyyppi D37, tavaralaji D56, Earliest/Latest ja aikatyyppi noudolle ja toimitukselle D80: `domain/time_types.py` valmis), `order_lines`, `dangerous_goods`, `temperature_requirements`
-- Keikka: `jobs`, `round_trips` (D86), `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
+- Keikka: `jobs`, `job_drivers` (D78), `round_trips` (D86), `trips`, `nodes`, `legs` ja `leg_trips` (D55), `order_nodes`, `line_bookings`, `handling_events`, `deviations`, `seals`
 - Resurssit ja ajoaika: `duty_events`, `resource_reservations`, `trailer_positions`
 - Kylmä, tulli ja dokumentit: `sensors`, `trip_compartment_settings`, `temperature_readings`, `temperature_alarms`,
   `customs_declarations`, `customs_items` (D58), `customs_events`, `documents`

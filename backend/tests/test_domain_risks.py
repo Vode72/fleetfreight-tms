@@ -23,7 +23,7 @@ from domain.risks import (
     country_risk,
     effective_risk_level,
     expected_wait,
-    level_for_average,
+    level_for_median,
     validate_incident_count,
     validate_report_month,
     validate_risk_area,
@@ -74,14 +74,14 @@ def _reports(*months: tuple[date, dict[str, int]]) -> dict[date, dict[str, int]]
     return dict(months)
 
 
-def test_level_for_average_uses_lower_bounds() -> None:
-    assert level_for_average(Decimal("9.9"), SETTINGS) == 1
-    assert level_for_average(Decimal(10), SETTINGS) == 2
-    assert level_for_average(Decimal(100), SETTINGS) == 4
-    assert level_for_average(Decimal(5000), SETTINGS) == 5
+def test_level_for_median_uses_lower_bounds() -> None:
+    assert level_for_median(Decimal("9.9"), SETTINGS) == 1
+    assert level_for_median(Decimal(10), SETTINGS) == 2
+    assert level_for_median(Decimal(100), SETTINGS) == 4
+    assert level_for_median(Decimal(5000), SETTINGS) == 5
 
 
-def test_country_risk_averages_named_months_in_the_window() -> None:
+def test_country_risk_is_the_median_of_named_months_in_the_window() -> None:
     reports = _reports(
         (date(2026, 4, 1), {"FR": 100}),
         (date(2026, 5, 1), {"FR": 50}),
@@ -89,7 +89,7 @@ def test_country_risk_averages_named_months_in_the_window() -> None:
         (date(2026, 10, 1), {"FR": 1000}),  # the current month is not complete yet
     )
     risk = country_risk("FR", reports, date(2026, 10, 15), SETTINGS)
-    assert risk == CountryRisk("FR", 3, 3, Decimal("70.0"))
+    assert risk == CountryRisk("FR", 3, 3, Decimal("60.0"))
 
 
 def test_unnamed_month_is_skipped_not_zero() -> None:
@@ -388,3 +388,13 @@ def test_country_region_and_road_rows_together() -> None:
 
 def test_demo_note_can_sit_in_a_sql_literal() -> None:
     assert "'" not in DEMO_WAIT_NOTE
+
+
+def test_one_exceptional_month_barely_moves_the_level() -> None:
+    reports = {
+        date(2026, 7, 1): {"IT": 159},
+        date(2026, 8, 1): {"IT": 867},
+        date(2026, 9, 1): {"IT": 103},
+    }
+    risk = country_risk("IT", reports, date(2026, 10, 1), SETTINGS)
+    assert (risk.monthly_median, risk.level) == (Decimal("159.0"), 4)

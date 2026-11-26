@@ -7,7 +7,7 @@ Kuljetustenhallintajärjestelmä (TMS), jossa yhdistyvät kuormasuunnittelu ja k
 päivätason resurssisuunnittelu ajo-, työ- ja lepoaikoineen. Portfolioprojekti, jossa on vain fiktiivistä demodataa.
 Yhdistää aiemmat prototyypit Freight Planner ja FleetFlow Planner.
 
-**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D95).
+**Päätökset:** `docs/suunnitelma.md`, luku 2 (päätösrekisteri D1–D98).
 Lue päätösrekisteri ennen tietomalliin, logiikkaan tai arkkitehtuuriin koskevaa työtä. Jos pyyntö on
 ristiriidassa hyväksytyn päätöksen kanssa, sano se ääneen äläkä ohita päätöstä hiljaa.
 
@@ -65,7 +65,8 @@ Uusi migraatio: `cd backend && uv run alembic revision -m "describe the change"`
    PR, testit ja katselmointi. **Ei automaattista yhdistämistä mainiin.**
 2. **Skeemamuutos = uusi Alembic-revisio.** Valmiita revisioita ei muokata. Demodata ei kuulu migraatioihin.
 3. **Raha (D28):** kannassa INTEGER (`*_cents` ×100 summille, `*_e4` ×10 000 yksikköhinnoille ja prosenteille),
-   laskenta `Decimal` ROUND_HALF_UP, API euroina. Muunnokset vain `money`-moduulissa.
+   laskenta `Decimal` ROUND_HALF_UP. API palauttaa summan tallennetussa valuutassaan valuuttakoodin kanssa (D96);
+   euromuunnos 2B-3d:ssä. Muunnokset vain `money`-moduulissa.
    Ei `float`ia eikä `round()`:ia rahassa, ei backendissä eikä frontendissä.
 4. **Ei työnantajan tietoja, ehdoton sääntö:** repossa ei saa näkyä mitään Tonin nykyisestä tai aiemmista
    työnantajista. Ei nimiä, logoja, järjestelmien nimiä, sisäisiä lyhenteitä tai koodeja, asiakkaita, reittejä,

@@ -2376,7 +2376,7 @@ CARGO_CRIME_REPORTS: tuple[tuple[date, str, str, dict[str, int]], ...] = (
         date(2026, 3, 1),
         "https://trans.info/en/tapa-march-2026-477316",
         "The article names nine of the 51 reporting countries. The counts are for March only but"
-        " about five times those of other months; one month weighs heavily in an average.",
+        " about five times those of other months; the level uses the median.",
         {
             "DE": 1295,
             "IT": 867,

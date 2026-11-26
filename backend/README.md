@@ -81,7 +81,10 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   top loading, a full trailer, thermo FD with two zones behind a partition and two reefer units, an FD
   with two units but one zone, an FS with side doors; one leased, one rented, one partner's; some
   rail-craneable); equipment periods (ATP, reefer unit service per machine, inspections with one expired,
-  GDP mapping, tail lift inspection). Registrations look like `DEMO-TRK-001`. Run after `alembic upgrade head`:
+  GDP mapping, tail lift inspection). Registrations look like `DEMO-TRK-001`. Also places and
+  lines: parking areas with certificates, border crossings with official status history, port and
+  rail terminal storage rules, washes, ferry and rail lines with vessels, timetables and 8 weeks of
+  departures, and cargo crime risk (TAPA monthly counts, risk areas, invented Svinesund waits). Run after `alembic upgrade head`:
   `ENVIRONMENT=development uv run python -m scripts.seed_demo_data`
   (in Docker Compose: `docker compose exec backend python -m scripts.seed_demo_data`).
 
@@ -97,7 +100,8 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   Contents now: 13 countries (FI, SE, EE, LV, LT, PL, DE, NL, BE, DK, FR, ES, IT), holidays
   2026-2027 for DE, FR and PL, and driving bans for DE (Sundays and holidays, summer Saturdays),
   FR (weekends and holidays, 2026 extra Saturdays), PL (holidays, holiday eves 2026-2027, summer
-  2026) and IT (2026 calendar). Country rules, Spain's section bans and limits come next.
+  2026) and IT (2026 calendar), country rules (speeds, tolls, weights and lengths, HCT), Spain's,
+  the Basque Country's and Catalonia's section bans, HCT networks and ADR tunnel examples.
 
 - Driver qualifications are validity periods (history is kept; overlapping periods of one driver
   and type are rejected by the database). `GDP_TRAINING_DEFAULT_VALIDITY_MONTHS` (default 12)
@@ -105,7 +109,7 @@ signed-in user's own preferences (any role) and returns the updated `/auth/me` b
   seed). It is the company's practice, not a regulation. The migration creates the `btree_gist`
   extension (needed for the exclusion constraint); the downgrade leaves it in place.
 - Register rows are archived, not deleted (D72): `archived_at` (timestamptz, NULL = active) on customers,
-  locations, carriers, drivers, trucks, dollies and load units. Every register foreign key is
+  locations, carriers, drivers, trucks, dollies, load units, line operators, vessels and line routes. Every register foreign key is
   `ON DELETE RESTRICT`, so a referenced row cannot be deleted (also `driver_qualifications`, which cascaded
   before).
 - The own carrier (`carriers.type = 'own'`) links to the own company's customer row through

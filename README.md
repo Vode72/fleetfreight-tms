@@ -20,7 +20,7 @@ The new system is designed from what both prototypes taught, built by a traffic 
 ## Core ideas
 
 - **Node–Leg model:** every trip is a chain of nodes (tractor start, trailer pickup, loading, terminal, port departure and arrival, unloading, workshop, washing) with a leg between each pair
-- **Trip = one loaded round of a load unit** (a trailer or a truck's fixed body). Every movement is a trip built from an order, nodes and legs: freight, empty load unit, maintenance, washing, inspection or repositioning, with internal orders paid by the own company. Tractors can be swapped at any node, and each tractor and driver gets its own job
+- **Trip = one loaded round of a load unit** (a trailer or a truck's fixed body). Every movement is a trip built from an order, nodes and legs: freight, empty load unit, maintenance, washing, inspection or repositioning, with internal orders paid by the own company. Tractors can be swapped at any node; each tractor gets its own job, and drivers change within a job as time periods
 - **Feasibility first:** the system calculates, checks and suggests; the traffic coordinator decides
 - Accompanied and unaccompanied ferries, ADR, GDP, temperature-controlled and curtain-side transport, trailer pool, port handling
 
@@ -38,4 +38,4 @@ React · TypeScript · Vite · Python · FastAPI · PostgreSQL · Alembic · pyt
 
 ## Status
 
-Phase 1 complete; phase 2 (data model) in progress: user preferences, data model v1 and parties/locations registers done; fleet registers next. See [docs/suunnitelma.md](docs/suunnitelma.md) (Finnish) for the decision register, data model and roadmap, and [backend/README.md](backend/README.md) for running the app.
+Phase 1 complete; phase 2 (data model) in progress: user preferences, data model v1, parties and locations, fleet, countries and road restrictions, parking and border crossings, ferry and rail lines, and cargo crime risk done; register views (API and list views) next, then orders and trips (2C). See [docs/suunnitelma.md](docs/suunnitelma.md) (Finnish) for the decision register, data model and roadmap, and [backend/README.md](backend/README.md) for running the app.

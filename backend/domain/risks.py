@@ -46,7 +46,7 @@ class WaitDirection(StrEnum):
 class RiskLevelSettings:
     """How a country's level is computed from reported incidents per month.
 
-    `thresholds` are the lowest monthly averages of levels 2, 3, 4 and 5. The defaults are demo
+    `thresholds` are the lowest monthly medians of levels 2, 3, 4 and 5. The defaults are demo
     settings, not an industry standard: every company tunes them (D95).
     """
 
@@ -69,7 +69,7 @@ class CountryRisk:
     # None = unknown: too few months in which the country was reported.
     level: int | None
     months_used: int
-    monthly_average: Decimal | None
+    monthly_median: Decimal | None
 
 
 def month_start(value: date) -> date:
@@ -94,8 +94,8 @@ def validate_incident_count(value: int) -> int:
     return value
 
 
-def level_for_average(average: Decimal, settings: RiskLevelSettings) -> int:
-    return 1 + sum(1 for threshold in settings.thresholds if average >= threshold)
+def level_for_median(value: Decimal, settings: RiskLevelSettings) -> int:
+    return 1 + sum(1 for threshold in settings.thresholds if value >= threshold)
 
 
 def country_risk(
@@ -110,6 +110,7 @@ def country_risk(
     but does not name the country is skipped, not counted as zero: the published reports list
     the highest countries only, so a missing country is unknown for that month (D95). The counts
     are reported incidents, which also follow market size and reporting habits, not risk per km.
+    The median, not the mean (D95): one exceptional month barely moves the level.
     """
     settings = settings or RiskLevelSettings()
     current = month_start(as_of)
@@ -121,8 +122,8 @@ def country_risk(
     ]
     if len(counts) < settings.min_months:
         return CountryRisk(country, None, len(counts), None)
-    average = (Decimal(sum(counts)) / len(counts)).quantize(Decimal("0.1"), ROUND_HALF_UP)
-    return CountryRisk(country, level_for_average(average, settings), len(counts), average)
+    middle = Decimal(str(median(counts))).quantize(Decimal("0.1"), ROUND_HALF_UP)
+    return CountryRisk(country, level_for_median(middle, settings), len(counts), middle)
 
 
 def validate_risk_area(
