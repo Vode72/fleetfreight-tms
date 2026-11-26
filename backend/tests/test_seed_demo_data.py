@@ -72,6 +72,10 @@ def test_seed_is_idempotent(test_engine: Engine) -> None:
         "line_schedule_calls",
         "line_departures",
         "line_departure_calls",
+        "cargo_crime_reports",
+        "cargo_crime_counts",
+        "risk_areas",
+        "border_wait_observations",
     )
     counts = {t: _count(test_engine, f"SELECT count(*) FROM {t}") for t in tables}
     assert first == counts
@@ -1489,3 +1493,45 @@ def test_all_line_and_vessel_names_are_demo() -> None:
     assert all(name.startswith("Demo ") for name, _ in seed.LINE_OPERATORS)
     assert all(name.startswith("Demo ") for name in seed.VESSELS)
     assert all(name.startswith("Demo ") for name in seed.LINE_ROUTES)
+
+
+def test_risk_data(test_engine: Engine) -> None:
+    _run(test_engine)
+    # a country an article does not name gets no row (unknown, not 0)
+    assert (
+        _count(test_engine, "SELECT count(*) FROM cargo_crime_counts WHERE incident_count = 0") == 0
+    )
+    assert _rows(
+        test_engine,
+        "SELECT c.incident_count FROM cargo_crime_counts c JOIN cargo_crime_reports r"
+        " ON r.id = c.report_id WHERE c.country = 'DE' ORDER BY r.report_month",
+    ) == [(115,), (223,), (1295,), (440,), (200,), (202,)]
+    # data rows link to their source; expert estimates are marked as demo estimates
+    assert (
+        _count(
+            test_engine,
+            "SELECT count(*) FROM risk_areas WHERE source_type = 'data' AND source_url IS NULL",
+        )
+        == 0
+    )
+    assert _rows(
+        test_engine,
+        "SELECT country, region, road_ref FROM risk_areas WHERE source_type = 'expert_estimate'"
+        " AND basis LIKE 'Demo estimate%' ORDER BY country",
+    ) == [("ES", "ES-CT", "AP-7"), ("FR", "FR-ARA", None)]
+    # every border wait is an invented demo value with its note
+    assert _rows(
+        test_engine,
+        "SELECT DISTINCT source_type, note FROM border_wait_observations",
+    ) == [("demo", "Invented demo value, not a measurement.")]
+
+
+def test_seed_risk_reports_are_valid_by_the_domain_rules() -> None:
+    from domain.risks import country_risk
+
+    months = [m for m, _, _, _ in seed.CARGO_CRIME_REPORTS]
+    assert len(months) == len(set(months))
+    reports = {m: counts for m, _, _, counts in seed.CARGO_CRIME_REPORTS}
+    # Germany: six named months in the year before the seed day
+    assert country_risk("DE", reports, date(2026, 11, 24)).months_used == 6
+    assert {w[0] for w in seed.BORDER_WAITS} <= set(seed.BORDER_CROSSINGS)

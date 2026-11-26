@@ -616,3 +616,20 @@ def test_lines_migration_creates_and_removes_tables(test_engine: Engine) -> None
     command.downgrade(cfg, "4523ff2f5448")
     assert not LINE_TABLES & set(inspect(test_engine).get_table_names())
     command.upgrade(cfg, "head")
+
+
+RISK_TABLES = {
+    "cargo_crime_reports",
+    "cargo_crime_counts",
+    "risk_areas",
+    "border_wait_observations",
+}
+
+
+def test_risk_migration_creates_and_removes_tables(test_engine: Engine) -> None:
+    cfg = _config(test_engine)
+    command.upgrade(cfg, "7767d6908268")
+    assert set(inspect(test_engine).get_table_names()) >= RISK_TABLES
+    command.downgrade(cfg, "8df1bdeac8a3")
+    assert not RISK_TABLES & set(inspect(test_engine).get_table_names())
+    command.upgrade(cfg, "head")
