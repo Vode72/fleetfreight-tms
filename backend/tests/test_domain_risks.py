@@ -113,6 +113,17 @@ def test_even_number_of_months_uses_the_midpoint() -> None:
     assert risk == CountryRisk("PL", 3, 4, Decimal("55.5"))
 
 
+def test_even_midpoint_below_a_threshold_stays_on_the_lower_level() -> None:
+    reports = _reports(
+        (date(2026, 7, 1), {"LT": 30}),
+        (date(2026, 8, 1), {"LT": 39}),
+        (date(2026, 9, 1), {"LT": 40}),
+        (date(2026, 6, 1), {"LT": 60}),
+    )
+    risk = country_risk("LT", reports, date(2026, 10, 1), SETTINGS)
+    assert risk == CountryRisk("LT", 2, 4, Decimal("39.5"))
+
+
 def test_unnamed_month_is_skipped_not_zero() -> None:
     reports = _reports(
         (date(2026, 7, 1), {"NL": 45}),
