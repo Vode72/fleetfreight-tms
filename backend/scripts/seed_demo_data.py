@@ -52,6 +52,12 @@ Lines (D62, D63, D94): demo operators and vessels on the public routes; each dir
 route. Timetables follow public frequencies; Vuosaari-Travemünde, Vuosaari-Tallinn and
 Naantali-Långnäs-Kapellskär are modelled on published timetables, the freight-only and rail
 timetables are invented. None is an official timetable (every schedule's note says so).
+Routing (D64, D96): suggestions per country pair for export from Finland and import to Finland:
+Italy via Rostock and rail to Verona; Belgium, France, Spain and the Netherlands via Antwerpen,
+Travemünde or Lübeck as second alternatives; Germany, Austria and Switzerland via Travemünde or
+Lübeck (equal priority); Poland via Gdynia; the Baltics via Tallinn; Norway via Kapellskär and the
+Svinesund crossing. LTL linehauls between the demo terminals (invented times, D+1); thermo only
+between the cold terminals (D33).
 Refuses to run unless ENVIRONMENT=development.
 """
 
@@ -88,11 +94,13 @@ from db.models import (
     LineScheduleCall,
     LoadUnit,
     Location,
+    LtlLinehaul,
     ParkingCertification,
     ParkingDetails,
     ReeferEvaporator,
     ReeferUnit,
     RiskArea,
+    RoutingPreference,
     TrailerStorageRule,
     Truck,
     Vessel,
@@ -182,6 +190,14 @@ from domain.risks import (
     validate_report_month,
     validate_risk_area,
     validate_wait_observation,
+)
+from domain.routing import (
+    OnwardMode,
+    validate_gateway_on_route,
+    validate_linehaul,
+    validate_linehaul_periods,
+    validate_preference,
+    validate_thermo_linehaul,
 )
 
 OWN_COMPANY = "Demo Freight Oy"
@@ -1188,6 +1204,143 @@ LINE_ROUTES: dict[str, _RouteSpec] = {
         (_ScheduleSpec((1, 3, 5), None, ((None, None, 0, "21:00"), (2, "09:00", None, None))),),
     ),
 }
+
+
+# --- Routing suggestions (D64, D96) and LTL linehauls (chapter 3B)
+
+ROUTING_FROM = date(2026, 1, 1)
+_ROUTING_NOTE = "Demo routing suggestion (D64); the dispatcher decides."
+_LINEHAUL_NOTE = "Demo linehaul: times and delivery promise are demo values."
+
+
+@dataclass(frozen=True)
+class _RoutingSpec:
+    origin: str | None
+    destination: str
+    priority: int
+    gateway: str | None
+    # Ferry route to suggest; None = several routes call at the gateway.
+    line_route: str | None = None
+    onward_rail: str | None = None
+    via: str | None = None
+
+
+_ANTWERPEN = _P + "Antwerpen"
+_TRAVEMUNDE = _P + "Travemünde"
+_SVINESUND = "Demo Border Crossing Svinesund"
+
+
+def _both_ways(
+    country: str,
+    priority: int,
+    gateway: str,
+    out: tuple[str | None, str | None],
+    back: tuple[str | None, str | None],
+    via: str | None = None,
+) -> tuple[_RoutingSpec, _RoutingSpec]:
+    """Export FI -> country and import country -> FI through the same gateway."""
+    return (
+        _RoutingSpec("FI", country, priority, gateway, out[0], out[1], via),
+        _RoutingSpec(country, "FI", priority, gateway, back[0], back[1], via),
+    )
+
+
+ROUTING_PREFERENCES: tuple[_RoutingSpec, ...] = (
+    *_both_ways(
+        "IT",
+        1,
+        _P + "Rostock",
+        ("Demo Hanko\u2013Rostock", "Demo Rail Rostock\u2013Verona"),
+        ("Demo Rostock\u2013Hanko", "Demo Rail Verona\u2013Rostock"),
+    ),
+    *(
+        spec
+        for country in ("BE", "FR", "ES", "NL")
+        for spec in (
+            *_both_ways(country, 1, _ANTWERPEN, (None, None), (None, None)),
+            *_both_ways(country, 2, _TRAVEMUNDE, (None, None), (None, None)),
+            *_both_ways(
+                country,
+                2,
+                _LUBECK,
+                ("Demo Kotka\u2013Lübeck", None),
+                ("Demo Lübeck\u2013Kotka", None),
+            ),
+        )
+    ),
+    *(
+        spec
+        for country in ("DE", "AT", "CH")
+        for spec in (
+            *_both_ways(country, 1, _TRAVEMUNDE, (None, None), (None, None)),
+            *_both_ways(
+                country,
+                1,
+                _LUBECK,
+                ("Demo Kotka\u2013Lübeck", None),
+                ("Demo Lübeck\u2013Kotka", None),
+            ),
+        )
+    ),
+    *_both_ways(
+        "PL", 1, _P + "Gdynia", ("Demo Hanko\u2013Gdynia", None), ("Demo Gdynia\u2013Hanko", None)
+    ),
+    *(
+        spec
+        for country in ("EE", "LV", "LT")
+        for spec in _both_ways(
+            country,
+            1,
+            _P + "Tallinn",
+            ("Demo Vuosaari\u2013Tallinn", None),
+            ("Demo Tallinn\u2013Vuosaari", None),
+        )
+    ),
+    *_both_ways(
+        "NO",
+        1,
+        _P + "Kapellskär",
+        ("Demo Naantali\u2013Långnäs\u2013Kapellskär", None),
+        ("Demo Kapellskär\u2013Långnäs\u2013Naantali", None),
+        via=_SVINESUND,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class _LinehaulSpec:
+    origin: str
+    destination: str
+    departs: str
+    cutoff: str
+    arrival_day: int
+    arrives: str
+    thermo: bool
+
+
+_T = "Demo Terminal "
+
+
+def _linehaul_pair(
+    a: str, b: str, departs: str, cutoff: str, arrives: str, thermo: bool
+) -> tuple[_LinehaulSpec, _LinehaulSpec]:
+    return (
+        _LinehaulSpec(_T + a, _T + b, departs, cutoff, 1, arrives, thermo),
+        _LinehaulSpec(_T + b, _T + a, departs, cutoff, 1, arrives, thermo),
+    )
+
+
+LINEHAUL_WEEKDAYS = (1, 2, 3, 4, 5)
+LINEHAUL_DELIVERY_DAYS = 1
+LTL_LINEHAULS: tuple[_LinehaulSpec, ...] = (
+    # Central and Tampere are open around the clock; the others open at 06:00 on Saturday, so
+    # every arrival is at or after 06:00 (ff-logistiikka 26.11.2026).
+    *_linehaul_pair("Central", "Tampere", "21:00", "18:00", "03:00", True),
+    *_linehaul_pair("Central", "Turku", "23:00", "18:00", "06:00", False),
+    *_linehaul_pair("Central", "Kuopio", "23:00", "18:00", "06:00", False),
+    *_linehaul_pair("Central", "Oulu", "21:00", "18:00", "06:00", True),
+    *_linehaul_pair("Tampere", "Oulu", "22:00", "18:00", "06:00", True),
+)
 
 
 def _hhmm(value: str | None) -> time | None:
@@ -2627,6 +2780,121 @@ def _seed_risks(session: Session, locations: dict[str, Location], created: Count
     session.flush()
 
 
+def _seed_routing(session: Session, locations: dict[str, Location], created: Counter[str]) -> None:
+    """Routing suggestions (D64, D96) and LTL linehauls; missing rows only (natural keys:
+    country pair, gateway or crossing and start of validity; terminals, departure time and start
+    of validity)."""
+    routes = {route.name: route for route in session.scalars(select(LineRoute))}
+    for spec in ROUTING_PREFERENCES:
+        gateway = locations[spec.gateway] if spec.gateway else None
+        via = locations[spec.via] if spec.via else None
+        line_route = routes[spec.line_route] if spec.line_route else None
+        onward = routes[spec.onward_rail] if spec.onward_rail else None
+        exists = session.scalar(
+            select(RoutingPreference.id).where(
+                RoutingPreference.origin_country == spec.origin,
+                RoutingPreference.destination_country == spec.destination,
+                RoutingPreference.gateway_location_id == (gateway.id if gateway else None),
+                RoutingPreference.via_location_id == (via.id if via else None),
+                RoutingPreference.valid_from == ROUTING_FROM,
+            )
+        )
+        if exists is not None:
+            continue
+        onward_mode = OnwardMode.RAIL if onward else OnwardMode.ROAD
+        validate_preference(
+            origin_country=spec.origin,
+            destination_country=spec.destination,
+            postal_prefix=None,
+            priority=spec.priority,
+            has_gateway=gateway is not None,
+            has_line_route=line_route is not None,
+            onward_mode=onward_mode,
+            has_onward_route=onward is not None,
+            has_via=via is not None,
+            valid_from=ROUTING_FROM,
+            valid_until=None,
+        )
+        if line_route is not None and gateway is not None:
+            validate_gateway_on_route(
+                gateway.id,
+                session.scalars(
+                    select(LineRouteStop.location_id).where(LineRouteStop.route_id == line_route.id)
+                ).all(),
+            )
+        session.add(
+            RoutingPreference(
+                origin_country=spec.origin,
+                destination_country=spec.destination,
+                priority=spec.priority,
+                gateway_location_id=gateway.id if gateway else None,
+                gateway_location_type=gateway.type if gateway else None,
+                line_route_id=line_route.id if line_route else None,
+                line_route_mode=line_route.mode if line_route else None,
+                onward_mode=onward_mode.value,
+                onward_route_id=onward.id if onward else None,
+                onward_route_mode=onward.mode if onward else None,
+                via_location_id=via.id if via else None,
+                via_location_type=via.type if via else None,
+                valid_from=ROUTING_FROM,
+                note=_ROUTING_NOTE,
+            )
+        )
+        created["routing_preferences"] += 1
+
+    periods: dict[tuple[str, str, str], list[tuple[date, date | None]]] = {}
+    for lh in LTL_LINEHAULS:
+        periods.setdefault((lh.origin, lh.destination, lh.departs), []).append((ROUTING_FROM, None))
+    for key_periods in periods.values():
+        validate_linehaul_periods(key_periods)
+    for lh in LTL_LINEHAULS:
+        origin, destination = locations[lh.origin], locations[lh.destination]
+        departs, cutoff, arrives = _hhmm(lh.departs), _hhmm(lh.cutoff), _hhmm(lh.arrives)
+        assert departs is not None and cutoff is not None and arrives is not None
+        exists = session.scalar(
+            select(LtlLinehaul.id).where(
+                LtlLinehaul.origin_terminal_id == origin.id,
+                LtlLinehaul.destination_terminal_id == destination.id,
+                LtlLinehaul.departure_time == departs,
+                LtlLinehaul.valid_from == ROUTING_FROM,
+            )
+        )
+        if exists is not None:
+            continue
+        validate_linehaul(
+            origin_id=origin.id,
+            destination_id=destination.id,
+            weekdays=LINEHAUL_WEEKDAYS,
+            departure_time=departs,
+            cutoff_time=cutoff,
+            arrival_day=lh.arrival_day,
+            arrival_time=arrives,
+            delivery_days=LINEHAUL_DELIVERY_DAYS,
+            valid_from=ROUTING_FROM,
+            valid_until=None,
+        )
+        validate_thermo_linehaul(
+            lh.thermo, bool(origin.cold_storage), bool(destination.cold_storage)
+        )
+        session.add(
+            LtlLinehaul(
+                origin_terminal_id=origin.id,
+                destination_terminal_id=destination.id,
+                weekdays=list(LINEHAUL_WEEKDAYS),
+                departure_time=departs,
+                cutoff_time=cutoff,
+                arrival_day=lh.arrival_day,
+                arrival_time=arrives,
+                delivery_days=LINEHAUL_DELIVERY_DAYS,
+                temperature_controlled=lh.thermo,
+                valid_from=ROUTING_FROM,
+                note=_LINEHAUL_NOTE,
+            )
+        )
+        created["ltl_linehauls"] += 1
+    session.flush()
+
+
 def seed_demo_data(
     session: Session, today: date | None = None, gdp_validity_months: int | None = None
 ) -> Counter[str]:
@@ -2793,6 +3061,7 @@ def seed_demo_data(
     _seed_places(session, locations, today, created)
     _seed_lines(session, locations, today, created)
     _seed_risks(session, locations, created)
+    _seed_routing(session, locations, created)
     _seed_fleet(session, carriers, locations, today, created)
     session.commit()
     return created

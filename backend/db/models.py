@@ -72,6 +72,7 @@ from domain.restrictions import (
     WindowKind,
 )
 from domain.risks import DEMO_WAIT_NOTE, RISK_LEVELS, RiskSourceType, WaitDirection, WaitSourceType
+from domain.routing import OnwardMode
 
 
 def in_list(column: str, values: type[StrEnum]) -> str:
@@ -2046,6 +2047,194 @@ class BorderWaitObservation(Base):
     wait_minutes: Mapped[int] = mapped_column(Integer)
     source_type: Mapped[str] = mapped_column(String(20))
     source_url: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+# --- Routing suggestions and LTL linehauls (2B-3c part 2, D64, D96). Settings the system
+# suggests from; the dispatcher decides (rule 8). Validity as periods (D67).
+
+
+class RoutingPreference(Base):
+    """Suggested routing for a country pair (D64, D96): the gateway on the foreign side of the
+    sea leg, optionally the line route, onward road or rail, and a border crossing.
+
+    origin_country NULL = any origin. postal_prefix narrows the destination (later use); a more
+    specific matching row replaces less specific ones (domain.routing.suggest). Rows of equal
+    priority are alternatives. Road only = no gateway, a border crossing instead.
+    """
+
+    __tablename__ = "routing_preferences"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["gateway_location_id", "gateway_location_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_routing_preferences_gateway",
+        ),
+        ForeignKeyConstraint(
+            ["line_route_id", "line_route_mode"],
+            ["line_routes.id", "line_routes.mode"],
+            ondelete="RESTRICT",
+            name="fk_routing_preferences_line_route",
+        ),
+        ForeignKeyConstraint(
+            ["onward_route_id", "onward_route_mode"],
+            ["line_routes.id", "line_routes.mode"],
+            ondelete="RESTRICT",
+            name="fk_routing_preferences_onward_route",
+        ),
+        ForeignKeyConstraint(
+            ["via_location_id", "via_location_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_routing_preferences_via",
+        ),
+        CheckConstraint(
+            "destination_country ~ '^[A-Z]{2}$'"
+            " AND (origin_country IS NULL OR origin_country ~ '^[A-Z]{2}$')"
+            " AND (origin_country IS NULL OR origin_country <> destination_country)",
+            name="ck_routing_preferences_countries",
+        ),
+        CheckConstraint(
+            "postal_prefix IS NULL OR postal_prefix ~ '^[0-9A-Z]{1,10}$'",
+            name="ck_routing_preferences_postal_prefix",
+        ),
+        CheckConstraint("priority >= 1", name="ck_routing_preferences_priority"),
+        CheckConstraint(
+            in_list("onward_mode", OnwardMode), name="ck_routing_preferences_onward_mode"
+        ),
+        # Mirrors domain.routing.validate_preference.
+        CheckConstraint(
+            # Composite foreign keys are MATCH SIMPLE: an id without its type would skip the
+            # check, so each id and its type or mode are set together.
+            "(gateway_location_id IS NULL) = (gateway_location_type IS NULL)"
+            " AND (line_route_id IS NULL) = (line_route_mode IS NULL)"
+            " AND (onward_route_id IS NULL) = (onward_route_mode IS NULL)"
+            " AND (via_location_id IS NULL) = (via_location_type IS NULL)"
+            " AND (gateway_location_id IS NULL"
+            " OR gateway_location_type IN ('port', 'rail_terminal'))"
+            " AND (line_route_id IS NULL OR line_route_mode = 'ferry')"
+            " AND (onward_route_id IS NULL OR onward_route_mode = 'rail')"
+            " AND (via_location_id IS NULL OR via_location_type = 'border_crossing')"
+            " AND (gateway_location_id IS NOT NULL OR via_location_id IS NOT NULL)"
+            " AND (line_route_id IS NULL OR gateway_location_id IS NOT NULL)"
+            " AND ((onward_mode = 'rail') = (onward_route_id IS NOT NULL))"
+            " AND (onward_route_id IS NULL OR gateway_location_id IS NOT NULL)",
+            name="ck_routing_preferences_legs",
+        ),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until",
+            name="ck_routing_preferences_period",
+        ),
+        Index("ix_routing_preferences_destination", "destination_country", "origin_country"),
+        Index("ix_routing_preferences_gateway_location_id", "gateway_location_id"),
+        Index("ix_routing_preferences_line_route_id", "line_route_id"),
+        Index("ix_routing_preferences_onward_route_id", "onward_route_id"),
+        Index("ix_routing_preferences_via_location_id", "via_location_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    # NULL = any origin (export rows name FI, import rows the foreign country).
+    origin_country: Mapped[str | None] = mapped_column(String(2))
+    # Plain ISO codes: the countries table holds road-rule countries only (D84).
+    destination_country: Mapped[str] = mapped_column(String(2))
+    # Start of the destination postal code; NULL = whole country (reserved for later, D64).
+    postal_prefix: Mapped[str | None] = mapped_column(String(10))
+    # 1 = preferred; equal priorities are alternatives.
+    priority: Mapped[int] = mapped_column(SmallInteger)
+    # Port or rail terminal on the foreign side of the sea leg (a port area covers its quays).
+    gateway_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    gateway_location_type: Mapped[str | None] = mapped_column(String(20))
+    # Ferry route to suggest; NULL = several routes call at the gateway, chosen per departure.
+    line_route_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    line_route_mode: Mapped[str | None] = mapped_column(String(10))
+    onward_mode: Mapped[str] = mapped_column(
+        String(10), server_default=text("'road'"), default=OnwardMode.ROAD.value
+    )
+    onward_route_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    onward_route_mode: Mapped[str | None] = mapped_column(String(10))
+    # Road border crossing on the way (e.g. Svinesund).
+    via_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    via_location_type: Mapped[str | None] = mapped_column(String(20))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+
+
+class LtlLinehaul(Base):
+    """Scheduled LTL trunk run between two terminals (chapter 3B, D96).
+
+    Times are local at each terminal: the cut-off on the departure day at or before the
+    departure, arrival as a day offset and a time. The delivery promise is in working days from
+    the departure day (holidays of the destination country). A template only: it creates no
+    trips (rule 8). No intermediate stops in v1: Central - Tampere - Oulu is two rows.
+    """
+
+    __tablename__ = "ltl_linehauls"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["origin_terminal_id", "origin_terminal_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_ltl_linehauls_origin_terminal",
+        ),
+        ForeignKeyConstraint(
+            ["destination_terminal_id", "destination_terminal_type"],
+            ["locations.id", "locations.type"],
+            ondelete="RESTRICT",
+            name="fk_ltl_linehauls_destination_terminal",
+        ),
+        CheckConstraint(
+            "origin_terminal_type = 'terminal' AND destination_terminal_type = 'terminal'"
+            " AND origin_terminal_id <> destination_terminal_id",
+            name="ck_ltl_linehauls_terminals",
+        ),
+        # Mirrors domain.routing.validate_linehaul.
+        CheckConstraint(
+            "cardinality(weekdays) >= 1 AND weekdays <@ ARRAY[1, 2, 3, 4, 5, 6, 7]::smallint[]",
+            name="ck_ltl_linehauls_weekdays",
+        ),
+        CheckConstraint(
+            "cutoff_time <= departure_time"
+            " AND arrival_day BETWEEN 0 AND 14"
+            " AND (arrival_day > 0 OR arrival_time > departure_time)",
+            name="ck_ltl_linehauls_times",
+        ),
+        CheckConstraint("delivery_days >= 0", name="ck_ltl_linehauls_delivery_days"),
+        CheckConstraint(
+            "valid_until IS NULL OR valid_from <= valid_until", name="ck_ltl_linehauls_period"
+        ),
+        Index("ix_ltl_linehauls_origin_terminal_id", "origin_terminal_id"),
+        Index("ix_ltl_linehauls_destination_terminal_id", "destination_terminal_id"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    origin_terminal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    origin_terminal_type: Mapped[str] = mapped_column(
+        String(20), server_default=text("'terminal'"), default=LocationType.TERMINAL.value
+    )
+    destination_terminal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    destination_terminal_type: Mapped[str] = mapped_column(
+        String(20), server_default=text("'terminal'"), default=LocationType.TERMINAL.value
+    )
+    # ISO weekdays of departure (1 = Monday). The CHECK limits the range; duplicates are
+    # refused only by domain.routing.validate_linehaul (a CHECK cannot use a subquery).
+    weekdays: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger))
+    departure_time: Mapped[time] = mapped_column(Time)
+    # Last moment to hand over at the origin terminal, local time on the departure day.
+    cutoff_time: Mapped[time] = mapped_column(Time)
+    arrival_day: Mapped[int] = mapped_column(SmallInteger)
+    arrival_time: Mapped[time] = mapped_column(Time)
+    # Commercial promise D+n in working days, not the arrival time.
+    delivery_days: Mapped[int] = mapped_column(SmallInteger)
+    # Thermo linehaul: both terminals have cold storage (D33, checked in the domain).
+    temperature_controlled: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    valid_from: Mapped[date] = mapped_column(Date)
+    valid_until: Mapped[date | None] = mapped_column(Date)  # NULL = until further notice
     note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
