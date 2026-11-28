@@ -23,7 +23,7 @@ from domain.risks import (
     country_risk,
     effective_risk_level,
     expected_wait,
-    level_for_average,
+    level_for_monthly_count,
     validate_incident_count,
     validate_report_month,
     validate_risk_area,
@@ -74,14 +74,14 @@ def _reports(*months: tuple[date, dict[str, int]]) -> dict[date, dict[str, int]]
     return dict(months)
 
 
-def test_level_for_average_uses_lower_bounds() -> None:
-    assert level_for_average(Decimal("9.9"), SETTINGS) == 1
-    assert level_for_average(Decimal(10), SETTINGS) == 2
-    assert level_for_average(Decimal(100), SETTINGS) == 4
-    assert level_for_average(Decimal(5000), SETTINGS) == 5
+def test_level_for_monthly_count_uses_lower_bounds() -> None:
+    assert level_for_monthly_count(Decimal("9.9"), SETTINGS) == 1
+    assert level_for_monthly_count(Decimal(10), SETTINGS) == 2
+    assert level_for_monthly_count(Decimal(100), SETTINGS) == 4
+    assert level_for_monthly_count(Decimal(5000), SETTINGS) == 5
 
 
-def test_country_risk_averages_named_months_in_the_window() -> None:
+def test_country_risk_uses_the_median_of_named_months_in_the_window() -> None:
     reports = _reports(
         (date(2026, 4, 1), {"FR": 100}),
         (date(2026, 5, 1), {"FR": 50}),
@@ -89,7 +89,39 @@ def test_country_risk_averages_named_months_in_the_window() -> None:
         (date(2026, 10, 1), {"FR": 1000}),  # the current month is not complete yet
     )
     risk = country_risk("FR", reports, date(2026, 10, 15), SETTINGS)
-    assert risk == CountryRisk("FR", 3, 3, Decimal("70.0"))
+    assert risk == CountryRisk("FR", 3, 3, Decimal("60.0"))
+
+
+def test_one_anomalous_month_does_not_lift_the_level() -> None:
+    reports = _reports(
+        (date(2026, 7, 1), {"IT": 20}),
+        (date(2026, 8, 1), {"IT": 900}),  # reporting anomaly; an average would give level 5
+        (date(2026, 9, 1), {"IT": 25}),
+    )
+    risk = country_risk("IT", reports, date(2026, 10, 1), SETTINGS)
+    assert risk == CountryRisk("IT", 2, 3, Decimal("25.0"))
+
+
+def test_even_number_of_months_uses_the_midpoint() -> None:
+    reports = _reports(
+        (date(2026, 6, 1), {"PL": 40}),
+        (date(2026, 7, 1), {"PL": 51}),
+        (date(2026, 8, 1), {"PL": 60}),
+        (date(2026, 9, 1), {"PL": 70}),
+    )
+    risk = country_risk("PL", reports, date(2026, 10, 1), SETTINGS)
+    assert risk == CountryRisk("PL", 3, 4, Decimal("55.5"))
+
+
+def test_even_midpoint_below_a_threshold_stays_on_the_lower_level() -> None:
+    reports = _reports(
+        (date(2026, 7, 1), {"LT": 30}),
+        (date(2026, 8, 1), {"LT": 39}),
+        (date(2026, 9, 1), {"LT": 40}),
+        (date(2026, 6, 1), {"LT": 60}),
+    )
+    risk = country_risk("LT", reports, date(2026, 10, 1), SETTINGS)
+    assert risk == CountryRisk("LT", 2, 4, Decimal("39.5"))
 
 
 def test_unnamed_month_is_skipped_not_zero() -> None:
